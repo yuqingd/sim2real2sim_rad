@@ -1,0 +1,13 @@
+*.gif
+logdir/
+.idea/
+*.py[cod]
+*.egg-info
+./dist
+./logdir
+**/__pycache__
+**pyc
+**npy
+**DS_Store
+**MUJOCO_LOG.TXT
+**/.ipynb_checkpoints
