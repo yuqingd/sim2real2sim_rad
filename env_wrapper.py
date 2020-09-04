@@ -1,15 +1,17 @@
 from dm_control import suite
 from metaworld.envs.mujoco import env_dict as ed
+import metaworld
 import numpy as np
 import gym
 from mw_wrapper import MetaWorldEnv
+import random
 
 
 
 
 class DR_MetaWorldEnv:
   def __init__(self, env, cameras, height=64, width=64, mean_only=False, dr_list=[], simple_randomization=False, dr_shape=None,
-               real_world=False, dr=None, use_state="None", use_img=True,
+               real_world=False, dr=None, use_state="None", use_img=True, name="task_name",
                grayscale=False):
 
     self._env = MetaWorldEnv(env, from_pixels=use_img, cameras=cameras, height=height, width=width)
@@ -25,12 +27,16 @@ class DR_MetaWorldEnv:
     self.use_img = use_img
     self.dr = dr
     self.grayscale = grayscale
+    self.name = name
 
     self.apply_dr()
 
   def set_dr(self, dr):
     self.dr = dr
 
+
+  def seed(self, seed=None):
+      self._env.seed(seed)
 
   def update_dr_param(self, param, param_name, eps=1e-3, indices=None):
     if param_name in self.dr:
@@ -64,7 +70,7 @@ class DR_MetaWorldEnv:
       self.distribution_range = np.zeros(self.dr_shape, dtype=np.float32)
       return
 
-    model = self._env.sim.model
+    model = self._env._env.sim.model
     geom_dict = model._geom_name2id
     body_dict = model._body_name2id
     robot_geom = [
@@ -184,6 +190,7 @@ class DR_MetaWorldEnv:
         spaces['state'] = self._env.observation_space
       else:
         spaces['state'] = 3
+    spaces['state'] = gym.spaces.Discrete(spaces['state'])
     spaces['image'] = gym.spaces.Box(
       0, 255, self._size + (3,), dtype=np.uint8)
     return gym.spaces.Dict(spaces)
@@ -213,17 +220,17 @@ class DR_MetaWorldEnv:
     return obs_dict, reward, done, info
 
   def get_dr(self):
+    model = self._env._env.sim.model
     if self.simple_randomization:
       if 'stick-pull' or 'stick-push' in self.name:
-        cylinder_body = self._env.sim.model.body_name2id('cylinder')
-        return np.array([self._env.sim.model.body_mass[cylinder_body]])
+        cylinder_body = model.body_name2id('cylinder')
+        return np.array([model.body_mass[cylinder_body]])
       elif 'basketball' in self.name:
-        microwave_index = self._env.sim.model.body_name2id('microdoorroot')
-        return np.array([self._env.sim.model.body_mass[microwave_index]])
+        microwave_index = model.body_name2id('microdoorroot')
+        return np.array([model.body_mass[microwave_index]])
       else:
         raise NotImplementedError
 
-    model = self._env.sim.model
     geom_dict = model._geom_name2id
     body_dict = model._body_name2id
     robot_geom = [
@@ -255,7 +262,7 @@ class DR_MetaWorldEnv:
     }
 
     if self.name in ['stick-pull', 'stick-push']:
-      model = self._env.sim.model
+      model = self._env._env.sim.model
       geom_dict = model._geom_name2id
       body_dict = model._body_name2id
 
@@ -378,10 +385,11 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
          visualize_reward=False, frame_skip=None, mean_only=False,  dr_list=[], simple_randomization=False, dr_shape=None,
                real_world=False, dr=None, use_state="None", use_img=True,
                 grayscale=False):
-    if domain_name in suite._DOMAINS:
+    if 'dmc' in domain_name:
+        domain_name_root = domain_name[4:]  # Task name is formatted as dmc_walker.  Now just walker
         import dmc2gym
         env = dmc2gym.make(
-            domain_name=domain_name,
+            domain_name=domain_name_root,
             task_name=task_name,
             seed=seed,
             visualize_reward=visualize_reward,
@@ -391,22 +399,24 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
             frame_skip=frame_skip
         )
         return env
-    elif domain_name in ed.ALL_V1_ENVIRONMENTS.keys():
-        env_class = ed.ALL_V1_ENVIRONMENTS[domain_name]
-    elif domain_name in ed.ALL_V2_ENVIRONMENTS.keys():
-        env_class = ed.ALL_V2_ENVIRONMENTS[domain_name]
+    elif task_name + '-v1' in ed.ALL_V1_ENVIRONMENTS.keys():
+        env_class = ed.ALL_V1_ENVIRONMENTS[task_name + '-v1']
+    elif task_name + '-v2' in ed.ALL_V2_ENVIRONMENTS.keys():
+        env_class = ed.ALL_V2_ENVIRONMENTS[task_name + '-v2']
     else:
         raise KeyError("Domain name not found.")
 
-    if task_name is not None:
+    if 'dmc' in domain_name:
         env = env_class(task_type=task_name)
     else:
         env = env_class()
 
-    env = DR_MetaWorldEnv(env, from_pixels=from_pixels, cameras=cameras, height=height, width=width, mean_only=mean_only,
-               dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape,
-               real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale)
+    task = random.choice(metaworld.ML1(task_name + '-v1').train_tasks)
+    env.set_task(task)
     env.seed(seed)
+    env = DR_MetaWorldEnv(env, cameras=cameras, height=height, width=width, mean_only=mean_only,
+               dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape, name=task_name,
+               real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale)
     return env
 
 

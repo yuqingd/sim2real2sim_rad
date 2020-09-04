@@ -93,6 +93,7 @@ class MetaWorldEnv(gym.Env, ABC):
         )
 
         action = self.action_space.sample()
+        self.reset()
         self._state_obs, _reward, done, _info = self.step(action)
         assert not done
 
