@@ -213,7 +213,7 @@ def main():
         args.__dict__["seed"] = np.random.randint(1, 1000000)
     utils.set_seed_everywhere(args.seed)
 
-    env = env_wrapper.make(
+    sim_env = env_wrapper.make(
         domain_name=args.domain_name,
         task_name=args.task_name,
         seed=args.seed,
@@ -221,14 +221,43 @@ def main():
         from_pixels=(args.observation_type == 'pixel'),
         height=args.pre_transform_image_size,
         width=args.pre_transform_image_size,
-        frame_skip=args.action_repeat
+        frame_skip=args.action_repeat,
+        mean_only=args.mean_only,
+        dr_list=args.dr_list,
+        simple_randomization=args.simple_randomization,
+        dr_shape=args.dr_shape,
+        real_world=False,
+        dr=args.dr,
+        use_state=args.use_state,
+        use_img=args.use_img,
+        dataset_step=args.dataset_step,
+        grayscale=args.grayscale
     )
 
-    env.seed(args.seed)
+    real_env = env_wrapper.make(
+        domain_name=args.domain_name,
+        task_name=args.task_name,
+        seed=args.seed,
+        visualize_reward=False,
+        from_pixels=(args.observation_type == 'pixel'),
+        height=args.pre_transform_image_size,
+        width=args.pre_transform_image_size,
+        frame_skip=args.action_repeat,
+        mean_only=args.mean_only,
+        real_world=True,
+        use_state=args.use_state,
+        use_img=args.use_img,
+        dataset_step=args.dataset_step,
+        grayscale=args.grayscale
+    )
+
+    sim_env.seed(args.seed)
+    real_env.seed(args.seed)
 
     # stack several consecutive frames together
     if args.encoder_type == 'pixel':
-        env = utils.FrameStack(env, k=args.frame_stack)
+        sim_env = utils.FrameStack(sim_env, k=args.frame_stack)
+        real_env = utils.FrameStack(real_env, k=args.frame_stack)
 
     # make directory
     ts = time.gmtime()
@@ -253,14 +282,14 @@ def main():
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    action_shape = env.action_space.shape
+    action_shape = sim_env.action_space.shape
 
     if args.encoder_type == 'pixel':
         cpf = 3 * len(args.cameras)
         obs_shape = (cpf * args.frame_stack, args.image_size, args.image_size)
         pre_aug_obs_shape = (cpf * args.frame_stack, args.pre_transform_image_size, args.pre_transform_image_size)
     else:
-        obs_shape = env.observation_space.shape
+        obs_shape = sim_env.observation_space.shape
         pre_aug_obs_shape = obs_shape
 
     replay_buffer = utils.ReplayBuffer(
@@ -289,7 +318,7 @@ def main():
 
         if step % args.eval_freq == 0:
             L.log('eval/episode', episode, step)
-            evaluate(env, agent, video, args.num_eval_episodes, L, step, args)
+            evaluate(real_env, agent, video, args.num_eval_episodes, L, step, args)
             if args.save_model:
                 agent.save_curl(model_dir, step)
             if args.save_buffer:
@@ -304,7 +333,7 @@ def main():
             if step % args.log_interval == 0:
                 L.log('train/episode_reward', episode_reward, step)
 
-            obs = env.reset()
+            obs = sim_env.reset()
             done = False
             episode_reward = 0
             episode_step = 0
@@ -314,7 +343,7 @@ def main():
 
         # sample action for data collection
         if step < args.init_steps:
-            action = env.action_space.sample()
+            action = sim_env.action_space.sample()
         else:
             with utils.eval_mode(agent):
                 action = agent.sample_action(obs)
@@ -325,10 +354,10 @@ def main():
             for _ in range(num_updates):
                 agent.update(replay_buffer, L, step)
 
-        next_obs, reward, done, _ = env.step(action)
+        next_obs, reward, done, _ = sim_env.step(action)
 
         # allow infinite bootstrap
-        done_bool = 0 if episode_step + 1 == env._max_episode_steps else float(
+        done_bool = 0 if episode_step + 1 == sim_env._max_episode_steps else float(
             done
         )
         episode_reward += reward

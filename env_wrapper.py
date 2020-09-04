@@ -1,12 +1,13 @@
 from dm_control import suite
 from metaworld.envs.mujoco import env_dict as ed
 import numpy as np
+import gym
 from mw_wrapper import MetaWorldEnv
 
 
 class DR_MetaWorldEnv:
-  def __init__(self, env, cameras, height=64, width=64, mean_only=False, early_termination=False, dr_list=[], simple_randomization=False, dr_shape=None, outer_loop_version=0,
-               real_world=False, dr=None, use_state="None", use_img=True, use_depth=False,
+  def __init__(self, env, cameras, height=64, width=64, mean_only=False, dr_list=[], simple_randomization=False, dr_shape=None,
+               real_world=False, dr=None, use_state="None", use_img=True,
                dataset_step=None, grayscale=False):
 
     self._env = MetaWorldEnv(env, from_pixels=use_img, cameras=cameras, height=height, width=width)
@@ -14,16 +15,13 @@ class DR_MetaWorldEnv:
     self._size = (height, width)
 
     self.mean_only = mean_only
-    self.early_termination = early_termination
     self.dr_list = dr_list
     self.simple_randomization = simple_randomization
     self.dr_shape = dr_shape
-    self.outer_loop_version = outer_loop_version
     self.real_world = real_world
     self.use_state = use_state
     self.use_img = use_img
     self.dr = dr
-    self.use_depth = use_depth
     self.dataset_step = dataset_step
     self.grayscale = grayscale
 
@@ -213,9 +211,6 @@ class DR_MetaWorldEnv:
     obs_dict['distribution_mean'] = np.array(self.distribution_mean, dtype=np.float32)
     obs_dict['distribution_range'] = np.array(self.distribution_range, dtype=np.float32)
 
-    if not self.early_termination:
-      done = False
-
     return obs_dict, reward, done, info
 
   def get_dr(self):
@@ -381,8 +376,8 @@ class DR_MetaWorldEnv:
 
 
 def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range(1),
-         visualize_reward=False, frame_skip=None, mean_only=False, early_termination=False, dr_list=[], simple_randomization=False, dr_shape=None, outer_loop_version=0,
-               real_world=False, dr=None, use_state="None", use_img=True, use_depth=False,
+         visualize_reward=False, frame_skip=None, mean_only=False,  dr_list=[], simple_randomization=False, dr_shape=None,
+               real_world=False, dr=None, use_state="None", use_img=True,
                dataset_step=None, grayscale=False):
     if domain_name in suite._DOMAINS:
         import dmc2gym
@@ -409,9 +404,9 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
     else:
         env = env_class()
 
-    env = DR_MetaWorldEnv(env, from_pixels=from_pixels, cameras=cameras, height=height, width=width, mean_only=mean_only, early_termination=early_termination,
-               dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape, outer_loop_version=outer_loop_version,
-               real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, use_depth=use_depth, dataset_step=dataset_step, grayscale=grayscale)
+    env = DR_MetaWorldEnv(env, from_pixels=from_pixels, cameras=cameras, height=height, width=width, mean_only=mean_only,
+               dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape,
+               real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, dataset_step=dataset_step, grayscale=grayscale)
     env.seed(seed)
     return env
 
