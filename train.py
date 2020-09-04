@@ -88,7 +88,24 @@ def parse_args():
     parser.add_argument('--grayscale', default=False, action='store_true')
     parser.add_argument('--dr', default=True, action='store_true')
     parser.add_argument('--dr_option', default='simple', type=str)
+    parser.add_argument('--simple_randomization', default=False, type=bool)
+    parser.add_argument('--mass_mean', default=.2, type=float)
+    parser.add_argument('--mass_range', default=.01, type=float)
+    parser.add_argument('--mean_scale', default=.67, type=float)
+    parser.add_argument('--range_scale', default=.33, type=float)
+    parser.add_argument('--range_only', default=False, type=bool)
 
+    # Outer loop options
+    parser.add_argument('--sample_real_every', default=2, type=int)
+    parser.add_argument('--num_real_world', default=1, type=int)
+    parser.add_argument('--anneal_range_scale', default=1.0, type=float)
+    parser.add_argument('--predict_val', default=True, type=bool)
+    parser.add_argument('--outer_loop_version', default=0, type=int, choices=[0, 1])
+    parser.add_argument('--alpha', default=.3, type=float)
+    parser.add_argument('--sim_params_size', default=0, type=int)
+    parser.add_argument('--ol1_episodes', default=10, type=int)
+    parser.add_argument('--last_param_pred_only', default=False, type=bool)
+    parser.add_argument('--binary_prediction', default=False, type=bool)
 
     args = parser.parse_args()
     if args.dr:
@@ -99,7 +116,7 @@ def parse_args():
 
 def config_dr(config):
   if config.dr_option == 'simple':
-      if 'basketball' in config.task:
+      if 'basketball' in config.task_name:
         config.real_dr_params = {
           "object_mass": .01
         }
@@ -108,10 +125,9 @@ def config_dr(config):
         }
         config.real_dr_list = ["object_mass"]
         config.sim_params_size = 1
-      elif 'stick' in config.task:
-        if 'basketball' in config.task:
+      elif 'stick' in config.task_name or 'basketball' in config.task_name:
           config.real_dr_params = {
-            "object_mass": .128
+            "object_mass": .128  # TODO: ???
           }
           config.dr = {  # (mean, range)
             "object_mass": (config.mass_mean, config.mass_range)
@@ -129,7 +145,7 @@ def config_dr(config):
         "robot_g": .1,
         "robot_b": .1,
       }
-      if 'basketball' in config.task:
+      if 'basketball' in config.task_name:
         config.real_dr_params = {
           "basket_friction": .5,
           "basket_goal_r": .5,
@@ -146,7 +162,7 @@ def config_dr(config):
         }
         config.real_dr_params.update(real_dr_joint)
         config.real_dr_list = list(config.real_dr_params.keys())
-      elif 'stick' in config.task:
+      elif 'stick' in config.task_name:
         config.real_dr_params = {
           "stick_mass": 1.,
           "stick_friction": 1.,

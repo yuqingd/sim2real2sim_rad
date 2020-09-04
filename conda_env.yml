@@ -2,15 +2,15 @@ name: curl
 channels:
   - defaults
 dependencies:
-  - python=3.6
+  - python=3.7
   - pytorch
   - torchvision
-  - cudatoolkit=9.2
   - absl-py
   - pyparsing
   - pillow=6.1
   - pip:
     - termcolor
+    - git+https://github.com/rlworkgroup/metaworld.git@master#egg=metaworld
     - git+git://github.com/deepmind/dm_control.git
     - git+git://github.com/1nadequacy/dmc2gym.git
     - tb-nightly
