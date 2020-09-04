@@ -5,10 +5,12 @@ import gym
 from mw_wrapper import MetaWorldEnv
 
 
+
+
 class DR_MetaWorldEnv:
   def __init__(self, env, cameras, height=64, width=64, mean_only=False, dr_list=[], simple_randomization=False, dr_shape=None,
                real_world=False, dr=None, use_state="None", use_img=True,
-               dataset_step=None, grayscale=False):
+               grayscale=False):
 
     self._env = MetaWorldEnv(env, from_pixels=use_img, cameras=cameras, height=height, width=width)
 
@@ -22,7 +24,6 @@ class DR_MetaWorldEnv:
     self.use_state = use_state
     self.use_img = use_img
     self.dr = dr
-    self.dataset_step = dataset_step
     self.grayscale = grayscale
 
     self.apply_dr()
@@ -30,8 +31,6 @@ class DR_MetaWorldEnv:
   def set_dr(self, dr):
     self.dr = dr
 
-  def set_dataset_step(self, step):
-    self.dataset_step = step
 
   def update_dr_param(self, param, param_name, eps=1e-3, indices=None):
     if param_name in self.dr:
@@ -378,7 +377,7 @@ class DR_MetaWorldEnv:
 def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range(1),
          visualize_reward=False, frame_skip=None, mean_only=False,  dr_list=[], simple_randomization=False, dr_shape=None,
                real_world=False, dr=None, use_state="None", use_img=True,
-               dataset_step=None, grayscale=False):
+                grayscale=False):
     if domain_name in suite._DOMAINS:
         import dmc2gym
         env = dmc2gym.make(
@@ -406,7 +405,7 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
 
     env = DR_MetaWorldEnv(env, from_pixels=from_pixels, cameras=cameras, height=height, width=width, mean_only=mean_only,
                dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape,
-               real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, dataset_step=dataset_step, grayscale=grayscale)
+               real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale)
     env.seed(seed)
     return env
 

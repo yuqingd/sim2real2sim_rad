@@ -80,9 +80,118 @@ def parse_args():
     parser.add_argument('--data_augs', default='crop', type=str)
 
     parser.add_argument('--log_interval', default=100, type=int)
+
+    #S2R2S params
+    parser.add_argument('--mean_only', default=True, action='store_true')
+    parser.add_argument('--use_state', default=False, action='store_true')
+    parser.add_argument('--use_img', default=True, action='store_true')
+    parser.add_argument('--grayscale', default=False, action='store_true')
+    parser.add_argument('--dr', default=True, action='store_true')
+    parser.add_argument('--dr_option', default='simple', type=str)
+
+
     args = parser.parse_args()
+    if args.dr:
+        args = config_dr(args)
+
     return args
 
+
+def config_dr(config):
+  if config.dr_option == 'simple':
+      if 'basketball' in config.task:
+        config.real_dr_params = {
+          "object_mass": .01
+        }
+        config.dr = {  # (mean, range)
+          "object_mass": (config.mass_mean, config.mass_range)
+        }
+        config.real_dr_list = ["object_mass"]
+        config.sim_params_size = 1
+      elif 'stick' in config.task:
+        if 'basketball' in config.task:
+          config.real_dr_params = {
+            "object_mass": .128
+          }
+          config.dr = {  # (mean, range)
+            "object_mass": (config.mass_mean, config.mass_range)
+          }
+          config.real_dr_list = ["object_mass"]
+          config.sim_params_size = 1
+  elif config.dr_option == 'all_dr':
+      real_dr_joint = {
+        "table_friction": 2.,
+        "table_r": .6,
+        "table_g": .6,
+        "table_b": .5,
+        "robot_friction": 1.,
+        "robot_r": .5,
+        "robot_g": .1,
+        "robot_b": .1,
+      }
+      if 'basketball' in config.task:
+        config.real_dr_params = {
+          "basket_friction": .5,
+          "basket_goal_r": .5,
+          "basket_goal_g": .5,
+          "basket_goal_b": .5,
+          "backboard_r": .5,
+          "backboard_g": .5,
+          "backboard_b": .5,
+          "object_mass": .01,
+          "object_friction": 1.,
+          "object_r": 0.,
+          "object_g": 0.,
+          "object_b": 0.,
+        }
+        config.real_dr_params.update(real_dr_joint)
+        config.real_dr_list = list(config.real_dr_params.keys())
+      elif 'stick' in config.task:
+        config.real_dr_params = {
+          "stick_mass": 1.,
+          "stick_friction": 1.,
+          "stick_r": 1.,
+          "stick_g": .3,
+          "stick_b": .3,
+          "object_mass": .128,
+          "object_friction": 1.,
+          "object_body_r": 0.,
+          "object_body_g": 0.,
+          "object_body_b": 1.,
+          "object_handle_r": 0,
+          "object_handle_g": 0,
+          "object_handle_b": 0,
+        }
+        config.real_dr_params.update(real_dr_joint)
+        config.real_dr_list = list(config.real_dr_params.keys())
+      config.sim_params_size = len(config.real_dr_list)
+      mean_scale = config.mean_scale
+      range_scale = config.range_scale
+      config.dr = {}  # (mean, range)
+      for key, real_val in config.real_dr_params.items():
+        if real_val == 0:
+          real_val = 5e-2
+        if config.mean_only:
+          config.dr[key] = real_val * mean_scale
+        else:
+          config.dr[key] = (real_val * mean_scale, real_val * range_scale)
+  else:
+      config.dr = {}
+      config.real_dr_params = {}
+      config.dr_list = []
+
+  for k, v in config.dr.items():
+    print(k)
+    print(v)
+
+  if config.mean_only:
+    print("STUFF", config.real_dr_list)
+    config.initial_dr_mean = np.array([config.dr[param] for param in config.real_dr_list])
+  else:
+    config.initial_dr_mean = np.array([config.dr[param][0] for param in config.real_dr_list])
+    config.initial_dr_range = np.array([config.dr[param][1] for param in config.real_dr_list])
+
+  return config
 
 def evaluate(env, agent, video, num_episodes, L, step, args):
     all_ep_rewards = []
@@ -223,16 +332,16 @@ def main():
         width=args.pre_transform_image_size,
         frame_skip=args.action_repeat,
         mean_only=args.mean_only,
-        dr_list=args.dr_list,
-        simple_randomization=args.simple_randomization,
-        dr_shape=args.dr_shape,
+        dr_list=args.real_dr_list,
+        simple_randomization=args.dr_option == 'simple',
+        dr_shape=args.sim_params_size,
         real_world=False,
         dr=args.dr,
         use_state=args.use_state,
         use_img=args.use_img,
-        dataset_step=args.dataset_step,
         grayscale=args.grayscale
     )
+
 
     real_env = env_wrapper.make(
         domain_name=args.domain_name,
@@ -247,7 +356,6 @@ def main():
         real_world=True,
         use_state=args.use_state,
         use_img=args.use_img,
-        dataset_step=args.dataset_step,
         grayscale=args.grayscale
     )
 
