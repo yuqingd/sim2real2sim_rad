@@ -3,6 +3,7 @@ import numpy as np
 import torch.nn as nn
 import gym
 import os
+import copy
 from collections import deque
 import random
 from torch.utils.data import Dataset, DataLoader
@@ -78,9 +79,10 @@ class ReplayBuffer(Dataset):
         self.transform = transform
         # the proprioceptive obs is stored as float32, pixels obs as uint8
         obs_dtype = np.float32 if len(obs_shape) == 1 else np.uint8
-        
-        self.obses = np.empty((capacity, *obs_shape), dtype=obs_dtype)
-        self.next_obses = np.empty((capacity, *obs_shape), dtype=obs_dtype)
+
+        import gym
+        self.obses = np.empty((capacity, *obs_shape), dtype=gym.spaces.Dict)
+        self.next_obses = np.empty((capacity, *obs_shape), dtype=gym.spaces.Dict)
         self.actions = np.empty((capacity, *action_shape), dtype=np.float32)
         self.rewards = np.empty((capacity, 1), dtype=np.float32)
         self.not_dones = np.empty((capacity, 1), dtype=np.float32)
@@ -90,11 +92,12 @@ class ReplayBuffer(Dataset):
         self.full = False
 
     def add(self, obs, action, reward, next_obs, done):
-       
-        np.copyto(self.obses[self.idx], obs)
+        self.obses[self.idx] = copy.deepcopy(obs)
+        self.next_obses[self.idx] = copy.deepcopy(next_obs)
+        print("adding!", self.idx)
         np.copyto(self.actions[self.idx], action)
         np.copyto(self.rewards[self.idx], reward)
-        np.copyto(self.next_obses[self.idx], next_obs)
+        # np.copyto(self.next_obses[self.idx], next_obs)
         np.copyto(self.not_dones[self.idx], not done)
 
         self.idx = (self.idx + 1) % self.capacity
@@ -264,7 +267,7 @@ class FrameStack(gym.Wrapper):
     def _get_obs(self):
         assert len(self._frames) == self._k
         img = np.concatenate(list([f['image'] for f in self._frames]), axis=0)
-        d = self._frames[-1]
+        d = copy.deepcopy(self._frames[-1])
         d['image'] = img
         return d
 
