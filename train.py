@@ -201,7 +201,6 @@ def config_dr(config):
     print(v)
 
   if config.mean_only:
-    print("STUFF", config.real_dr_list)
     config.initial_dr_mean = np.array([config.dr[param] for param in config.real_dr_list])
   else:
     config.initial_dr_mean = np.array([config.dr[param][0] for param in config.real_dr_list])
