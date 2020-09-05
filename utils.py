@@ -241,12 +241,12 @@ class FrameStack(gym.Wrapper):
         gym.Wrapper.__init__(self, env)
         self._k = k
         self._frames = deque([], maxlen=k)
-        shp = env.observation_space.shape
+        shp = env.observation_space['image'].shape
         self.observation_space = gym.spaces.Box(
             low=0,
             high=1,
             shape=((shp[0] * k,) + shp[1:]),
-            dtype=env.observation_space.dtype
+            dtype=env.observation_space['image'].dtype
         )
         self._max_episode_steps = env._max_episode_steps
 
@@ -263,7 +263,10 @@ class FrameStack(gym.Wrapper):
 
     def _get_obs(self):
         assert len(self._frames) == self._k
-        return np.concatenate(list(self._frames), axis=0)
+        img = np.concatenate(list([f['image'] for f in self._frames]), axis=0)
+        d = self._frames[-1]
+        d['image'] = img
+        return d
 
 
 def random_crop(imgs, output_size):

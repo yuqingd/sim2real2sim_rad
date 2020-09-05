@@ -31,6 +31,18 @@ class DR_MetaWorldEnv:
 
     self.apply_dr()
 
+
+  def __getattr__(self, attr):
+    orig_attr = self._env.__getattribute__(attr)
+
+    if callable(orig_attr):
+      def hooked(*args, **kwargs):
+        result = orig_attr(*args, **kwargs)
+        return result
+      return hooked
+    else:
+      return orig_attr
+
   def set_dr(self, dr):
     self.dr = dr
 

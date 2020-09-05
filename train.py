@@ -216,11 +216,12 @@ def evaluate(env, agent, video, num_episodes, L, step, args):
         start_time = time.time()
         prefix = 'stochastic_' if sample_stochastically else ''
         for i in range(num_episodes):
-            obs = env.reset()
+            obs_dict = env.reset()
             video.init(enabled=(i == 0))
             done = False
             episode_reward = 0
             while not done:
+                obs = obs_dict['image']
                 # center crop image
                 if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
                     obs = utils.center_crop_image(obs, args.image_size)
@@ -229,7 +230,7 @@ def evaluate(env, agent, video, num_episodes, L, step, args):
                         action = agent.sample_action(obs)
                     else:
                         action = agent.select_action(obs)
-                obs, reward, done, _ = env.step(action)
+                obs_dict, reward, done, _ = env.step(action)
                 video.record(env)
                 episode_reward += reward
 
@@ -401,8 +402,8 @@ def main():
 
     video = VideoRecorder(video_dir if args.save_video else None, camera_id=args.cameras[0])
 
-    with open(os.path.join(args.work_dir, 'args.json'), 'w') as f:
-        json.dump(vars(args), f, sort_keys=True, indent=4)
+    # with open(os.path.join(args.work_dir, 'args.json'), 'w') as f:
+    #     json.dump(vars(args), f, sort_keys=True, indent=4)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
