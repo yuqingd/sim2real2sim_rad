@@ -417,7 +417,7 @@ def main():
         pre_aug_obs_shape = obs_shape
 
     replay_buffer = utils.ReplayBuffer(
-        obs_shape=pre_aug_obs_shape,
+        example_obs=sim_env.reset(),
         action_shape=action_shape,
         capacity=args.replay_buffer_capacity,
         batch_size=args.batch_size,
@@ -464,13 +464,14 @@ def main():
             episode += 1
             if step % args.log_interval == 0:
                 L.log('train/episode', episode, step)
+        episode_step = 0
 
         # sample action for data collection
         if step < args.init_steps:
             action = sim_env.action_space.sample()
         else:
             with utils.eval_mode(agent):
-                action = agent.sample_action(obs)
+                action = agent.sample_action(obs['image'])
 
         # run training update
         if step >= args.init_steps:

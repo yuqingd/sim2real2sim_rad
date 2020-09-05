@@ -71,18 +71,23 @@ def preprocess_obs(obs, bits=5):
 
 class ReplayBuffer(Dataset):
     """Buffer to store environment transitions."""
-    def __init__(self, obs_shape, action_shape, capacity, batch_size, device, image_size=84, transform=None):
+    def __init__(self, example_obs, action_shape, capacity, batch_size, device, image_size=84, transform=None):
         self.capacity = capacity
         self.batch_size = batch_size
         self.device = device
         self.image_size = image_size
         self.transform = transform
-        # the proprioceptive obs is stored as float32, pixels obs as uint8
-        obs_dtype = np.float32 if len(obs_shape) == 1 else np.uint8
 
-        import gym
-        self.obses = np.empty((capacity, *obs_shape), dtype=gym.spaces.Dict)
-        self.next_obses = np.empty((capacity, *obs_shape), dtype=gym.spaces.Dict)
+        self.obses = {}
+        self.next_obses = {}
+        for key in example_obs.keys():
+            val = example_obs[key]
+            try:
+                self.obses[key] = np.empty((capacity, *val.shape), dtype=val.dtype)
+                self.next_obses[key] = np.empty((capacity, *val.shape), dtype=val.dtype)
+            except:
+                self.obses[key] = np.empty((capacity, 1), dtype=type(val))
+                self.next_obses[key] = np.empty((capacity, 1), dtype=type(val))
         self.actions = np.empty((capacity, *action_shape), dtype=np.float32)
         self.rewards = np.empty((capacity, 1), dtype=np.float32)
         self.not_dones = np.empty((capacity, 1), dtype=np.float32)
@@ -92,45 +97,56 @@ class ReplayBuffer(Dataset):
         self.full = False
 
     def add(self, obs, action, reward, next_obs, done):
-        self.obses[self.idx] = copy.deepcopy(obs)
-        self.next_obses[self.idx] = copy.deepcopy(next_obs)
-        print("adding!", self.idx)
+        for k, v in obs.items():
+            np.copyto(self.obses[k][self.idx], v)
+        for k, v in next_obs.items():
+            np.copyto(self.next_obses[k][self.idx], v)
         np.copyto(self.actions[self.idx], action)
         np.copyto(self.rewards[self.idx], reward)
-        # np.copyto(self.next_obses[self.idx], next_obs)
         np.copyto(self.not_dones[self.idx], not done)
 
         self.idx = (self.idx + 1) % self.capacity
         self.full = self.full or self.idx == 0
 
-    def sample_proprio(self):
+    def sample_proprio(self, image_only=True):
         
         idxs = np.random.randint(
             0, self.capacity if self.full else self.idx, size=self.batch_size
         )
-        
-        obses = self.obses[idxs]
-        next_obses = self.next_obses[idxs]
 
-        obses = torch.as_tensor(obses, device=self.device).float()
+        if image_only:
+            obses = self.obses['image'][idxs]
+            next_obses = self.next_obses['image'][idxs]
+            obses = torch.as_tensor(obses, device=self.device).float()
+            next_obses = torch.as_tensor(
+                next_obses, device=self.device
+            ).float()
+        else:
+            obses = {}
+            next_obses = {}
+            for k in self.obses.keys():
+                obses[k] = torch.as_tensor(self.obses[k][idxs], device=self.device).float()
+            for k in self.next_obses.keys():
+                next_obses[k] = torch.as_tensor(self.next_obses[k][idxs], device=self.device).float()
+
         actions = torch.as_tensor(self.actions[idxs], device=self.device)
         rewards = torch.as_tensor(self.rewards[idxs], device=self.device)
-        next_obses = torch.as_tensor(
-            next_obses, device=self.device
-        ).float()
         not_dones = torch.as_tensor(self.not_dones[idxs], device=self.device)
         return obses, actions, rewards, next_obses, not_dones
 
-    def sample_cpc(self):
+    def sample_cpc(self, image_only=True):
 
-        start = time.time()
         idxs = np.random.randint(
             0, self.capacity if self.full else self.idx, size=self.batch_size
         )
-      
-        obses = self.obses[idxs]
-        next_obses = self.next_obses[idxs]
-        pos = obses.copy()
+
+        if image_only:
+            obses = self.obses['image'][idxs]
+            next_obses = self.next_obses['image'][idxs]
+        else:
+            raise NotImplementedError("TODO: implement this for OL1")
+
+        pos = obses.copy()  # TODO: image only
 
         obses = random_crop(obses, self.image_size)
         next_obses = random_crop(next_obses, self.image_size)

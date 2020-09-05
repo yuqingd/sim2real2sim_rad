@@ -456,9 +456,9 @@ class CurlSacAgent(object):
 
     def update(self, replay_buffer, L, step):
         if self.encoder_type == 'pixel':
-            obs, action, reward, next_obs, not_done, cpc_kwargs = replay_buffer.sample_cpc()
+            obs, action, reward, next_obs, not_done, cpc_kwargs = replay_buffer.sample_cpc(image_only=True)
         else:
-            obs, action, reward, next_obs, not_done = replay_buffer.sample_proprio()
+            obs, action, reward, next_obs, not_done = replay_buffer.sample_proprio(image_only=True)
     
         if step % self.log_interval == 0:
             L.log('train/batch_reward', reward.mean(), step)
