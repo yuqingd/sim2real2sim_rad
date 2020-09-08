@@ -380,6 +380,8 @@ def main():
         height=args.pre_transform_image_size,
         width=args.pre_transform_image_size,
         frame_skip=args.action_repeat,
+        dr_list=args.real_dr_list,
+        dr_shape=args.sim_params_size,
         mean_only=args.mean_only,
         real_world=True,
         use_state=args.use_state,
