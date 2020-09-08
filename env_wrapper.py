@@ -1,5 +1,5 @@
 from dm_control import suite
-from metaworld.envs.mujoco import env_dict as ed
+from environments.metaworld.envs.mujoco import env_dict as ed
 import metaworld
 import numpy as np
 import gym
