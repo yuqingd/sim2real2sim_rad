@@ -12,7 +12,7 @@ from curl_sac import weight_init
 
 class SimParamModel(nn.Module):
     def __init__(self, shape, layers, units, device, obs_shape, encoder_type,
-        encoder_feature_dim, num_layers, num_filters, agent, sim_param_lr=1e-3, sim_param_beta=0.9, dist='normal', act=nn.elu):
+        encoder_feature_dim, encoder_num_layers, encoder_num_filters, agent, sim_param_lr=1e-3, sim_param_beta=0.9, dist='normal', act=nn.elu):
         self._shape = shape
         self._layers = layers
         self._units = units
@@ -29,8 +29,8 @@ class SimParamModel(nn.Module):
         self.trunk = nn.Sequential(*trunk).to(self.device)
 
         self.encoder = make_encoder(
-            encoder_type, obs_shape, encoder_feature_dim, num_layers,
-            num_filters, output_logits=True
+            encoder_type, obs_shape, encoder_feature_dim, encoder_num_layers,
+            encoder_num_filters, output_logits=True
         )
 
         self.apply(weight_init)

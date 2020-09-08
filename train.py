@@ -18,6 +18,7 @@ from logger import Logger
 from video import VideoRecorder
 
 from curl_sac import CurlSacAgent, RadSacAgent
+from sim_param_model import SimParamModel
 from torchvision import transforms
 
 import env_wrapper
@@ -99,6 +100,8 @@ def parse_args():
     parser.add_argument('--range_only', default=False, type=bool)
     parser.add_argument('--sim_param_lr', default=1e-3, type=float)
     parser.add_argument('--sim_param_beta', default=0.9, type=float)
+    parser.add_argument('--sim_param_layers', default=2, type=float)
+    parser.add_argument('--sim_param_units', default=400, type=float)
 
     # Outer loop options
     parser.add_argument('--sample_real_every', default=2, type=int)
@@ -447,6 +450,20 @@ def main():
         action_shape=action_shape,
         args=args,
         device=device
+    )
+    sim_param_model = SimParamModel(
+        shape=args.sim_params_size,
+        layers=args.sim_param_layers,
+        units=args.sim_param_units,
+        device=device,
+        obs_shape=obs_shape,
+        encoder_type=args.encoder_type,
+        encoder_feature_dim=args.encoder_feature_dim,
+        encoder_num_layers=args.num_layers,
+        encoder_num_filters=args.num_filters,
+        agent=agent,
+        sim_param_lr=args.sim_param_lr,
+        sim_param_beta=args.sim_param_beta,
     )
 
     L = Logger(args.work_dir, use_tb=args.save_tb)
