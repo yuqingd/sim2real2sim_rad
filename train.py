@@ -97,6 +97,8 @@ def parse_args():
     parser.add_argument('--mean_scale', default=.67, type=float)
     parser.add_argument('--range_scale', default=.33, type=float)
     parser.add_argument('--range_only', default=False, type=bool)
+    parser.add_argument('--sim_param_lr', default=1e-3, type=float)
+    parser.add_argument('--sim_param_beta', default=0.9, type=float)
 
     # Outer loop options
     parser.add_argument('--sample_real_every', default=2, type=int)
