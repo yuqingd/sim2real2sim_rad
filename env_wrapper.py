@@ -411,10 +411,6 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
             frame_skip=frame_skip
         )
         return env
-    elif 'v1' in task_name:
-        env_class = ed.ALL_V1_ENVIRONMENTS[task_name]
-    elif 'v2' in task_name:
-        env_class = ed.ALL_V2_ENVIRONMENTS[task_name]
     elif task_name + '-v1' in ed.ALL_V1_ENVIRONMENTS.keys():
         env_class = ed.ALL_V1_ENVIRONMENTS[task_name + '-v1']
     elif task_name + '-v2' in ed.ALL_V2_ENVIRONMENTS.keys():
