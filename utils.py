@@ -91,6 +91,8 @@ class ReplayBuffer(Dataset):
         self.actions = np.empty((capacity, *action_shape), dtype=np.float32)
         self.rewards = np.empty((capacity, 1), dtype=np.float32)
         self.not_dones = np.empty((capacity, 1), dtype=np.float32)
+        self.traj_ids = np.empty((capacity, 1), dtype=np.int32)
+        self.traj_id = 0
 
         self.idx = 0
         self.last_save = 0
@@ -104,16 +106,22 @@ class ReplayBuffer(Dataset):
         np.copyto(self.actions[self.idx], action)
         np.copyto(self.rewards[self.idx], reward)
         np.copyto(self.not_dones[self.idx], not done)
+        np.copyto(self.traj_ids[self.idx], self.traj_id)
+        if done:
+            self.traj_id += 1
 
         self.idx = (self.idx + 1) % self.capacity
         self.full = self.full or self.idx == 0
 
-    def sample_proprio(self, image_only=True):
+    def sample_proprio(self):
         
         idxs = np.random.randint(
             0, self.capacity if self.full else self.idx, size=self.batch_size
         )
 
+        return self._sample_proprio(idxs, image_only=True)
+
+    def _sample_proprio(self, idxs, image_only=True):
         if image_only:
             obses = self.obses['image'][idxs]
             next_obses = self.next_obses['image'][idxs]
@@ -132,26 +140,60 @@ class ReplayBuffer(Dataset):
         actions = torch.as_tensor(self.actions[idxs], device=self.device)
         rewards = torch.as_tensor(self.rewards[idxs], device=self.device)
         not_dones = torch.as_tensor(self.not_dones[idxs], device=self.device)
+
+        if not image_only:
+            obses_dict = {}
+            next_obses_dict = {}
+            for k, v in self.obses.items():
+                obses_dict[k] = torch.as_tensor(v[idxs], device=self.device).float()
+            for k, v in self.next_obses.items():
+                next_obses_dict[k] = torch.as_tensor(v[idxs], device=self.device).float()
+            obses_dict['image'] = obses
+            next_obses_dict['image'] = next_obses
+            obses = obses_dict
+            next_obses = next_obses_dict
+
         return obses, actions, rewards, next_obses, not_dones
 
-    def sample_cpc(self, image_only=True):
+    def sample_proprio_traj(self, num_trajs):
+        # Select trajectory indices
+        unique_trajs = np.unique(self.traj_ids[:self.capacity if self.full else self.idx])
+        traj_ids = np.random.choice(unique_trajs, size=num_trajs, replace=True)
+
+        # Obtain indices for each trajectory
+        obs_list = []
+        actions_list = []
+        rewards_list = []
+        next_obses_list = []
+        not_dones_list = []
+        for traj in traj_ids:
+            idxs = np.where(self.traj_ids == traj)[0]
+            obs, actions, rewards, next_obses, not_dones = self._sample_proprio(idxs, image_only=False)
+            obs_list.append(obs)
+            actions_list.append(actions)
+            rewards_list.append(rewards)
+            next_obses_list.append(next_obses)
+            not_dones_list.append(not_dones)
+        return obs_list, actions_list, rewards_list, next_obses_list, not_dones_list
+
+    def sample_cpc(self):
 
         idxs = np.random.randint(
             0, self.capacity if self.full else self.idx, size=self.batch_size
         )
+        return self._sample_cpc(idxs, image_only=True)
 
-        if image_only:
-            obses = self.obses['image'][idxs]
-            next_obses = self.next_obses['image'][idxs]
-        else:
-            raise NotImplementedError("TODO: implement this for OL1")
+    def _sample_cpc(self, idxs, image_only=True):
 
-        pos = obses.copy()  # TODO: image only
+        obses = self.obses['image'][idxs]
+        next_obses = self.next_obses['image'][idxs]
+
+        pos = obses.copy()
 
         obses = random_crop(obses, self.image_size)
         next_obses = random_crop(next_obses, self.image_size)
         pos = random_crop(pos, self.image_size)
-    
+
         obses = torch.as_tensor(obses, device=self.device).float()
         next_obses = torch.as_tensor(
             next_obses, device=self.device
@@ -164,19 +206,56 @@ class ReplayBuffer(Dataset):
         cpc_kwargs = dict(obs_anchor=obses, obs_pos=pos,
                           time_anchor=None, time_pos=None)
 
+        if not image_only:
+            obses_dict = {}
+            next_obses_dict = {}
+            for k, v in self.obses.items():
+                obses_dict[k] = torch.as_tensor(v[idxs], device=self.device).float()
+            for k, v in self.next_obses.items():
+                next_obses_dict[k] = torch.as_tensor(v[idxs], device=self.device).float()
+            obses_dict['image'] = obses
+            next_obses_dict['image'] = next_obses
+            obses = obses_dict
+            next_obses = next_obses_dict
+
         return obses, actions, rewards, next_obses, not_dones, cpc_kwargs
 
+    def sample_cpc_traj(self, num_trajs):
+        # Select trajectory indices
+        unique_trajs = np.unique(self.traj_ids[:self.capacity if self.full else self.idx])
+        traj_ids = np.random.choice(unique_trajs, size=num_trajs, replace=True)
+
+        # Obtain indices for each trajectory
+        obs_list = []
+        actions_list = []
+        rewards_list = []
+        next_obses_list = []
+        not_dones_list = []
+        cpc_kwargs_list = []
+        for traj in traj_ids:
+            idxs = np.where(self.traj_ids == traj)[0]
+            obs, actions, rewards, next_obses, not_dones, cpc_kwargs = self._sample_cpc(idxs, image_only=False)
+            obs_list.append(obs)
+            actions_list.append(actions)
+            rewards_list.append(rewards)
+            next_obses_list.append(next_obses)
+            not_dones_list.append(not_dones)
+            cpc_kwargs_list.append(cpc_kwargs)
+        return obs_list, actions_list, rewards_list, next_obses_list, not_dones_list, cpc_kwargs_list
+
     def sample_rad(self, aug_funcs):
+        idxs = np.random.randint(
+            0, self.capacity if self.full else self.idx, size=self.batch_size
+        )
+        return self._sample_rad(aug_funcs, idxs, image_only=True)
+
+    def _sample_rad(self, aug_funcs, idxs, image_only=True):
         # augs specified as flags
         # curl_sac organizes flags into aug funcs
         # passes aug funcs into sampler
 
-        idxs = np.random.randint(
-            0, self.capacity if self.full else self.idx, size=self.batch_size
-        )
-      
-        obses = self.obses[idxs]
-        next_obses = self.next_obses[idxs]
+        obses = self.obses['image'][idxs]
+        next_obses = self.next_obses['image'][idxs]
 
         if aug_funcs:
             for aug, func in aug_funcs.items():
@@ -203,7 +282,40 @@ class ReplayBuffer(Dataset):
                 obses = func(obses)
                 next_obses = func(next_obses)
 
+        if not image_only:
+            obses_dict = {}
+            next_obses_dict = {}
+            for k, v in self.obses.items():
+                obses_dict[k] = torch.as_tensor(v[idxs], device=self.device).float()
+            for k, v in self.next_obses.items():
+                next_obses_dict[k] = torch.as_tensor(v[idxs], device=self.device).float()
+            obses_dict['image'] = obses
+            next_obses_dict['image'] = next_obses
+            obses = obses_dict
+            next_obses = next_obses_dict
+
         return obses, actions, rewards, next_obses, not_dones
+
+    def sample_rad_traj(self, aug_funcs, num_trajs):
+        # Select trajectory indices
+        unique_trajs = np.unique(self.traj_ids[:self.capacity if self.full else self.idx])
+        traj_ids = np.random.choice(unique_trajs, size=num_trajs, replace=True)
+
+        # Obtain indices for each trajectory
+        obs_list = []
+        actions_list = []
+        rewards_list = []
+        next_obses_list = []
+        not_dones_list = []
+        for traj in traj_ids:
+            idxs = np.where(self.traj_ids == traj)[0]
+            obs, actions, rewards, next_obses, not_dones = self._sample_rad(aug_funcs, idxs, image_only=False)
+            obs_list.append(obs)
+            actions_list.append(actions)
+            rewards_list.append(rewards)
+            next_obses_list.append(next_obses)
+            not_dones_list.append(not_dones)
+        return obs_list, actions_list, rewards_list, next_obses_list, not_dones_list
         
     def save(self, save_dir):
         if self.idx == self.last_save:

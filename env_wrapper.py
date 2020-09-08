@@ -12,9 +12,9 @@ import random
 class DR_MetaWorldEnv:
   def __init__(self, env, cameras, height=64, width=64, mean_only=False, dr_list=[], simple_randomization=False, dr_shape=None,
                real_world=False, dr=None, use_state="None", use_img=True, name="task_name",
-               grayscale=False):
+               grayscale=False, offscreen=True):
 
-    self._env = MetaWorldEnv(env, from_pixels=use_img, cameras=cameras, height=height, width=width)
+    self._env = MetaWorldEnv(env, from_pixels=use_img, cameras=cameras, height=height, width=width, offscreen=offscreen)
 
     self._size = (height, width)
 
@@ -396,7 +396,7 @@ class DR_MetaWorldEnv:
 def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range(1),
          visualize_reward=False, frame_skip=None, mean_only=False,  dr_list=[], simple_randomization=False, dr_shape=None,
                real_world=False, dr=None, use_state="None", use_img=True,
-                grayscale=False):
+                grayscale=False, offscreen=True):
     if 'dmc' in domain_name:
         domain_name_root = domain_name[4:]  # Task name is formatted as dmc_walker.  Now just walker
         import dmc2gym
@@ -428,7 +428,8 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
     env.seed(seed)
     env = DR_MetaWorldEnv(env, cameras=cameras, height=height, width=width, mean_only=mean_only,
                dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape, name=task_name,
-               real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale)
+               real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
+               offscreen=offscreen)
     return env
 
 

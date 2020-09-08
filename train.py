@@ -1,3 +1,6 @@
+import os
+os.environ['MUJOCO_GL'] = 'osmesa'
+
 import numpy as np
 import torch
 import argparse
@@ -35,7 +38,7 @@ def parse_args():
     # replay buffer
     parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
     # train
-    parser.add_argument('--agent', default='curl_sac', type=str)
+    parser.add_argument('--agent', default='rad_sac', type=str)
     parser.add_argument('--init_steps', default=1000, type=int)
     parser.add_argument('--num_train_steps', default=1000000, type=int)
     parser.add_argument('--batch_size', default=32, type=int)
@@ -106,6 +109,8 @@ def parse_args():
     parser.add_argument('--ol1_episodes', default=10, type=int)
     parser.add_argument('--last_param_pred_only', default=False, type=bool)
     parser.add_argument('--binary_prediction', default=False, type=bool)
+    parser.add_argument('--offscreen', action='store_true')
+
 
     args = parser.parse_args()
     if args.dr:
@@ -355,7 +360,8 @@ def main():
         dr=args.dr,
         use_state=args.use_state,
         use_img=args.use_img,
-        grayscale=args.grayscale
+        grayscale=args.grayscale,
+        offscreen=args.offscreen,
     )
 
 
@@ -372,7 +378,8 @@ def main():
         real_world=True,
         use_state=args.use_state,
         use_img=args.use_img,
-        grayscale=args.grayscale
+        grayscale=args.grayscale,
+        offscreen=args.offscreen,
     )
 
     sim_env.seed(args.seed)
