@@ -109,7 +109,10 @@ def parse_args():
     parser.add_argument('--ol1_episodes', default=10, type=int)
     parser.add_argument('--last_param_pred_only', default=False, type=bool)
     parser.add_argument('--binary_prediction', default=False, type=bool)
+
+    # MISC
     parser.add_argument('--offscreen', action='store_true')
+    parser.add_argument('--id', default='debug', type=str)
 
 
     args = parser.parse_args()
@@ -402,7 +405,7 @@ def main():
         env_name = args.domain_name + '-' + args.task_name
     exp_name = env_name + '-' + ts + '-im' + str(args.image_size) + '-b' + str(args.batch_size)
     exp_name += '-s' + str(args.seed) + '-' + args.agent + '-' + args.encoder_type + '-' + args.data_augs
-    args.work_dir = args.work_dir + '/' + exp_name
+    args.work_dir = args.work_dir + '/' + args.id + '_' + exp_name
 
     utils.make_dir(args.work_dir)
     video_dir = utils.make_dir(os.path.join(args.work_dir, 'video'))
