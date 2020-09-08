@@ -73,7 +73,7 @@ def parse_args():
     parser.add_argument('--alpha_beta', default=0.5, type=float)
     # misc
     parser.add_argument('--seed', default=1, type=int)
-    parser.add_argument('--work_dir', default='.', type=str)
+    parser.add_argument('--work_dir', default='./logdir', type=str)
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_buffer', default=False, action='store_true')
     parser.add_argument('--save_video', default=False, action='store_true')
@@ -89,8 +89,8 @@ def parse_args():
     parser.add_argument('--use_state', default=False, action='store_true')
     parser.add_argument('--use_img', default=True, action='store_true')
     parser.add_argument('--grayscale', default=False, action='store_true')
-    parser.add_argument('--dr', default=True, action='store_true')
-    parser.add_argument('--dr_option', default='simple', type=str)
+    parser.add_argument('--dr', action='store_true')
+    parser.add_argument('--dr_option', default=None, type=str)
     parser.add_argument('--simple_randomization', default=False, type=bool)
     parser.add_argument('--mass_mean', default=.2, type=float)
     parser.add_argument('--mass_range', default=.01, type=float)
@@ -115,6 +115,9 @@ def parse_args():
     args = parser.parse_args()
     if args.dr:
         args = config_dr(args)
+    else:
+        args.real_dr_list = []
+        args.dr = None
 
     return args
 
