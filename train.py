@@ -224,19 +224,21 @@ def config_dr(config):
 
   return config
 
-def evaluate(env, agent, video, num_episodes, L, step, args):
+def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, step, args):
     all_ep_rewards = []
 
     def run_eval_loop(sample_stochastically=True):
         start_time = time.time()
         prefix = 'stochastic_' if sample_stochastically else ''
         for i in range(num_episodes):
-            obs_dict = env.reset()
+            obs_dict = real_env.reset()
             video.init(enabled=(i == 0))
             done = False
             episode_reward = 0
+            obs_traj = []
             while not done:
                 obs = obs_dict['image']
+                obs_traj.append(obs)
                 # center crop image
                 if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
                     obs = utils.center_crop_image(obs, args.image_size)
@@ -245,9 +247,24 @@ def evaluate(env, agent, video, num_episodes, L, step, args):
                         action = agent.sample_action(obs)
                     else:
                         action = agent.select_action(obs)
-                obs_dict, reward, done, _ = env.step(action)
-                video.record(env)
+                obs_dict, reward, done, _ = real_env.step(action)
+                video.record(real_env)
                 episode_reward += reward
+
+            #update sim params
+            pred_sim_params = sim_param_model.forward(obs_traj)
+
+            for i, param in enumerate(args.real_dr_list):
+                prev_mean = sim_env.dr[param]
+
+                try:
+                    pred_mean = pred_sim_params[i]
+                except:
+                    pred_mean = pred_sim_params
+                alpha = args.alpha
+
+                new_mean = prev_mean * (1 - alpha) + alpha * pred_mean
+                sim_env.dr[param] = new_mean
 
             video.save('%d.mp4' % step)
             L.log('eval/' + prefix + 'episode_reward', episode_reward, step)
@@ -476,7 +493,7 @@ def main():
 
         if step % args.eval_freq == 0:
             L.log('eval/episode', episode, step)
-            evaluate(real_env, agent, video, args.num_eval_episodes, L, step, args)
+            evaluate(real_env, sim_env, agent, sim_param_model, video, args.num_eval_episodes, L, step, args)
             if args.save_model:
                 agent.save_curl(model_dir, step)
             if args.save_buffer:
@@ -512,6 +529,8 @@ def main():
             num_updates = 1
             for _ in range(num_updates):
                 agent.update(replay_buffer, L, step)
+                sim_param_model.update(replay_buffer, L, step) #TODO: change update freq if needed
+
 
         next_obs, reward, done, _ = sim_env.step(action)
 

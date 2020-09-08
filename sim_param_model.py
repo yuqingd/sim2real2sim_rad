@@ -42,10 +42,12 @@ class SimParamModel(nn.Module):
 
 
     def forward(
-        self, features,
+        self, obs_traj,
     ):
     # detach_encoder allows to stop gradient propagation to encoder
-
+        features = []
+        for obs in obs_traj:
+            features.append(self.encoder(obs['image'], detach=True))
 
         x = features
         x = self.trunk(x)
@@ -68,11 +70,8 @@ class SimParamModel(nn.Module):
         pred_sim_params = []
         actual_params = []
         for traj in obs_list:
-            for obs in traj:
-                feat.append(self.encoder(obs['image'], detach=True))
-            pred_sim_params.append(self.forward(feat))
-            actual_params.append(obs['sim_params']) #take last obs
-
+            pred_sim_params.append(self.forward(traj))
+            actual_params.append(traj[-1]['sim_params']) #take last obs
 
         loss = F.mse_loss(pred_sim_params, actual_params)
         if step % self.log_interval == 0:
