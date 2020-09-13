@@ -12,20 +12,24 @@ from curl_sac import weight_init
 
 class SimParamModel(nn.Module):
     def __init__(self, shape, layers, units, device, obs_shape, encoder_type,
-        encoder_feature_dim, encoder_num_layers, encoder_num_filters, agent, sim_param_lr=1e-3, sim_param_beta=0.9, dist='normal', act=nn.ELU):
+        encoder_feature_dim, encoder_num_layers, encoder_num_filters, agent, sim_param_lr=1e-3, sim_param_beta=0.9,
+                 dist='normal', act=nn.ELU):
+        super(SimParamModel, self).__init__()
         self._shape = shape
         self._layers = layers
         self._units = units
         self._dist = dist
         self._act = act
         self.device = device
+        self.encoder_type = encoder_type
 
         trunk = []
-        for index in range(self._layers):
-            trunk.append(nn.Linear(self._units))
-            trunk.append(self._act)
-        trunk.append(nn.Linear(np.prod(self._shape)))
-
+        trunk.append(nn.Linear(200 * 50, self._units))
+        trunk.append(self._act())
+        for index in range(self._layers - 1):
+            trunk.append(nn.Linear(self._units, self._units))
+            trunk.append(self._act())
+        trunk.append(nn.Linear(self._units, np.prod(self._shape)))
         self.trunk = nn.Sequential(*trunk).to(self.device)
 
         self.encoder = make_encoder(
@@ -37,45 +41,45 @@ class SimParamModel(nn.Module):
         self.encoder.copy_conv_weights_from(agent.critic.encoder)
 
         self.sim_param_optimizer = torch.optim.Adam(
-            self.actor.parameters(), lr=sim_param_lr, betas=(sim_param_beta, 0.999)
+            self.encoder.parameters(), lr=sim_param_lr, betas=(sim_param_beta, 0.999)
         )
 
 
-    def forward(
-        self, obs_traj,
-    ):
-    # detach_encoder allows to stop gradient propagation to encoder
-        features = []
-        for obs in obs_traj:
-            features.append(self.encoder(obs['image'], detach=True))
+    def forward(self, obs_traj):
+        # detach_encoder allows to stop gradient propagation to encoder
+        with torch.no_grad():
+            if type(obs_traj[0]) is np.ndarray:
+                obs = np.stack(obs_traj)
+                input = torch.FloatTensor(obs).to(self.device)
+            elif type(obs_traj[0]) is torch.Tensor:
+                input = obs_traj
+            else:
+                raise NotImplementedError(type(obs_traj[0]))
 
-        x = features
+        features = self.encoder(input, detach=True)
+
+        x = features.view(1, -1)
         x = self.trunk(x)
-        x = x.view(torch.cat([features.size()[:-1], self._shape], 0))
-
         if self._dist == 'normal':
-            return torch.distributions.independent.Independent(torch.distributions.normal.Normal(x, 1), len(self._shape))
+            return torch.distributions.normal.Normal(x, 1)
         if self._dist == 'binary':
-            return torch.distributions.independent.Independent(torch.distributions.bernoulli.Bernoulli(x), len(self._shape))
+            return torch.distributions.bernoulli.Bernoulli(x)
         raise NotImplementedError(self._dist)
 
     def update(self, replay_buffer, L, step):
         if self.encoder_type == 'pixel':
-            obs_list, actions_list, rewards_list, next_obses_list, not_dones_list, cpc_kwargs_list = replay_buffer.sample_cpc_traj()
+            obs_list, actions_list, rewards_list, next_obses_list, not_dones_list, cpc_kwargs_list = replay_buffer.sample_cpc_traj(1)
         else:
-            obs_list, actions_list, rewards_list, next_obses_list, not_dones_list = replay_buffer.sample_proprio_traj()
+            obs_list, actions_list, rewards_list, next_obses_list, not_dones_list = replay_buffer.sample_proprio_traj(16)
 
-
-        feat = []
         pred_sim_params = []
         actual_params = []
         for traj in obs_list:
-            pred_sim_params.append(self.forward(traj))
-            actual_params.append(traj[-1]['sim_params']) #take last obs
+            pred_sim_params.append(self.forward(traj['image']).mean[0])
+            actual_params.append(traj['sim_params'][-1]) #take last obs
 
-        loss = F.mse_loss(pred_sim_params, actual_params)
-        if step % self.log_interval == 0:
-            L.log('train_sim_params/loss', loss, step)
+        loss = F.mse_loss(torch.stack(pred_sim_params), torch.stack(actual_params))
+        L.log('train_sim_params/loss', loss, step)
 
         # Optimize the critic
         self.sim_param_optimizer.zero_grad()

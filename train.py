@@ -224,6 +224,35 @@ def config_dr(config):
 
   return config
 
+def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
+    with torch.no_grad():
+        pred_sim_params = sim_param_model.forward(obs).mean[0].cpu().numpy()
+
+    for i, param in enumerate(args.real_dr_list):
+        prev_mean = sim_env.dr[param]
+
+        try:
+            pred_mean = pred_sim_params[i]
+        except:
+            pred_mean = pred_sim_params
+        alpha = args.alpha
+
+        new_mean = prev_mean * (1 - alpha) + alpha * pred_mean
+        sim_env.dr[param] = new_mean
+
+        print("NEW MEAN", param, new_mean, step, pred_mean, "!" * 30)
+        L.log(f'eval/agent-sim_param/{param}/mean', new_mean, step)
+        L.log(f'eval/agent-sim_param/{param}/pred_mean', pred_mean, step)
+        if args.anneal_range_scale > 0:
+            L.log(f'eval/agent-sim_param/{param}/range', args.anneal_range_scale * (1 - float(step / args.num_train_steps)), step)
+
+        real_dr_param = args.real_dr_params[param]
+        if not np.mean(real_dr_param) == 0:
+            L.log(f'eval/agent-sim_param/{param}/sim_param_error', (new_mean - real_dr_param) / real_dr_param, step)
+        else:
+            L.log(f'eval/agent-sim_param/{param}/sim_param_error', (new_mean - real_dr_param), step)
+
+
 def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, step, args):
     all_ep_rewards = []
 
@@ -238,7 +267,6 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
             obs_traj = []
             while not done:
                 obs = obs_dict['image']
-                obs_traj.append(obs)
                 # center crop image
                 if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
                     obs = utils.center_crop_image(obs, args.image_size)
@@ -247,28 +275,16 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
                         action = agent.sample_action(obs)
                     else:
                         action = agent.select_action(obs)
+                obs_traj.append(obs)
                 obs_dict, reward, done, _ = real_env.step(action)
                 video.record(real_env)
                 episode_reward += reward
 
-            #update sim params
-            pred_sim_params = sim_param_model.forward(obs_traj)
-
-            for i, param in enumerate(args.real_dr_list):
-                prev_mean = sim_env.dr[param]
-
-                try:
-                    pred_mean = pred_sim_params[i]
-                except:
-                    pred_mean = pred_sim_params
-                alpha = args.alpha
-
-                new_mean = prev_mean * (1 - alpha) + alpha * pred_mean
-                sim_env.dr[param] = new_mean
-
             video.save('%d.mp4' % step)
             L.log('eval/' + prefix + 'episode_reward', episode_reward, step)
             all_ep_rewards.append(episode_reward)
+
+        update_sim_params(sim_param_model, sim_env, args, obs_traj, step, L)
 
         L.log('eval/' + prefix + 'eval_time', time.time() - start_time, step)
         mean_ep_reward = np.mean(all_ep_rewards)
@@ -481,7 +497,7 @@ def main():
         agent=agent,
         sim_param_lr=args.sim_param_lr,
         sim_param_beta=args.sim_param_beta,
-    )
+    ).to(device)
 
     L = Logger(args.work_dir, use_tb=args.save_tb)
 

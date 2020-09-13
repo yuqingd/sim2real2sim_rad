@@ -91,7 +91,7 @@ class ReplayBuffer(Dataset):
         self.actions = np.empty((capacity, *action_shape), dtype=np.float32)
         self.rewards = np.empty((capacity, 1), dtype=np.float32)
         self.not_dones = np.empty((capacity, 1), dtype=np.float32)
-        self.traj_ids = np.empty((capacity, 1), dtype=np.int32)
+        self.traj_ids = np.zeros((capacity, 1), dtype=np.int32) - 1
         self.traj_id = 0
 
         self.idx = 0
@@ -232,8 +232,11 @@ class ReplayBuffer(Dataset):
         next_obses_list = []
         not_dones_list = []
         cpc_kwargs_list = []
-        for traj in traj_ids:
-            idxs = np.where(self.traj_ids == traj)[0]
+        while len(obs_list) < num_trajs:
+            traj_id = np.random.choice(unique_trajs)
+            idxs = np.where(self.traj_ids[:self.capacity if self.full else self.idx] == traj_id)[0]
+            if len(idxs) < 200:  # TODO: generalize!
+                continue
             obs, actions, rewards, next_obses, not_dones, cpc_kwargs = self._sample_cpc(idxs, image_only=False)
             obs_list.append(obs)
             actions_list.append(actions)

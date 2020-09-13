@@ -301,6 +301,7 @@ class CurlSacAgent(object):
         ).to(device)
 
         self.critic = Critic(
+
             obs_shape, action_shape, hidden_dim, encoder_type,
             encoder_feature_dim, num_layers, num_filters
         ).to(device)
