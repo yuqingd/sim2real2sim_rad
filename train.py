@@ -112,7 +112,6 @@ def parse_args():
     parser.add_argument('--alpha', default=.3, type=float)
     parser.add_argument('--sim_params_size', default=0, type=int)
     parser.add_argument('--ol1_episodes', default=10, type=int)
-    parser.add_argument('--last_param_pred_only', default=False, type=bool)
     parser.add_argument('--binary_prediction', default=False, type=bool)
 
     # MISC
@@ -284,7 +283,8 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
             L.log('eval/' + prefix + 'episode_reward', episode_reward, step)
             all_ep_rewards.append(episode_reward)
 
-        update_sim_params(sim_param_model, sim_env, args, obs_traj, step, L)
+        if args.outer_loop_version == 1:
+            update_sim_params(sim_param_model, sim_env, args, obs_traj, step, L)
 
         L.log('eval/' + prefix + 'eval_time', time.time() - start_time, step)
         mean_ep_reward = np.mean(all_ep_rewards)
@@ -484,20 +484,23 @@ def main():
         args=args,
         device=device
     )
-    sim_param_model = SimParamModel(
-        shape=args.sim_params_size,
-        layers=args.sim_param_layers,
-        units=args.sim_param_units,
-        device=device,
-        obs_shape=obs_shape,
-        encoder_type=args.encoder_type,
-        encoder_feature_dim=args.encoder_feature_dim,
-        encoder_num_layers=args.num_layers,
-        encoder_num_filters=args.num_filters,
-        agent=agent,
-        sim_param_lr=args.sim_param_lr,
-        sim_param_beta=args.sim_param_beta,
-    ).to(device)
+    if args.outer_loop_version == 1:
+        sim_param_model = SimParamModel(
+            shape=args.sim_params_size,
+            layers=args.sim_param_layers,
+            units=args.sim_param_units,
+            device=device,
+            obs_shape=obs_shape,
+            encoder_type=args.encoder_type,
+            encoder_feature_dim=args.encoder_feature_dim,
+            encoder_num_layers=args.num_layers,
+            encoder_num_filters=args.num_filters,
+            agent=agent,
+            sim_param_lr=args.sim_param_lr,
+            sim_param_beta=args.sim_param_beta,
+        ).to(device)
+    else:
+        sim_param_model = None
 
     L = Logger(args.work_dir, use_tb=args.save_tb)
 
@@ -545,7 +548,8 @@ def main():
             num_updates = 1
             for _ in range(num_updates):
                 agent.update(replay_buffer, L, step)
-                sim_param_model.update(replay_buffer, L, step) #TODO: change update freq if needed
+                if args.outer_loop_version == 1:
+                    sim_param_model.update(replay_buffer, L, step) #TODO: change update freq if needed
 
 
         next_obs, reward, done, _ = sim_env.step(action)
