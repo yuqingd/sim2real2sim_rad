@@ -223,6 +223,23 @@ def config_dr(config):
 
   return config
 
+
+def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_params):
+    with torch.no_grad():
+        pred_sim_params = sim_param_model.forward(obs).mean[0].cpu().numpy()
+
+    for i, param in enumerate(args.real_dr_list):
+        try:
+            pred_mean = pred_sim_params[i]
+        except:
+            pred_mean = pred_sim_params
+        real_dr_param = real_dr_params[i]
+
+        if not np.mean(real_dr_param) == 0:
+            L.log(f'eval/{prefix}/{param}/error', (pred_mean - real_dr_param) / real_dr_param, step)
+        else:
+            L.log(f'eval/{prefix}/{param}/error', (pred_mean - real_dr_param), step)
+
 def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
     with torch.no_grad():
         pred_sim_params = sim_param_model.forward(obs).mean[0].cpu().numpy()
@@ -279,12 +296,14 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
                 video.record(real_env)
                 episode_reward += reward
 
-            video.save('%d.mp4' % step)
+            video.save('real_%d.mp4' % step)
             L.log('eval/' + prefix + 'episode_reward', episode_reward, step)
             all_ep_rewards.append(episode_reward)
 
         if args.outer_loop_version == 1:
             update_sim_params(sim_param_model, sim_env, args, obs_traj, step, L)
+            sim_params = obs_dict['sim_params']
+            evaluate_sim_params(sim_param_model, args, obs_traj, step, L, "test", sim_params)
 
         L.log('eval/' + prefix + 'eval_time', time.time() - start_time, step)
         mean_ep_reward = np.mean(all_ep_rewards)
@@ -312,6 +331,27 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
         log_data[key][step]['env_step'] = step * args.action_repeat
 
         np.save(filename, log_data)
+
+        obs_dict = sim_env.reset()
+        done = False
+        obs_traj_sim = []
+        while not done:
+            obs = obs_dict['image']
+            # center crop image
+            if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
+                args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
+                obs = utils.center_crop_image(obs, args.image_size)
+            with utils.eval_mode(agent):
+                if sample_stochastically:
+                    action = agent.sample_action(obs)
+                else:
+                    action = agent.select_action(obs)
+            obs_traj_sim.append(obs)
+            obs_dict, reward, done, _ = sim_env.step(action)
+            video.record(sim_env)
+            sim_params = obs_dict['sim_params']
+            evaluate_sim_params(sim_param_model, args, obs_traj_sim, step, L, "train", sim_params)
+        video.save('sim_%d.mp4' % step)
 
     run_eval_loop(sample_stochastically=False)
     L.dump(step)
@@ -448,11 +488,12 @@ def main():
     args.work_dir = args.work_dir + '/' + args.id + '_' + exp_name
 
     utils.make_dir(args.work_dir)
-    video_dir = utils.make_dir(os.path.join(args.work_dir, 'video'))
+    sim_video_dir = utils.make_dir(os.path.join(args.work_dir, 'sim_video'))
+    real_video_dir = utils.make_dir(os.path.join(args.work_dir, 'real_video'))
     model_dir = utils.make_dir(os.path.join(args.work_dir, 'model'))
     buffer_dir = utils.make_dir(os.path.join(args.work_dir, 'buffer'))
 
-    video = VideoRecorder(video_dir if args.save_video else None, camera_id=args.cameras[0])
+    video = VideoRecorder(sim_video_dir if args.save_video else None, camera_id=args.cameras[0])
 
     # with open(os.path.join(args.work_dir, 'args.json'), 'w') as f:
     #     json.dump(vars(args), f, sort_keys=True, indent=4)
@@ -555,9 +596,10 @@ def main():
         next_obs, reward, done, _ = sim_env.step(action)
 
         # allow infinite bootstrap
-        done_bool = 0 if episode_step + 1 == sim_env._max_episode_steps else float(
-            done
-        )
+        # done_bool = 0 if episode_step + 1 == sim_env._max_episode_steps else float(
+        #     done
+        # )  # TODO: confirm this is what we want to do!
+        done_bool = float(done)
         episode_reward += reward
         replay_buffer.add(obs, action, reward, next_obs, done_bool)
 
