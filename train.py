@@ -548,8 +548,8 @@ def main():
             num_updates = 1
             for _ in range(num_updates):
                 agent.update(replay_buffer, L, step)
-                if args.outer_loop_version == 1:
-                    sim_param_model.update(replay_buffer, L, step) #TODO: change update freq if needed
+            if step % 50 == 0 and args.outer_loop_version == 1:  # TODO: update?
+                sim_param_model.update(replay_buffer, L, step, True) #TODO: change update freq if needed
 
 
         next_obs, reward, done, _ = sim_env.step(action)

@@ -77,6 +77,7 @@ class ReplayBuffer(Dataset):
         self.device = device
         self.image_size = image_size
         self.transform = transform
+        self.max_traj_length = 200  # Generalize!
 
         self.obses = {}
         self.next_obses = {}
@@ -168,6 +169,10 @@ class ReplayBuffer(Dataset):
         not_dones_list = []
         for traj in traj_ids:
             idxs = np.where(self.traj_ids == traj)[0]
+            if len(idxs) < self.max_traj_length:
+                last = idxs[-1]
+                last_repeat = np.zeros(self.max_traj_length - len(idxs), dtype=np.int32) + last
+                idxs = np.concatenate([idxs, last_repeat], 0)
             obs, actions, rewards, next_obses, not_dones = self._sample_proprio(idxs, image_only=False)
             obs_list.append(obs)
             actions_list.append(actions)
@@ -232,11 +237,12 @@ class ReplayBuffer(Dataset):
         next_obses_list = []
         not_dones_list = []
         cpc_kwargs_list = []
-        while len(obs_list) < num_trajs:
-            traj_id = np.random.choice(unique_trajs)
+        for traj_id in traj_ids:
             idxs = np.where(self.traj_ids[:self.capacity if self.full else self.idx] == traj_id)[0]
-            if len(idxs) < 200:  # TODO: generalize!
-                continue
+            if len(idxs) < self.max_traj_length:
+                last = idxs[-1]
+                last_repeat = np.zeros(self.max_traj_length - len(idxs), dtype=np.int32) + last
+                idxs = np.concatenate([idxs, last_repeat], 0)
             obs, actions, rewards, next_obses, not_dones, cpc_kwargs = self._sample_cpc(idxs, image_only=False)
             obs_list.append(obs)
             actions_list.append(actions)
@@ -312,6 +318,10 @@ class ReplayBuffer(Dataset):
         not_dones_list = []
         for traj in traj_ids:
             idxs = np.where(self.traj_ids == traj)[0]
+            if len(idxs) < self.max_traj_length:
+                last = idxs[-1]
+                last_repeat = np.zeros(self.max_traj_length - len(idxs), dtype=np.int32) + last
+                idxs = np.concatenate([idxs, last_repeat], 0)
             obs, actions, rewards, next_obses, not_dones = self._sample_rad(aug_funcs, idxs, image_only=False)
             obs_list.append(obs)
             actions_list.append(actions)

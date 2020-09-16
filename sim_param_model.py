@@ -55,6 +55,10 @@ class SimParamModel(nn.Module):
                 input = obs_traj
             else:
                 raise NotImplementedError(type(obs_traj[0]))
+        if len(input) < 200:  # TODO: generalize!
+            last = input[-1]
+            last_arr = torch.stack([copy.deepcopy(last) for _ in range(200 - len(obs_traj))]).to(self.device)
+            input = torch.cat([input, last_arr])
 
         features = self.encoder(input, detach=True)
 
@@ -66,7 +70,7 @@ class SimParamModel(nn.Module):
             return torch.distributions.bernoulli.Bernoulli(x)
         raise NotImplementedError(self._dist)
 
-    def update(self, replay_buffer, L, step):
+    def update(self, replay_buffer, L, step, should_log):
         if self.encoder_type == 'pixel':
             obs_list, actions_list, rewards_list, next_obses_list, not_dones_list, cpc_kwargs_list = replay_buffer.sample_cpc_traj(1)
         else:
@@ -79,7 +83,8 @@ class SimParamModel(nn.Module):
             actual_params.append(traj['sim_params'][-1]) #take last obs
 
         loss = F.mse_loss(torch.stack(pred_sim_params), torch.stack(actual_params))
-        L.log('train_sim_params/loss', loss, step)
+        if should_log:
+            L.log('train_sim_params/loss', loss, step)
 
         # Optimize the critic
         self.sim_param_optimizer.zero_grad()
