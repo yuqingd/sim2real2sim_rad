@@ -39,9 +39,9 @@ def parse_args():
     # replay buffer
     parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
     # train
-    parser.add_argument('--agent', default='rad_sac', type=str)
+    parser.add_argument('--agent', default='curl_sac', type=str)
     parser.add_argument('--init_steps', default=1000, type=int)
-    parser.add_argument('--num_train_steps', default=1000000, type=int)
+    parser.add_argument('--num_train_steps', default=2000000, type=int)
     parser.add_argument('--batch_size', default=32, type=int)
     parser.add_argument('--hidden_dim', default=1024, type=int)
     # eval
