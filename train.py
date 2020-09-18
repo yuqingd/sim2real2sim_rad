@@ -108,7 +108,7 @@ def parse_args():
     parser.add_argument('--num_real_world', default=1, type=int)
     parser.add_argument('--anneal_range_scale', default=1.0, type=float)
     parser.add_argument('--predict_val', default=True, type=bool)
-    parser.add_argument('--outer_loop_version', default=0, type=int, choices=[0, 1])
+    parser.add_argument('--outer_loop_version', default=0, type=int, choices=[0, 1, 3])
     parser.add_argument('--alpha', default=.3, type=float)
     parser.add_argument('--sim_params_size', default=0, type=int)
     parser.add_argument('--ol1_episodes', default=10, type=int)
@@ -224,25 +224,41 @@ def config_dr(config):
   return config
 
 
-def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_params):
+def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_params, current_sim_params):
     with torch.no_grad():
-        pred_sim_params = sim_param_model.forward(obs).mean[0].cpu().numpy()
+        if args.outer_loop_version == 1:
+            pred_sim_params = sim_param_model.forward(obs).mean[0].cpu().numpy()
+            for i, param in enumerate(args.real_dr_list):
+                try:
+                    pred_mean = pred_sim_params[i]
+                except:
+                    pred_mean = pred_sim_params
+                real_dr_param = real_dr_params[i]
 
-    for i, param in enumerate(args.real_dr_list):
-        try:
-            pred_mean = pred_sim_params[i]
-        except:
-            pred_mean = pred_sim_params
-        real_dr_param = real_dr_params[i]
-
-        if not np.mean(real_dr_param) == 0:
-            L.log(f'eval/{prefix}/{param}/error', (pred_mean - real_dr_param) / real_dr_param, step)
-        else:
-            L.log(f'eval/{prefix}/{param}/error', (pred_mean - real_dr_param), step)
+                if not np.mean(real_dr_param) == 0:
+                    L.log(f'eval/{prefix}/{param}/error', (pred_mean - real_dr_param) / real_dr_param, step)
+                else:
+                    L.log(f'eval/{prefix}/{param}/error', (pred_mean - real_dr_param), step)
+        elif args.outer_loop_version == 3:
+            pred_sim_params = sim_param_model.forward_classifier(obs, current_sim_params)[0].cpu().numpy()
+            real_dr_params = (real_dr_params - current_sim_params[0].cpu().numpy())
+            for i, param in enumerate(args.real_dr_list):
+                try:
+                    pred_mean = pred_sim_params[i]
+                except:
+                    pred_mean = pred_sim_params
+                real_dr_param = real_dr_params[i]
+                L.log(f'eval/{prefix}/{param}/error', np.mean(pred_mean - real_dr_param), step)
 
 def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
     with torch.no_grad():
-        pred_sim_params = sim_param_model.forward(obs).mean[0].cpu().numpy()
+        if args.outer_loop_version == 1:
+            pred_sim_params = sim_param_model.forward(obs).mean
+            pred_sim_params = pred_sim_params[0].cpu().numpy()
+        elif args.outer_loop_version == 3:
+            current_sim_params = torch.FloatTensor(sim_env.distribution_mean).unsqueeze(0)
+            pred_sim_params = sim_param_model.forward_classifier(obs, current_sim_params)
+            pred_sim_params = pred_sim_params[0].cpu().numpy()
 
     for i, param in enumerate(args.real_dr_list):
         prev_mean = sim_env.dr[param]
@@ -253,7 +269,11 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
             pred_mean = pred_sim_params
         alpha = args.alpha
 
-        new_mean = prev_mean * (1 - alpha) + alpha * pred_mean
+        if args.outer_loop_version == 1:
+            new_mean = prev_mean * (1 - alpha) + alpha * pred_mean
+        elif args.outer_loop_version == 3:
+            new_mean = prev_mean - alpha * (np.mean(pred_mean) - 0.5) * prev_mean
+        new_mean = max(new_mean, 1e-3)
         sim_env.dr[param] = new_mean
 
         print("NEW MEAN", param, new_mean, step, pred_mean, "!" * 30)
@@ -300,10 +320,14 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
             L.log('eval/' + prefix + 'episode_reward', episode_reward, step)
             all_ep_rewards.append(episode_reward)
 
+        update_sim_params(sim_param_model, sim_env, args, obs_traj, step, L)
+        sim_params = obs_dict['sim_params']
+        current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
         if args.outer_loop_version == 1:
-            update_sim_params(sim_param_model, sim_env, args, obs_traj, step, L)
-            sim_params = obs_dict['sim_params']
-            evaluate_sim_params(sim_param_model, args, obs_traj, step, L, "test", sim_params)
+            evaluate_sim_params(sim_param_model, args, obs_traj, step, L, "test", sim_params, current_sim_params)
+        elif args.outer_loop_version == 3:
+            evaluate_sim_params(sim_param_model, args, obs_traj, step, L, "test", sim_params, current_sim_params)
+
 
         L.log('eval/' + prefix + 'eval_time', time.time() - start_time, step)
         mean_ep_reward = np.mean(all_ep_rewards)
@@ -351,7 +375,11 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
             video.record(sim_env)
             sim_params = obs_dict['sim_params']
             if sim_param_model is not None:
-                evaluate_sim_params(sim_param_model, args, obs_traj_sim, step, L, "train", sim_params)
+                dist_mean = obs_dict['distribution_mean']
+                if args.outer_loop_version == 1:
+                    evaluate_sim_params(sim_param_model, args, obs_traj_sim, step, L, "train", sim_params, current_sim_params)
+                elif args.outer_loop_version == 3:
+                    sim_param_model.train_classifier(obs_traj_sim, sim_params, dist_mean)
         video.save('sim_%d.mp4' % step)
 
     run_eval_loop(sample_stochastically=False)
@@ -526,7 +554,8 @@ def main():
         args=args,
         device=device
     )
-    if args.outer_loop_version == 1:
+    if args.outer_loop_version in [1, 3]:
+        dist = 'binary' if args.outer_loop_version == 3 else 'normal'
         sim_param_model = SimParamModel(
             shape=args.sim_params_size,
             layers=args.sim_param_layers,
@@ -540,6 +569,7 @@ def main():
             agent=agent,
             sim_param_lr=args.sim_param_lr,
             sim_param_beta=args.sim_param_beta,
+            dist=dist,
         ).to(device)
     else:
         sim_param_model = None

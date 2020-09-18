@@ -22,9 +22,11 @@ class SimParamModel(nn.Module):
         self._act = act
         self.device = device
         self.encoder_type = encoder_type
+        self.batch = 32
+        additional = 0 if dist == 'normal' else shape
 
         trunk = []
-        trunk.append(nn.Linear(200 * 50, self._units))
+        trunk.append(nn.Linear(200 * 50 + additional, self._units))
         trunk.append(self._act())
         for index in range(self._layers - 1):
             trunk.append(nn.Linear(self._units, self._units))
@@ -44,8 +46,7 @@ class SimParamModel(nn.Module):
             self.encoder.parameters(), lr=sim_param_lr, betas=(sim_param_beta, 0.999)
         )
 
-
-    def forward(self, obs_traj):
+    def get_features(self, obs_traj):
         # detach_encoder allows to stop gradient propagation to encoder
         with torch.no_grad():
             if type(obs_traj[0]) is np.ndarray:
@@ -61,7 +62,10 @@ class SimParamModel(nn.Module):
             input = torch.cat([input, last_arr])
 
         features = self.encoder(input, detach=True)
+        return features
 
+    def forward(self, obs_traj):
+        features = self.get_features(obs_traj)
         x = features.view(1, -1)
         x = self.trunk(x)
         if self._dist == 'normal':
@@ -69,6 +73,43 @@ class SimParamModel(nn.Module):
         if self._dist == 'binary':
             return torch.distributions.bernoulli.Bernoulli(x)
         raise NotImplementedError(self._dist)
+
+    def forward_classifier(self, obs_traj, pred_labels):
+        pred_labels = pred_labels.to(self.device)
+        feat = self.get_features(obs_traj)
+        feat = feat.flatten()
+        feat_tiled = feat.unsqueeze(0).repeat(len(pred_labels), 1)
+        fake_pred = torch.cat([pred_labels, feat_tiled], dim=-1)
+        x = self.trunk(fake_pred)
+        pred_class = torch.distributions.bernoulli.Bernoulli(logits=x)
+        pred_class = pred_class.mean
+        return pred_class
+
+
+    def train_classifier(self, obs_traj, sim_params, distribution_mean):
+        dist_range = 10 * torch.FloatTensor(distribution_mean)
+        sim_params = torch.FloatTensor(sim_params)  # B X L X num_params
+
+        eps = 1e-3
+        mid_eps = 1e-3
+
+        high = torch.FloatTensor(
+            np.random.uniform(size=(self.batch, len(sim_params)), low=sim_params + mid_eps, high=sim_params + dist_range))
+        high_labels = torch.ones_like(high, dtype=torch.int32)
+        low = torch.FloatTensor(
+            np.random.uniform(size=(self.batch, len(sim_params)), low=torch.clamp(sim_params - dist_range, eps, float('inf')),
+                              high=torch.clamp(sim_params - mid_eps, eps, float('inf'))))
+        low_labels = torch.zeros_like(low, dtype=torch.int32)
+        fake_pred = torch.cat([high, low], 0)
+        pred_class = self.forward_classifier(obs_traj, fake_pred)
+        labels = torch.cat([high_labels, low_labels], 0).to(self.device)
+        pred_class = pred_class.flatten().unsqueeze(0).float()
+        labels = labels.flatten().unsqueeze(0).float()
+        loss = -nn.BCELoss()(pred_class, labels)
+        # Optimize the critic
+        self.sim_param_optimizer.zero_grad()
+        loss.backward()
+        self.sim_param_optimizer.step()
 
     def update(self, replay_buffer, L, step, should_log):
         if self.encoder_type == 'pixel':
