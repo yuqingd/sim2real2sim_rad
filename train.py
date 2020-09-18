@@ -350,7 +350,8 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
             obs_dict, reward, done, _ = sim_env.step(action)
             video.record(sim_env)
             sim_params = obs_dict['sim_params']
-            evaluate_sim_params(sim_param_model, args, obs_traj_sim, step, L, "train", sim_params)
+            if sim_param_model is not None:
+                evaluate_sim_params(sim_param_model, args, obs_traj_sim, step, L, "train", sim_params)
         video.save('sim_%d.mp4' % step)
 
     run_eval_loop(sample_stochastically=False)
