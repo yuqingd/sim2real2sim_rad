@@ -88,21 +88,21 @@ class SimParamModel(nn.Module):
 
     def train_classifier(self, obs_traj, sim_params, distribution_mean):
         dist_range = 10 * torch.FloatTensor(distribution_mean)
-        sim_params = torch.FloatTensor(sim_params)  # B X L X num_params
-
+        sim_params = torch.FloatTensor(sim_params)  # 1 - dimensional
         eps = 1e-3
-        mid_eps = 1e-3
-
-        high = torch.FloatTensor(
-            np.random.uniform(size=(self.batch, len(sim_params)), low=sim_params + mid_eps, high=sim_params + dist_range))
-        high_labels = torch.ones_like(high, dtype=torch.int32)
         low = torch.FloatTensor(
             np.random.uniform(size=(self.batch, len(sim_params)), low=torch.clamp(sim_params - dist_range, eps, float('inf')),
-                              high=torch.clamp(sim_params - mid_eps, eps, float('inf'))))
-        low_labels = torch.zeros_like(low, dtype=torch.int32)
-        fake_pred = torch.cat([high, low], 0)
+                              high=sim_params)).to(self.device)
+
+        high = torch.FloatTensor(
+            np.random.uniform(size=(self.batch, len(sim_params)),
+                              low=sim_params,
+                              high=sim_params + dist_range)).to(self.device)
+        fake_pred = torch.cat([low, high], dim=0)
+        shuffled_indices = torch.stack([torch.randperm(len(fake_pred)) for _ in range(len(sim_params))], dim=1).to(self.device)
+        fake_pred = torch.gather(fake_pred, 0, shuffled_indices)
+        labels = (fake_pred > sim_params.unsqueeze(0).to(self.device)).long()
         pred_class = self.forward_classifier(obs_traj, fake_pred)
-        labels = torch.cat([high_labels, low_labels], 0).to(self.device)
         pred_class = pred_class.flatten().unsqueeze(0).float()
         labels = labels.flatten().unsqueeze(0).float()
         loss = -nn.BCELoss()(pred_class, labels)
