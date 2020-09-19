@@ -13,7 +13,7 @@ from curl_sac import weight_init
 class SimParamModel(nn.Module):
     def __init__(self, shape, layers, units, device, obs_shape, encoder_type,
         encoder_feature_dim, encoder_num_layers, encoder_num_filters, agent, sim_param_lr=1e-3, sim_param_beta=0.9,
-                 dist='normal', act=nn.ELU):
+                 dist='normal', act=nn.ELU, batch_size=32, traj_length=200):
         super(SimParamModel, self).__init__()
         self._shape = shape
         self._layers = layers
@@ -22,11 +22,11 @@ class SimParamModel(nn.Module):
         self._act = act
         self.device = device
         self.encoder_type = encoder_type
-        self.batch = 32
+        self.batch = batch_size
         additional = 0 if dist == 'normal' else shape
 
         trunk = []
-        trunk.append(nn.Linear(200 * 50 + additional, self._units))
+        trunk.append(nn.Linear(traj_length * encoder_feature_dim + additional, self._units))
         trunk.append(self._act())
         for index in range(self._layers - 1):
             trunk.append(nn.Linear(self._units, self._units))
