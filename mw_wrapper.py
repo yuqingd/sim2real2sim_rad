@@ -72,14 +72,13 @@ all_cameras = [camera_0, camera_1, camera_2, camera_3, camera_4, camera_5, camer
 
 
 class MetaWorldEnv(gym.Env, ABC):
-    def __init__(self, env, cameras, from_pixels=True, height=100, width=100, channels_first=True, offscreen=True):
+    def __init__(self, env, cameras, from_pixels=True, height=100, width=100, channels_first=True):
         self._env = env
         self.cameras = cameras
         self.from_pixels = from_pixels
         self.height = height
         self.width = width
         self.channels_first = channels_first
-        self.offscreen = offscreen
 
         self.viewer = None
 
@@ -156,7 +155,7 @@ class MetaWorldEnv(gym.Env, ABC):
         return self._env.max_path_length
 
     def do_simulation(self, ctrl, n_frames):
-        self._env.do_simulatiaon(ctrl, n_frames)
+        self._env.do_simulation(ctrl, n_frames)
 
     def render(self, mode='human', camera_id=0, height=None, width=None):
         if mode == 'human':
@@ -185,9 +184,6 @@ class MetaWorldEnv(gym.Env, ABC):
 
     def _get_viewer(self, camera_id):
         if self.viewer is None:
-            if self.offscreen:
-                from mujoco_py import GlfwContext
-                GlfwContext(offscreen=True)
             self.viewer = mujoco_py.MjRenderContextOffscreen(self._env.sim, -1)
         self.viewer_setup(camera_id)
         return self.viewer

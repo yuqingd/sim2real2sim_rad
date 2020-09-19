@@ -115,7 +115,6 @@ def parse_args():
     parser.add_argument('--binary_prediction', default=False, type=bool)
 
     # MISC
-    parser.add_argument('--offscreen', action='store_true')
     parser.add_argument('--id', default='debug', type=str)
 
 
@@ -322,11 +321,12 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
 
         update_sim_params(sim_param_model, sim_env, args, obs_traj, step, L)
         sim_params = obs_dict['sim_params']
-        current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
-        if args.outer_loop_version == 1:
-            evaluate_sim_params(sim_param_model, args, obs_traj, step, L, "test", sim_params, current_sim_params)
-        elif args.outer_loop_version == 3:
-            evaluate_sim_params(sim_param_model, args, obs_traj, step, L, "test", sim_params, current_sim_params)
+        if not args.outer_loop_version == 0:
+            current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
+            if args.outer_loop_version == 1:
+                evaluate_sim_params(sim_param_model, args, obs_traj, step, L, "test", sim_params, current_sim_params)
+            elif args.outer_loop_version == 3:
+                evaluate_sim_params(sim_param_model, args, obs_traj, step, L, "test", sim_params, current_sim_params)
 
 
         L.log('eval/' + prefix + 'eval_time', time.time() - start_time, step)
@@ -474,7 +474,6 @@ def main():
         use_state=args.use_state,
         use_img=args.use_img,
         grayscale=args.grayscale,
-        offscreen=args.offscreen,
     )
 
 
@@ -494,11 +493,8 @@ def main():
         use_state=args.use_state,
         use_img=args.use_img,
         grayscale=args.grayscale,
-        offscreen=args.offscreen,
     )
 
-    sim_env.seed(args.seed)
-    real_env.seed(args.seed)
 
     # stack several consecutive frames together
     if args.encoder_type == 'pixel':
