@@ -1,6 +1,3 @@
-import os
-os.environ['MUJOCO_GL'] = 'osmesa'
-
 import numpy as np
 import torch
 import argparse
@@ -117,7 +114,7 @@ def parse_args():
 
     # MISC
     parser.add_argument('--id', default='debug', type=str)
-
+    parser.add_argument('--gpudevice', type=str, required=True, help='cuda visible devices')
 
     args = parser.parse_args()
     if args.dr:
@@ -358,10 +355,12 @@ def make_agent(obs_shape, action_shape, args, device):
 
 def main():
     args = parse_args()
+    os.environ['EGL_DEVICE_ID'] = args.gpudevice
     if 'dmc' in args.domain_name:
         os.environ['MUJOCO_GL'] = 'egl'
     else:
         os.environ['MUJOCO_GL'] = 'osmesa'
+    import env_wrapper
 
     if args.seed == -1:
         args.__dict__["seed"] = np.random.randint(1, 1000000)
