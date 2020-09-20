@@ -27,7 +27,7 @@ import env_wrapper
 def parse_args():
     parser = argparse.ArgumentParser()
     # environment
-    parser.add_argument('--domain_name', default='cheetah')
+    parser.add_argument('--domain_name', default='metaworld')
     parser.add_argument('--task_name', default=None)
     parser.add_argument('--pre_transform_image_size', default=100, type=int)
     parser.add_argument('--cameras', nargs='+', default=[0], type=int)
@@ -452,6 +452,11 @@ def make_agent(obs_shape, action_shape, args, device):
 
 def main():
     args = parse_args()
+    if 'dmc' in args.domain_name:
+        os.environ['MUJOCO_GL'] = 'egl'
+    else:
+        os.environ['MUJOCO_GL'] = 'osmesa'
+
     if args.seed == -1:
         args.__dict__["seed"] = np.random.randint(1, 1000000)
     utils.set_seed_everywhere(args.seed)
