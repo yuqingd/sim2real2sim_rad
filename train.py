@@ -22,6 +22,7 @@ from sim_param_model import SimParamModel
 from torchvision import transforms
 
 import env_wrapper
+from dr import config_dr
 
 
 def parse_args():
@@ -126,101 +127,6 @@ def parse_args():
         args.dr = None
 
     return args
-
-
-def config_dr(config):
-  if config.dr_option == 'simple':
-      if 'basketball' in config.task_name:
-        config.real_dr_params = {
-          "object_mass": .01
-        }
-        config.dr = {  # (mean, range)
-          "object_mass": (config.mass_mean, config.mass_range)
-        }
-        config.real_dr_list = ["object_mass"]
-        config.sim_params_size = 1
-      elif 'stick' in config.task_name or 'basketball' in config.task_name:
-          config.real_dr_params = {
-            "object_mass": .128  # TODO: ???
-          }
-          config.dr = {  # (mean, range)
-            "object_mass": (config.mass_mean, config.mass_range)
-          }
-          config.real_dr_list = ["object_mass"]
-          config.sim_params_size = 1
-  elif config.dr_option == 'all_dr':
-      real_dr_joint = {
-        "table_friction": 2.,
-        "table_r": .6,
-        "table_g": .6,
-        "table_b": .5,
-        "robot_friction": 1.,
-        "robot_r": .5,
-        "robot_g": .1,
-        "robot_b": .1,
-      }
-      if 'basketball' in config.task_name:
-        config.real_dr_params = {
-          "basket_friction": .5,
-          "basket_goal_r": .5,
-          "basket_goal_g": .5,
-          "basket_goal_b": .5,
-          "backboard_r": .5,
-          "backboard_g": .5,
-          "backboard_b": .5,
-          "object_mass": .01,
-          "object_friction": 1.,
-          "object_r": 0.,
-          "object_g": 0.,
-          "object_b": 0.,
-        }
-        config.real_dr_params.update(real_dr_joint)
-        config.real_dr_list = list(config.real_dr_params.keys())
-      elif 'stick' in config.task_name:
-        config.real_dr_params = {
-          "stick_mass": 1.,
-          "stick_friction": 1.,
-          "stick_r": 1.,
-          "stick_g": .3,
-          "stick_b": .3,
-          "object_mass": .128,
-          "object_friction": 1.,
-          "object_body_r": 0.,
-          "object_body_g": 0.,
-          "object_body_b": 1.,
-          "object_handle_r": 0,
-          "object_handle_g": 0,
-          "object_handle_b": 0,
-        }
-        config.real_dr_params.update(real_dr_joint)
-        config.real_dr_list = list(config.real_dr_params.keys())
-      config.sim_params_size = len(config.real_dr_list)
-      mean_scale = config.mean_scale
-      range_scale = config.range_scale
-      config.dr = {}  # (mean, range)
-      for key, real_val in config.real_dr_params.items():
-        if real_val == 0:
-          real_val = 5e-2
-        if config.mean_only:
-          config.dr[key] = real_val * mean_scale
-        else:
-          config.dr[key] = (real_val * mean_scale, real_val * range_scale)
-  else:
-      config.dr = {}
-      config.real_dr_params = {}
-      config.dr_list = []
-
-  for k, v in config.dr.items():
-    print(k)
-    print(v)
-
-  if config.mean_only:
-    config.initial_dr_mean = np.array([config.dr[param] for param in config.real_dr_list])
-  else:
-    config.initial_dr_mean = np.array([config.dr[param][0] for param in config.real_dr_list])
-    config.initial_dr_range = np.array([config.dr[param][1] for param in config.real_dr_list])
-
-  return config
 
 
 def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_params, current_sim_params):
