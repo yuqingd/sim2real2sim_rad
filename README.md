@@ -75,8 +75,9 @@ Error `Shadow framebuffer is not complete, error 0x8cd7`
 - Like above, make sure libglew and libGL are installed.
 - If `/usr/lib/nvidia` exists but '/usr/lib/nvidia-430/` (or some other number) does not exist, run `ln -s /usr/lib/nvidia /usr/lib/nvidia-430`.  It may have to match the number of your nvidia driver, I'm not sure.
 - Consider adding that symlink to LD_LIBRARY PATH.
+- If /usr/lib/nvidia doesn't exist, and neither does /usr/lib/nvidia-xxx, then create the folder `/usr/lib/nvidia /usr/lib/nvidia-430`.
 
-Error `RuntimeError: Failed to initialize OpenGL`
-- 
+Error message `RuntimeError: Failed to initialize OpenGL: 
+- Make sure MUJOCO_GL is correct (egl for DMC, osmesa for anything else).
 
 Which error is the best?  Framebuffer > GLEW initialization > Failed to initialize OpenGL.
