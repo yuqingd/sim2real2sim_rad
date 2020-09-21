@@ -1,0 +1,40 @@
+<mujocoinclude>
+    <compiler angle="radian"/>
+    <!-- <option timestep="0.002" noslip_iterations="20"/> -->
+    <option timestep="0.002"/>
+    <size nuser_actuator="5"/>
+
+   <asset>
+        <mesh name="cubewithhole" file="meshes/cubewithhole.STL" scale="0.005 0.005 0.005" />
+        <mesh name="link_base" file="../../adept_envs/adept_envs/xarm/assets/bullet/xarm_description/meshes/xarm7/visual/link_base.STL" />
+        <mesh name="link1" file="../../adept_envs/adept_envs/xarm/assets/bullet/xarm_description/meshes/xarm7/visual/link1.STL" />
+        <mesh name="link2" file="../../adept_envs/adept_envs/xarm/assets/bullet/xarm_description/meshes/xarm7/visual/link2.STL" />
+        <mesh name="link3" file="../../adept_envs/adept_envs/xarm/assets/bullet/xarm_description/meshes/xarm7/visual/link3.STL" />
+        <mesh name="link4" file="../../adept_envs/adept_envs/xarm/assets/bullet/xarm_description/meshes/xarm7/visual/link4.STL" />
+        <mesh name="link5" file="../../adept_envs/adept_envs/xarm/assets/bullet/xarm_description/meshes/xarm7/visual/link5.STL" />
+        <mesh name="link6" file="../../adept_envs/adept_envs/xarm/assets/bullet/xarm_description/meshes/xarm7/visual/link6.STL" />
+        <mesh name="link7" file="../../adept_envs/adept_envs/xarm/assets/bullet/xarm_description/meshes/xarm7/visual/link7.STL" />
+        <mesh name="base_link" file="../../adept_envs/adept_envs/xarm/assets/bullet/xarm_gripper/meshes/base_link.STL" />
+        <mesh name="left_outer_knuckle" file="../../adept_envs/adept_envs/xarm/assets/bullet/xarm_gripper/meshes/left_outer_knuckle.STL" />
+        <mesh name="left_finger" file="../../adept_envs/adept_envs/xarm/assets/bullet/xarm_gripper/meshes/left_finger.STL" />
+        <mesh name="left_inner_knuckle" file="../../adept_envs/adept_envs/xarm/assets/bullet/xarm_gripper/meshes/left_inner_knuckle.STL" />
+        <mesh name="right_outer_knuckle" file="../../adept_envs/adept_envs/xarm/assets/bullet/xarm_gripper/meshes/right_outer_knuckle.STL" />
+        <mesh name="right_finger" file="../../adept_envs/adept_envs/xarm/assets/bullet/xarm_gripper/meshes/right_finger.STL" />
+        <mesh name="right_inner_knuckle" file="../../adept_envs/adept_envs/xarm/assets/bullet/xarm_gripper/meshes/right_inner_knuckle.STL" />
+    </asset>
+
+    <default>
+        <default class="xarm">
+            <joint pos="0 0 0" axis="0 0 1" limited="true"/>
+            <position forcelimited="true" ctrllimited="true" user="1002 40 2001 -0.005 0.005"/>
+            <default class="xarm_viz">
+                <geom contype="0" conaffinity="0" group="0" type="mesh" rgba=".95 .99 .92 1" mass="0"/>
+            </default>
+
+            <default class="xarm_col">
+                <geom contype="1" conaffinity="1" group="3" type="mesh" rgba=".5 .6 .7 1"/>
+            </default>
+        </default>
+    </default>
+
+</mujocoinclude>

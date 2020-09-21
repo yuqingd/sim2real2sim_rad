@@ -1,0 +1,76 @@
+<?xml version='1.0' encoding='utf8'?>
+<!--This file contains the rope with actuators, visualization rope and a block. The sawyer gripper is fixed.-->
+<mujoco>
+    <compiler angle="radian"/>
+
+    <option timestep="0.002">
+        <flag warmstart="enable"/>
+    </option>
+
+
+    <include file="./dfm_env/assets/scenes/scene.xml"/>
+    <include file="./dfm_env/assets/robots/sawyer.xml"/>
+
+    <worldbody>
+        <body name="pushBlock" pos="-0.15 0 0.72">
+            <!--<freejoint name="push_block_slide"/>-->
+            <joint axis="1 0 0" damping="0.001" name="push_block_slide0" pos="0 0 0" type="slide"/>
+            <joint axis="0 1 0" damping="0.001" name="push_block_slide1" pos="0 0 0" type="slide"/>
+            <joint axis="0 0 1" damping="0.001" name="push_block_slide2" pos="0 0 0" type="slide"/>
+            <geom size="0.025 0.025 0.025" type="box" name="object0" material="block_mat" mass="50000"></geom>
+        </body>
+
+        <body name="Rope_B7" pos="-0.15 0.5 0.72">
+            <freejoint name="Rope_ref"/>
+            <composite prefix='Rope_' count="15 1 1" offset="0 0 2" spacing="0.04" type="rope">
+                <joint damping="0.005" kind="main"/>
+                <geom rgba=".8 .2 .1 1" size=".01 .015" type="capsule"/>
+            </composite>
+        </body>
+
+        <body name="targetRope_B7" pos="-0.15 0.5 0.72">
+            <freejoint name="targetRope_ref"/>
+            <composite prefix='targetRope_' count="15 1 1" offset="0 0 2" spacing="0.04" type="rope">
+                <joint damping="0.005" kind="main"/>
+                <geom rgba=".8 .2 .1 0.3" size=".01 .015" type="capsule" contype='2' conaffinity='2'/>
+            </composite>
+        </body>
+
+    </worldbody>
+    <equality>
+        <weld body1="mocap_body" body2="arm_gripper_base" relpose="0 0 0 1 0 0 0" solimp="0.9 0.95 0.001"
+              solref="0.02 1"></weld>
+    </equality>
+
+    <actuator>
+        <motor ctrllimited="false" joint="Rope_J0_0" name="tr0"/>
+        <motor ctrllimited="false" joint="Rope_J1_0" name="tr1"/>
+        <motor ctrllimited="false" joint="Rope_J0_1" name="tr2"/>
+        <motor ctrllimited="false" joint="Rope_J1_1" name="tr3"/>
+        <motor ctrllimited="false" joint="Rope_J0_2" name="tr4"/>
+        <motor ctrllimited="false" joint="Rope_J1_2" name="tr5"/>
+        <motor ctrllimited="false" joint="Rope_J0_3" name="tr6"/>
+        <motor ctrllimited="false" joint="Rope_J1_3" name="tr7"/>
+        <motor ctrllimited="false" joint="Rope_J0_4" name="tr8"/>
+        <motor ctrllimited="false" joint="Rope_J1_4" name="tr9"/>
+        <motor ctrllimited="false" joint="Rope_J0_5" name="tr10"/>
+        <motor ctrllimited="false" joint="Rope_J1_5" name="tr11"/>
+        <motor ctrllimited="false" joint="Rope_J0_6" name="tr12"/>
+        <motor ctrllimited="false" joint="Rope_J1_6" name="tr13"/>
+        <motor ctrllimited="false" joint="Rope_J0_8" name="tr16"/>
+        <motor ctrllimited="false" joint="Rope_J1_8" name="tr17"/>
+        <motor ctrllimited="false" joint="Rope_J0_9" name="tr18"/>
+        <motor ctrllimited="false" joint="Rope_J1_9" name="tr19"/>
+        <motor ctrllimited="false" joint="Rope_J0_10" name="tr20"/>
+        <motor ctrllimited="false" joint="Rope_J1_10" name="tr21"/>
+        <motor ctrllimited="false" joint="Rope_J0_11" name="tr22"/>
+        <motor ctrllimited="false" joint="Rope_J1_11" name="tr23"/>
+        <motor ctrllimited="false" joint="Rope_J0_12" name="tr24"/>
+        <motor ctrllimited="false" joint="Rope_J1_12" name="tr25"/>
+        <motor ctrllimited="false" joint="Rope_J0_13" name="tr26"/>
+        <motor ctrllimited="false" joint="Rope_J1_13" name="tr27"/>
+        <motor ctrllimited="false" joint="Rope_J0_14" name="tr28"/>
+        <motor ctrllimited="false" joint="Rope_J1_14" name="tr29"/>
+    </actuator>
+
+</mujoco>

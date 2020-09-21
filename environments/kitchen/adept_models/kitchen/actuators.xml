@@ -1,0 +1,27 @@
+<mujocoinclude>
+    <actuator>
+        <position class="xarm" ctrllimited="true" ctrlrange="-3.14 3.14" joint="joint1" kp="30" name="pos_j1" forcelimited="true" forcerange="-200 200"/>
+        <position class="xarm" ctrllimited="true" ctrlrange="-2.06 2.09" joint="joint2" kp="20" name="pos_j2" forcelimited="true" forcerange="-100 100"/>
+        <position class="xarm" ctrllimited="true" ctrlrange="-3.14 3.14" joint="joint3" kp="15" name="pos_j3" forcelimited="true" forcerange="-100 100"/>
+        <position class="xarm" ctrllimited="true" ctrlrange="-0.19 3.92" joint="joint4" kp="10" name="pos_j4" forcelimited="true" forcerange="-30 30"/>
+        <position class="xarm" ctrllimited="true" ctrlrange="-3.14 3.14" joint="joint5" kp="5" name="pos_j5" forcelimited="true" forcerange="-30 30"/>
+        <position class="xarm" ctrllimited="true" ctrlrange="-1.69 3.14" joint="joint6" kp="2" name="pos_j6" forcelimited="true" forcerange="-30 30"/>
+        <position class="xarm" ctrllimited="true" ctrlrange="-3.14 3.14" joint="joint7" kp="5" name="pos_j7" forcelimited="true" forcerange="-30 30"/>
+<!--        <position ctrllimited="true" ctrlrange="-3.14 3.14" joint="joint1b" kp="30" name="pos_j1" forcelimited="true" forcerange="-.2 .2"/>-->
+<!--        <position ctrllimited="true" ctrlrange="-2.06 2.09" joint="joint2b" kp="20" name="pos_j2" forcelimited="true" forcerange="-.2 .2"/>-->
+<!--        <position ctrllimited="true" ctrlrange="-3.14 3.14" joint="joint3b" kp="15" name="pos_j3" forcelimited="true" forcerange="-.2 .2"/>-->
+<!--        <position ctrllimited="true" ctrlrange="-0.19 3.92" joint="joint4b" kp="10" name="pos_j4" forcelimited="true" forcerange="-.2 .2"/>-->
+<!--        <position ctrllimited="true" ctrlrange="-3.14 3.14" joint="joint5b" kp="5" name="pos_j5" forcelimited="true" forcerange="-.2 .2"/>-->
+<!--        <position ctrllimited="true" ctrlrange="-1.69 3.14" joint="joint6b" kp="2" name="pos_j6" forcelimited="true" forcerange="-.2 .2"/>-->
+<!--        <position ctrllimited="true" ctrlrange="-3.14 3.14" joint="joint7b" kp="5" name="pos_j7" forcelimited="true" forcerange="-.2 .2"/>-->
+<!--       TODO:  All the lines below here are NOT accurate. Just putting them in for testing!-->
+        <position ctrllimited="true" ctrlrange="0 0.85" joint="drive_joint" kp="30" name="pos_drive_joint" forcelimited="true" forcerange="-20 20"/>
+        <position ctrllimited="true" ctrlrange="0 0.85" joint="left_finger_joint" kp="30" name="pos_left_finger_joint" forcelimited="true" forcerange="-20 20"/>
+        <position ctrllimited="true" ctrlrange="0 0.85" joint="left_inner_knuckle_joint" kp="30" name="pos_left_inner_knuckle_joint" forcelimited="true" forcerange="-20 20"/>
+        <position ctrllimited="true" ctrlrange="0 0.85" joint="right_outer_knuckle_joint" kp="30" name="pos_right_outer_knuckle_joint" forcelimited="true" forcerange="-20 20"/>
+        <position ctrllimited="true" ctrlrange="0 0.85" joint="right_finger_joint" kp="30" name="pos_right_finger_joint" forcelimited="true" forcerange="-20 20"/>
+        <position ctrllimited="true" ctrlrange="0 0.85" joint="right_inner_knuckle_joint" kp="30" name="pos_right_inner_knuckle_joint" forcelimited="true" forcerange="-20 20"/>
+    </actuator>
+
+
+</mujocoinclude>
