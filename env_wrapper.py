@@ -7,6 +7,7 @@ from mw_wrapper import MetaWorldEnv
 import random
 from dm_control.rl.control import PhysicsError
 from dm_control import suite
+from kitchen_env import Kitchen
 
 class DR_Env:
   def __init__(self, env, cameras, height=64, width=64, mean_only=False, dr_list=[], simple_randomization=False, dr_shape=None,
@@ -97,8 +98,11 @@ class DR_Env:
 
   def env_step(self, action):
       obs, reward, done, info = self._env.step(action)
-      info['discount'] = 1.0
-      state = np.array([0])
+      if len(obs.shape) == 3:
+          state = np.array([0])
+      else:
+          state = obs
+          obs = self.render()
       return obs, state, reward, done, info
 
   def step(self, action):
@@ -123,15 +127,16 @@ class DR_Env:
     return np.array([], dtype=np.float32)
 
   def reset(self):
-    obs = self._env.reset()
+    state_obs = self._env.reset()
     self.apply_dr()
+    img_obs = self.render(mode='rgb_array')
 
     obs_dict = {}
 
     if self.use_img:
-      obs_dict['image'] = obs
+      obs_dict['image'] = img_obs
     else:
-      obs_dict['state'] = obs
+      obs_dict['state'] = state_obs
 
     obs_dict['real_world'] = 1.0 if self.real_world else 0.0
     if not (self.dr is None) and not self.real_world:
@@ -315,9 +320,6 @@ class DR_MetaWorldEnv(DR_Env):  # TODO: consider passing through as kwargs
             arr, indices = dr_update_dict[dr_param]
             self.update_dr_param(arr, dr_param, indices=indices)
 
-        else:
-            raise NotImplementedError
-
     def get_dr(self):
         model = self._env._env.sim.model
         if self.simple_randomization:
@@ -446,11 +448,10 @@ class DR_MetaWorldEnv(DR_Env):  # TODO: consider passing through as kwargs
         arr = arr.astype(np.float32)
         return arr
 
-class DR_DMCEnv(DR_Env):  # TODO: more options up here
-    def __init__(self, env, cameras, height=64, width=64, mean_only=False, dr_list=[], simple_randomization=False,
+class DR_Kitchen(DR_Env):
+    def __init__(self, env, cameras, height=100, width=100, mean_only=False, dr_list=[], simple_randomization=False,
                  dr_shape=None, real_world=False, dr=None, use_state="None", use_img=True, name="task_name",
-                 grayscale=False):
-        # TODO: better camera?
+                 grayscale=False, domain_name=""):
         super().__init__(env, cameras,
                          height=height, width=width,
                          mean_only=mean_only,
@@ -463,6 +464,376 @@ class DR_DMCEnv(DR_Env):  # TODO: more options up here
                          use_img=use_img,
                          name=name,
                          grayscale=grayscale)
+
+    def __getattr__(self, attr):
+        orig_attr = self._env.__getattribute__(attr)
+
+        if callable(orig_attr):
+            def hooked(*args, **kwargs):
+                result = orig_attr(*args, **kwargs)
+                return result
+
+            return hooked
+        else:
+            return orig_attr
+
+    @property
+    def observation_space(self):
+        spaces = {}
+
+        if self.use_state is not "None":
+            state_shape = 4 if self.use_gripper else 3  # 2 for fingers, 3 for end effector position
+            state_shape = self.goal.shape[0] + state_shape
+            if self.use_state == 'all':
+                state_shape += 3
+            spaces['state'] = gym.spaces.Box(np.array([-float('inf')] * state_shape),
+                                             np.array([-float('inf')] * state_shape))
+        else:
+            spaces['state'] = gym.spaces.Box(np.array([-float('inf')] * self.goal.shape[0]),
+                                             np.array([float('inf')] * self.goal.shape[0]))
+        spaces['image'] = gym.spaces.Box(
+            0, 255, self._size + (3,), dtype=np.uint8)
+        return gym.spaces.Dict(spaces)
+
+
+    def apply_dr(self):
+        self.sim_params = []
+        self.distribution_mean = []
+        self.distribution_range = []
+        if self.dr is None or self.real_world:
+            self.sim_params = self.get_dr()
+            self.distribution_mean = self.get_dr()
+            self.distribution_range = np.zeros(self.dr_shape, dtype=np.float32)
+            return  # TODO: start using XPOS_INDICES or equivalent for joints.
+
+        if 'rope' in self.task:
+            xarm_viz_indices = 2
+            model = self._env._env.sim.model
+            # cylinder
+            cylinder_viz = model.geom_name2id('cylinder_viz')
+            cylinder_body = model.body_name2id('cylinder')
+
+            # box
+            box_viz_1 = model.geom_name2id('box_viz_1')
+            box_viz_2 = model.geom_name2id('box_viz_2')
+            box_viz_3 = model.geom_name2id('box_viz_3')
+            box_viz_4 = model.geom_name2id('box_viz_4')
+            box_viz_5 = model.geom_name2id('box_viz_5')
+            box_viz_6 = model.geom_name2id('box_viz_6')
+            box_viz_7 = model.geom_name2id('box_viz_7')
+            box_viz_8 = model.geom_name2id('box_viz_8')
+
+            dr_update_dict = {
+                'joint1_damping': (model.dof_damping[0:1], None),
+                'joint2_damping': (model.dof_damping[1:2], None),
+                'joint3_damping': (model.dof_damping[2:3], None),
+                'joint4_damping': (model.dof_damping[3:4], None),
+                'joint5_damping': (model.dof_damping[4:5], None),
+                'joint6_damping': (model.dof_damping[5:6], None),
+                'joint7_damping': (model.dof_damping[6:7], None),
+                'robot_r': (model.geom_rgba[:, 0], xarm_viz_indices),
+                'robot_g': (model.geom_rgba[:, 1], xarm_viz_indices),
+                'robot_b': (model.geom_rgba[:, 2], xarm_viz_indices),
+                'cylinder_r': (model.geom_rgba[:, 0], cylinder_viz),
+                'cylinder_g': (model.geom_rgba[:, 1], cylinder_viz),
+                'cylinder_b': (model.geom_rgba[:, 2], cylinder_viz),
+                'cylinder_mass': (model.body_mass[cylinder_body:cylinder_body + 1], None),
+
+                'box1_r': (model.geom_rgba[:, 0], box_viz_1),
+                'box1_g': (model.geom_rgba[:, 1], box_viz_1),
+                'box1_b': (model.geom_rgba[:, 2], box_viz_1),
+                'box2_r': (model.geom_rgba[:, 0], box_viz_2),
+                'box2_g': (model.geom_rgba[:, 1], box_viz_2),
+                'box2_b': (model.geom_rgba[:, 2], box_viz_2),
+                'box3_r': (model.geom_rgba[:, 0], box_viz_3),
+                'box3_g': (model.geom_rgba[:, 1], box_viz_3),
+                'box3_b': (model.geom_rgba[:, 2], box_viz_3),
+                'box4_r': (model.geom_rgba[:, 0], box_viz_4),
+                'box4_g': (model.geom_rgba[:, 1], box_viz_4),
+                'box4_b': (model.geom_rgba[:, 2], box_viz_4),
+                'box5_r': (model.geom_rgba[:, 0], box_viz_5),
+                'box5_g': (model.geom_rgba[:, 1], box_viz_5),
+                'box5_b': (model.geom_rgba[:, 2], box_viz_5),
+                'box6_r': (model.geom_rgba[:, 0], box_viz_6),
+                'box6_g': (model.geom_rgba[:, 1], box_viz_6),
+                'box6_b': (model.geom_rgba[:, 2], box_viz_6),
+                'box7_r': (model.geom_rgba[:, 0], box_viz_7),
+                'box7_g': (model.geom_rgba[:, 1], box_viz_7),
+                'box7_b': (model.geom_rgba[:, 2], box_viz_7),
+                'box8_r': (model.geom_rgba[:, 0], box_viz_8),
+                'box8_g': (model.geom_rgba[:, 1], box_viz_8),
+                'box8_b': (model.geom_rgba[:, 2], box_viz_8),
+
+                'rope_damping': (model.tendon_damping, None),
+                'rope_friction': (model.tendon_frictionloss, None),
+                'rope_stiffness': (model.tendon_stiffness, None),
+
+                'lighting': (model.light_diffuse[:3], None),
+            }
+            for dr_param in self.dr_list:
+                arr, indices = dr_update_dict[dr_param]
+                self.update_dr_param(arr, dr_param, indices=indices)
+
+        else:
+            model = self._env._env.sim.model
+            geom_dict = model._geom_name2id
+            stove_collision_indices = [geom_dict[name] for name in geom_dict.keys() if "stove_collision" in name]
+            stove_viz_indices = [geom_dict[name] for name in geom_dict.keys() if "stove_viz" in name]
+            xarm_viz_indices = [geom_dict[name] for name in geom_dict.keys() if "xarm_viz" in name]
+
+            dr_update_dict = {
+                'joint1_damping': (model.dof_damping[0:1], None),
+                'joint2_damping': (model.dof_damping[1:2], None),
+                'joint3_damping': (model.dof_damping[2:3], None),
+                'joint4_damping': (model.dof_damping[3:4], None),
+                'joint5_damping': (model.dof_damping[4:5], None),
+                'joint6_damping': (model.dof_damping[5:6], None),
+                'joint7_damping': (model.dof_damping[6:7], None),
+
+                'knob_mass': (model.body_mass, [22, 24, 26, 28]),
+                'lighting': (model.light_diffuse[:3], None),
+
+                'robot_r': (model.geom_rgba[:, 0], xarm_viz_indices),
+                'robot_g': (model.geom_rgba[:, 1], xarm_viz_indices),
+                'robot_b': (model.geom_rgba[:, 2], xarm_viz_indices),
+                'stove_r': (model.geom_rgba[:, 0], stove_viz_indices),
+                'stove_g': (model.geom_rgba[:, 1], stove_viz_indices),
+                'stove_b': (model.geom_rgba[:, 2], stove_viz_indices),
+                'stove_friction': (model.geom_friction[:, 0], stove_collision_indices),
+
+            }
+
+            if self.has_microwave:
+                microwave_index = model.body_name2id('microdoorroot')
+                microwave_viz_indices = [geom_dict[name] for name in geom_dict.keys() if "microwave_viz" in name]
+                microwave_collision_indices = [geom_dict[name] for name in geom_dict.keys() if
+                                               "microwave_collision" in name]
+                dr_update_dict_k = {
+                    'microwave_r': (model.geom_rgba[:, 0], microwave_viz_indices),
+                    'microwave_g': (model.geom_rgba[:, 1], microwave_viz_indices),
+                    'microwave_b': (model.geom_rgba[:, 2], microwave_viz_indices),
+                    'microwave_friction': (model.geom_friction[:, 0], microwave_collision_indices),
+                    'microwave_mass': (model.body_mass[microwave_index: microwave_index + 1], None),
+                }
+                dr_update_dict.update(dr_update_dict_k)
+
+            if self.has_cabinet:
+                cabinet_index = model.body_name2id('slidelink')
+                cabinet_viz_indices = [geom_dict[name] for name in geom_dict.keys() if "cabinet_viz" in name]
+                cabinet_collision_indices = [geom_dict[name] for name in geom_dict.keys() if
+                                             "cabinet_collision" in name]
+                dr_update_dict_k = {
+                    'cabinet_r': (model.geom_rgba[:, 0], cabinet_viz_indices),
+                    'cabinet_g': (model.geom_rgba[:, 1], cabinet_viz_indices),
+                    'cabinet_b': (model.geom_rgba[:, 2], cabinet_viz_indices),
+                    'cabinet_friction': (model.geom_friction[:, 0], cabinet_collision_indices),
+                    'cabinet_mass': (model.body_mass[cabinet_index: cabinet_index + 1], None),
+                }
+                dr_update_dict.update(dr_update_dict_k)
+
+            # Kettle
+            if self.has_kettle:
+                kettle_index = model.body_name2id('kettleroot')
+                kettle_viz_indices = [geom_dict[name] for name in geom_dict.keys() if "kettle_viz" in name]
+
+                dr_update_dict_k = {
+                    'kettle_r': (model.geom_rgba[:, 0], kettle_viz_indices),
+                    'kettle_g': (model.geom_rgba[:, 1], kettle_viz_indices),
+                    'kettle_b': (model.geom_rgba[:, 2], kettle_viz_indices),
+                    'kettle_friction': (model.geom_friction[:, 0], kettle_viz_indices),
+                    'kettle_mass': (model.body_mass[kettle_index: kettle_index + 1], None),
+
+                }
+                dr_update_dict.update(dr_update_dict_k)
+
+            # Actually Update
+            for dr_param in self.dr_list:
+                arr, indices = dr_update_dict[dr_param]
+                self.update_dr_param(arr, dr_param, indices=indices)
+
+    def get_dr(self):
+        model = self._env._env.sim.model
+        if self.simple_randomization:
+            if 'rope' in self.task:
+                cylinder_body = model.body_name2id('cylinder')
+                return np.array([model.body_mass[cylinder_body]])
+            elif 'open_microwave' in self.task:
+                microwave_index = model.body_name2id('microdoorroot')
+                return np.array([model.body_mass[microwave_index]])
+            elif 'open_cabinet' in self.task:
+                cabinet_index = model.body_name2id('slidelink')
+                return np.array([model.body_mass[cabinet_index]])
+            else:
+                kettle_index = model.body_name2id('kettleroot')
+                return np.array([model.body_mass[kettle_index]])
+        if 'rope' in self.task:
+            cylinder_viz = model.geom_name2id('cylinder_viz')
+            cylinder_body = model.body_name2id('cylinder')
+            box_viz_1 = model.geom_name2id('box_viz_1')
+            box_viz_2 = model.geom_name2id('box_viz_2')
+            box_viz_3 = model.geom_name2id('box_viz_3')
+            box_viz_4 = model.geom_name2id('box_viz_4')
+            box_viz_5 = model.geom_name2id('box_viz_5')
+            box_viz_6 = model.geom_name2id('box_viz_6')
+            box_viz_7 = model.geom_name2id('box_viz_7')
+            box_viz_8 = model.geom_name2id('box_viz_8')
+            xarm_viz_indices = 2  # [geom_dict[name] for name in geom_dict.keys() if "xarm_viz" in name]
+            model = model
+
+            dr_update_dict = {
+                'joint1_damping': model.dof_damping[0],
+                'joint2_damping': model.dof_damping[1],
+                'joint3_damping': model.dof_damping[2],
+                'joint4_damping': model.dof_damping[3],
+                'joint5_damping': model.dof_damping[4],
+                'joint6_damping': model.dof_damping[5],
+                'joint7_damping': model.dof_damping[6],
+                'robot_r': model.geom_rgba[xarm_viz_indices, 0],
+                'robot_g': model.geom_rgba[xarm_viz_indices, 1],
+                'robot_b': model.geom_rgba[xarm_viz_indices, 2],
+                'cylinder_r': model.geom_rgba[cylinder_viz, 0],
+                'cylinder_g': model.geom_rgba[cylinder_viz, 1],
+                'cylinder_b': model.geom_rgba[cylinder_viz, 2],
+                'cylinder_mass': model.body_mass[cylinder_body],
+
+                'box1_r': model.geom_rgba[box_viz_1, 0],
+                'box1_g': model.geom_rgba[box_viz_1, 1],
+                'box1_b': model.geom_rgba[box_viz_1, 2],
+                'box2_r': model.geom_rgba[box_viz_2, 0],
+                'box2_g': model.geom_rgba[box_viz_2, 1],
+                'box2_b': model.geom_rgba[box_viz_2, 2],
+                'box3_r': model.geom_rgba[box_viz_3, 0],
+                'box3_g': model.geom_rgba[box_viz_3, 1],
+                'box3_b': model.geom_rgba[box_viz_3, 2],
+                'box4_r': model.geom_rgba[box_viz_4, 0],
+                'box4_g': model.geom_rgba[box_viz_4, 1],
+                'box4_b': model.geom_rgba[box_viz_4, 2],
+                'box5_r': model.geom_rgba[box_viz_5, 0],
+                'box5_g': model.geom_rgba[box_viz_5, 1],
+                'box5_b': model.geom_rgba[box_viz_5, 2],
+                'box6_r': model.geom_rgba[box_viz_6, 0],
+                'box6_g': model.geom_rgba[box_viz_6, 1],
+                'box6_b': model.geom_rgba[box_viz_6, 2],
+                'box7_r': model.geom_rgba[box_viz_7, 0],
+                'box7_g': model.geom_rgba[box_viz_7, 1],
+                'box7_b': model.geom_rgba[box_viz_7, 2],
+                'box8_r': model.geom_rgba[box_viz_8, 0],
+                'box8_g': model.geom_rgba[box_viz_8, 1],
+                'box8_b': model.geom_rgba[box_viz_8, 2],
+
+                'rope_damping': model.tendon_damping[0],
+                'rope_friction': model.tendon_frictionloss[0],
+                'rope_stiffness': model.tendon_stiffness[0],
+
+                'lighting': model.light_diffuse[0, 0],
+            }
+
+            dr_list = []
+            for dr_param in self.dr_list:
+                dr_list.append(dr_update_dict[dr_param])
+            arr = np.array(dr_list)
+
+        else:
+            geom_dict = model._geom_name2id
+            stove_collision_indices = [geom_dict[name] for name in geom_dict.keys() if
+                                       "stove_collision" in name][0]
+            stove_viz_indices = [geom_dict[name] for name in geom_dict.keys() if "stove_viz" in name][0]
+            xarm_viz_indices = [geom_dict[name] for name in geom_dict.keys() if "xarm_viz" in name][0]
+            model = model
+
+            dr_update_dict = {
+                'joint1_damping': model.dof_damping[0],
+                'joint2_damping': model.dof_damping[1],
+                'joint3_damping': model.dof_damping[2],
+                'joint4_damping': model.dof_damping[3],
+                'joint5_damping': model.dof_damping[4],
+                'joint6_damping': model.dof_damping[5],
+                'joint7_damping': model.dof_damping[6],
+
+                'lighting': model.light_diffuse[0, 0],
+
+                'robot_r': model.geom_rgba[xarm_viz_indices, 0],
+                'robot_g': model.geom_rgba[xarm_viz_indices, 1],
+                'robot_b': model.geom_rgba[xarm_viz_indices, 2],
+                'stove_r': model.geom_rgba[stove_viz_indices, 0],
+                'stove_g': model.geom_rgba[stove_viz_indices, 1],
+                'stove_b': model.geom_rgba[stove_viz_indices, 2],
+                'stove_friction': model.geom_friction[stove_collision_indices, 0],
+            }
+
+            if self.has_cabinet:
+                cabinet_index = model.body_name2id('slidelink')
+                cabinet_viz_indices = [geom_dict[name] for name in geom_dict.keys() if "cabinet_viz" in name][0]
+                cabinet_collision_indices = \
+                [geom_dict[name] for name in geom_dict.keys() if "cabinet_collision" in name][0]
+                dr_update_dict_k = {
+                    'cabinet_r': model.geom_rgba[cabinet_viz_indices, 0],
+                    'cabinet_g': model.geom_rgba[cabinet_viz_indices, 1],
+                    'cabinet_b': model.geom_rgba[cabinet_viz_indices, 2],
+                    'cabinet_friction': model.geom_friction[cabinet_collision_indices, 0],
+                    'cabinet_mass': model.body_mass[cabinet_index],
+                    'knob_mass': model.body_mass[22],
+                }
+                dr_update_dict.update(dr_update_dict_k)
+
+            if self.has_microwave:
+                microwave_index = model.body_name2id('microdoorroot')
+                microwave_viz_indices = [geom_dict[name] for name in geom_dict.keys() if "microwave_viz" in name][0]
+                microwave_collision_indices = \
+                [geom_dict[name] for name in geom_dict.keys() if "microwave_collision" in name][0]
+                dr_update_dict_k = {
+                    'microwave_r': model.geom_rgba[microwave_viz_indices, 0],
+                    'microwave_g': model.geom_rgba[microwave_viz_indices, 1],
+                    'microwave_b': model.geom_rgba[microwave_viz_indices, 2],
+                    'microwave_friction': model.geom_friction[microwave_collision_indices, 0],
+                    'microwave_mass': model.body_mass[microwave_index],
+                }
+                dr_update_dict.update(dr_update_dict_k)
+
+            if self.has_kettle:
+                kettle_index = model.body_name2id('kettleroot')
+                kettle_viz_indices = [geom_dict[name] for name in geom_dict.keys() if "kettle_viz" in name][0]
+                kettle_collision_indices = [geom_dict[name] for name in geom_dict.keys() if "kettle_collision" in name][
+                    0]
+                dr_update_dict_k = {
+                    'kettle_r': model.geom_rgba[kettle_viz_indices, 0],
+                    'kettle_g': model.geom_rgba[kettle_viz_indices, 1],
+                    'kettle_b': model.geom_rgba[kettle_viz_indices, 2],
+                    'kettle_friction': model.geom_friction[kettle_collision_indices, 0],
+                    'kettle_mass': model.body_mass[kettle_index],
+                }
+                dr_update_dict.update(dr_update_dict_k)
+
+            dr_list = []
+            for dr_param in self.dr_list:
+                dr_list.append(dr_update_dict[dr_param])
+            arr = np.array(dr_list)
+        arr = arr.astype(np.float32)
+        return arr
+
+
+class DR_DMCEnv(DR_Env):
+    def __init__(self, env, cameras, height=64, width=64, mean_only=False, dr_list=[], simple_randomization=False,
+                 dr_shape=None, real_world=False, dr=None, use_state="None", use_img=True, name="task_name",
+                 grayscale=False, domain_name=""):
+        self.domain_name = domain_name
+        super().__init__(env, cameras,
+                         height=height, width=width,
+                         mean_only=mean_only,
+                         dr_list=dr_list,
+                         simple_randomization=simple_randomization,
+                         dr_shape=dr_shape,
+                         real_world=real_world,
+                         dr=dr,
+                         use_state=use_state,
+                         use_img=use_img,
+                         name=name,
+                         grayscale=grayscale)
+
+    def render(self, mode, **kwargs):
+        obs = super().render(mode, **kwargs)
+        obs = np.transpose(obs, (2, 0, 1))
+        return obs
 
     @property
     def observation_space(self):
@@ -485,7 +856,7 @@ class DR_DMCEnv(DR_Env):  # TODO: more options up here
             return
 
         model = self._env.physics.model
-        if 'cup_catch' in self.name:
+        if 'ball_in_cup' in self.domain_name:
             dr_update_dict = {
                 "cup_mass": model.body_mass[1:2],
                 "ball_mass": model.body_mass[2:3],
@@ -499,7 +870,7 @@ class DR_DMCEnv(DR_Env):  # TODO: more options up here
                 "ball_g": model.geom_rgba[6:7, 1],
                 "ball_b": model.geom_rgba[6:7, 2],
             }
-        elif "walker" in self.name:
+        elif "walker" in self.domain_name:
             dr_update_dict = {
                 "torso_mass": model.body_mass[1:2],
                 "right_thigh_mass": model.body_mass[2:3],
@@ -521,7 +892,7 @@ class DR_DMCEnv(DR_Env):  # TODO: more options up here
                 "body_g": model.geom_rgba[1:8, 1],
                 "body_b": model.geom_rgba[1:8, 2],
             }
-        elif "cheetah" in self.name:
+        elif "cheetah" in self.domain_name:
             dr_update_dict = {
                 "torso_mass": model.body_mass[1:2],
                 "bthigh_mass": model.body_mass[2:3],
@@ -543,7 +914,7 @@ class DR_DMCEnv(DR_Env):  # TODO: more options up here
                 "body_g": model.geom_rgba[1:9, 1],
                 "body_b": model.geom_rgba[1:9, 2],
             }
-        elif "finger" in self.name:
+        elif "finger" in self.domain_name:
             dr_update_dict = {
                 "proximal_mass": model.body_mass[0:1],
                 "distal_mass": model.body_mass[1:2],
@@ -568,7 +939,7 @@ class DR_DMCEnv(DR_Env):  # TODO: more options up here
 
     def get_dr(self):
         model = self._env.physics.model
-        if "cup_catch" in self.name:
+        if "ball_in_cup" in self.domain_name:
             dr_update_dict = {
                 "cup_mass": model.body_mass[1],
                 "ball_mass": model.body_mass[2],
@@ -582,7 +953,7 @@ class DR_DMCEnv(DR_Env):  # TODO: more options up here
                 "ball_g": model.geom_rgba[6, 1],
                 "ball_b": model.geom_rgba[6, 2],
             }
-        elif "walker" in self.name:
+        elif "walker" in self.domain_name:
             dr_update_dict = {
                 "torso_mass": model.body_mass[1],
                 "right_thigh_mass": model.body_mass[2],
@@ -604,7 +975,7 @@ class DR_DMCEnv(DR_Env):  # TODO: more options up here
                 "body_g": model.geom_rgba[1, 1],
                 "body_b": model.geom_rgba[1, 2],
             }
-        elif "cheetah" in self.name:
+        elif "cheetah" in self.domain_name:
             dr_update_dict = {
                 "torso_mass": model.body_mass[1],
                 "bthigh_mass": model.body_mass[2],
@@ -626,7 +997,7 @@ class DR_DMCEnv(DR_Env):  # TODO: more options up here
                 "body_g": model.geom_rgba[1, 1],
                 "body_b": model.geom_rgba[1, 2],
             }
-        elif "finger" in self.name:
+        elif "finger" in self.domain_name:
             dr_update_dict = {
                 "proximal_mass": model.body_mass[0],
                 "distal_mass": model.body_mass[1],
@@ -675,7 +1046,7 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
         )
         env = DR_DMCEnv(env, cameras=cameras, height=height, width=width, mean_only=mean_only,
                               dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape,
-                              name=task_name,
+                              name=task_name, domain_name=domain_name_root,
                               real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale)
         return env
     elif 'metaworld' in domain_name:
@@ -692,6 +1063,25 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
         env.set_task(task)
         env.seed(seed)
         env = DR_MetaWorldEnv(env, cameras=cameras, height=height, width=width, mean_only=mean_only,
+                   dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape, name=task_name,
+                   real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale)
+        return env
+    elif 'kitchen' in domain_name:
+        env = Kitchen(dr=dr, mean_only=mean_only,
+                      early_termination=False,
+                      use_state=use_state,
+                      real_world=real_world,
+                      dr_list=dr_list,
+                      task=task_name,
+                      simple_randomization=False,
+                      step_repeat=50,
+                      control_version='mocap_ik',
+                      step_size=0.01,
+                      initial_randomization_steps=3,
+                      minimal=False,
+                      grayscale=grayscale,
+                      time_limit=200)
+        env = DR_Kitchen(env, cameras=cameras, height=height, width=width, mean_only=mean_only,
                    dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape, name=task_name,
                    real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale)
         return env

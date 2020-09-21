@@ -222,9 +222,9 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
             L.log('eval/' + prefix + 'episode_reward', episode_reward, step)
             all_ep_rewards.append(episode_reward)
 
-        update_sim_params(sim_param_model, sim_env, args, obs_traj, step, L)
-        sim_params = obs_dict['sim_params']
         if not args.outer_loop_version == 0:
+            update_sim_params(sim_param_model, sim_env, args, obs_traj, step, L)
+            sim_params = obs_dict['sim_params']
             current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
             if args.outer_loop_version == 1:
                 evaluate_sim_params(sim_param_model, args, obs_traj, step, L, "test", sim_params, current_sim_params)
@@ -385,7 +385,6 @@ def main():
         use_img=args.use_img,
         grayscale=args.grayscale,
     )
-
 
     real_env = env_wrapper.make(
         domain_name=args.domain_name,

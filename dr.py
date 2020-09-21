@@ -25,7 +25,7 @@ def config_dr(config):
 
 def config_dr_dmc(config):
     dr_option = config.dr_option
-    if "cup_catch" in config.task_name:
+    if "ball_in_cup" in config.domain_name:
         real_dr_values = {
             "cup_mass": .0625,
             "ball_mass": .0654,
@@ -45,7 +45,7 @@ def config_dr_dmc(config):
             config.real_dr_list = [
                 "cup_mass", "ball_mass", "cup_r", "cup_g", "cup_b", "ball_r", "ball_g", "ball_b",
             ]
-    elif "walker" in config.task_name:
+    elif "walker" in config.domain_name:
         real_dr_values = {
             "torso_mass": 10.3,
             "right_thigh_mass": 3.93,
@@ -74,7 +74,7 @@ def config_dr_dmc(config):
                 "right_hip", "right_knee", "right_ankle", "left_hip", "left_knee", "left_ankle", "ground_r", "ground_g",
                 "ground_b", "body_r", "body_g", "body_b"
             ]
-    elif "finger" in config.task_name:
+    elif "finger" in config.domain_name:
         real_dr_values = {
             "proximal_mass": .805,
             "distal_mass": .636,
@@ -100,7 +100,7 @@ def config_dr_dmc(config):
                 "finger_g",
                 "finger_b", "hotdog_r", "hotdog_g", "hotdog_b",
             ]
-    elif "cheetah" in config.task_name:
+    elif "cheetah" in config.domain_name:
         real_dr_values = {
             "torso_mass": 6.36,
             "bthigh_mass": 1.54,
