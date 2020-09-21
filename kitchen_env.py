@@ -4,6 +4,24 @@ from dm_control.utils.inverse_kinematics import qpos_from_site_pose
 from dm_control.rl.control import PhysicsError
 import gym
 
+GOAL_DIM = 30
+ARM_DIM = 13
+XPOS_INDICES = {
+    'arm': [4, 5, 6, 7, 8, 9, 10], #Arm,
+    'end_effector': [10],
+    'gripper': [11, 12, 13, 14, 15, 16], #Gripper
+    'knob_burner1': [22, 23],
+    'knob_burner2': [24, 25],
+    'knob_burner3': [26, 27],
+    'knob_burner4': [28, 29],
+    'light_switch': [31, 32],
+    'slide': [38],
+    'hinge': [41],
+    'microwave': [44],
+    'kettle': [47],
+    'kettle_root': [48],
+}
+
 class Kitchen:
   def __init__(self, task='reach_kettle', size=(100, 100), real_world=False, dr=None, mean_only=False,
                early_termination=False, use_state="None", step_repeat=200, dr_list=[],
