@@ -10,6 +10,12 @@ All of the dependencies are in the `conda_env.yml` file. They can be installed m
 conda env create -f conda_env.yml
 ```
 
+Enter the environments directory and run
+```
+pip install -e .
+```
+
+
 ## Instructions
 To train a CURL agent on the `cartpole swingup` task from image-based observations run `bash script/run.sh` from the root of this directory. The `run.sh` file contains the following command, which you can modify to try different environments / hyperparamters.
 ```
@@ -58,3 +64,19 @@ tensorboard --logdir log --port 6006
 and go to `localhost:6006` in your browser. If you're running headlessly, try port forwarding with ssh. 
 
 For GPU accelerated rendering, make sure EGL is installed on your machine and set `export MUJOCO_GL=egl`. For environment troubleshooting issues, see the DeepMind control documentation.
+
+
+# Debugging common installation errors
+Error message `ERROR: GLEW initalization error: Missing GL version`
+- Make sure `/usr/lib/x86_64-linux-gnu/libGLEW.so` and `/usr/lib/x86_64-linux-gnu/libGL.so` exist.  If not, apt-install them.
+- Try trying adding the powerset of those two paths to LD_PRELOAD.
+
+Error `Shadow framebuffer is not complete, error 0x8cd7`
+- Like above, make sure libglew and libGL are installed.
+- If `/usr/lib/nvidia` exists but '/usr/lib/nvidia-430/` (or some other number) does not exist, run `ln -s /usr/lib/nvidia /usr/lib/nvidia-430`.  It may have to match the number of your nvidia driver, I'm not sure.
+- Consider adding that symlink to LD_LIBRARY PATH.
+
+Error `RuntimeError: Failed to initialize OpenGL`
+- 
+
+Which error is the best?  Framebuffer > GLEW initialization > Failed to initialize OpenGL.
