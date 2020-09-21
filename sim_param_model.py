@@ -29,7 +29,7 @@ class SimParamModel(nn.Module):
         if dist == 'normal':
             trunk.append(nn.Linear(traj_length * encoder_feature_dim + additional, self._units))
         else:
-            trunk.append(nn.Linear(traj_length * (encoder_feature_dim + 2) + additional, self._units))
+            trunk.append(nn.Linear(traj_length * (encoder_feature_dim + shape) + additional, self._units))
 
         trunk.append(self._act())
         for index in range(self._layers - 1):
