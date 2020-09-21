@@ -18,7 +18,6 @@ from curl_sac import CurlSacAgent, RadSacAgent
 from sim_param_model import SimParamModel
 from torchvision import transforms
 
-import env_wrapper
 from dr import config_dr
 
 
