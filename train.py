@@ -204,7 +204,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
             done = False
             episode_reward = 0
             obs_traj = []
-            while not done:
+            while not done and len(obs_traj) < args.time_limit:
                 obs = obs_dict['image']
                 # center crop image
                 if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
