@@ -417,6 +417,9 @@ def config_dr_metaworld(config):
         }
         config.real_dr_params.update(real_dr_joint)
         config.real_dr_list = list(config.real_dr_params.keys())
+      else:
+        config.real_dr_params = real_dr_joint
+        config.real_dr_list = list(config.real_dr_params.keys())
       config.sim_params_size = len(config.real_dr_list)
       mean_scale = config.mean_scale
       range_scale = config.range_scale

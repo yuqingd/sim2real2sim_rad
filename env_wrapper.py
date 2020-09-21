@@ -443,7 +443,7 @@ class DR_MetaWorldEnv(DR_Env):  # TODO: consider passing through as kwargs
                 dr_list.append(dr_update_dict[dr_param])
             arr = np.array(dr_list)
         else:
-            arr = np.zeros([])
+            arr = np.zeros(self.dr_shape, dtype=np.float32)
 
         arr = arr.astype(np.float32)
         return arr
