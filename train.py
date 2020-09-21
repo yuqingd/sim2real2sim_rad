@@ -278,7 +278,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
             obs_dict, reward, done, _ = sim_env.step(action)
             video.record(sim_env)
             sim_params = obs_dict['sim_params']
-            if sim_param_model is not None:
+        if sim_param_model is not None:
                 dist_mean = obs_dict['distribution_mean']
                 if args.outer_loop_version == 1:
                     evaluate_sim_params(sim_param_model, args, obs_traj_sim, step, L, "train", sim_params, current_sim_params)
