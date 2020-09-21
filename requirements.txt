@@ -1,0 +1,67 @@
+absl-py==0.9.0
+cachetools==4.1.1
+certifi==2020.6.20
+cffi @ file:///tmp/build/80754af9/cffi_1598370813909/work
+chardet==3.0.4
+click==7.1.2
+cloudpickle==1.3.0
+cycler==0.10.0
+Cython==0.29.21
+decorator==4.4.2
+dm-control @ git+git://github.com/deepmind/dm_control.git@9e0fe0f0f9713a2a993ca78776529011d6c5fbeb
+dm-env==1.2
+dm-tree==0.1.5
+dmc2gym @ git+git://github.com/1nadequacy/dmc2gym.git@62ca3d886eb59a1927720d036be210bedc6d9f48
+fasteners==0.15
+future==0.18.2
+glfw==1.12.0
+google-auth==1.21.1
+google-auth-oauthlib==0.4.1
+grpcio==1.31.0
+gym==0.17.2
+h5py==2.10.0
+idna==2.10
+imageio==2.9.0
+imageio-ffmpeg==0.4.2
+importlib-metadata==1.7.0
+kiwisolver==1.2.0
+labmaze==1.0.3
+lxml==4.5.2
+Markdown==3.2.2
+matplotlib==3.3.1
+-e git+https://github.com/yuqingd/sim2real2sim_rad.git@07484f76ce04a35409d3118fb3a1fa236b3da865#egg=metaworld&subdirectory=environments
+mkl-fft==1.1.0
+mkl-random==1.1.1
+mkl-service==2.3.0
+monotonic==1.5
+mujoco-py==2.0.2.13
+networkx==2.5
+numpy @ file:///tmp/build/80754af9/numpy_and_numpy_base_1596233707986/work
+oauthlib==3.1.0
+olefile==0.46
+Pillow==6.1.0
+protobuf==3.13.0
+pyasn1==0.4.8
+pyasn1-modules==0.2.8
+pycparser @ file:///tmp/build/80754af9/pycparser_1594388511720/work
+pyglet==1.5.0
+PyOpenGL==3.1.5
+pyparsing==2.4.7
+python-dateutil==2.8.1
+PyWavelets==1.1.1
+requests==2.24.0
+requests-oauthlib==1.3.0
+rsa==4.6
+scikit-image==0.17.2
+scipy==1.5.2
+six==1.15.0
+tb-nightly==2.4.0a20200907
+tensorboard-plugin-wit==1.7.0
+termcolor==1.1.0
+tifffile==2020.9.3
+torch==1.6.0
+torchvision==0.7.0
+tqdm==4.48.2
+urllib3==1.25.10
+Werkzeug==1.0.1
+zipp==3.1.0
