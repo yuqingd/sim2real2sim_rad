@@ -23,14 +23,11 @@ class SimParamModel(nn.Module):
         self.device = device
         self.encoder_type = encoder_type
         self.batch = batch_size
+        self.traj_length = traj_length
         additional = 0 if dist == 'normal' else shape
 
         trunk = []
-        if dist == 'normal':
-            trunk.append(nn.Linear(traj_length * encoder_feature_dim + additional, self._units))
-        else:
-            trunk.append(nn.Linear(traj_length * (encoder_feature_dim + shape) + additional, self._units))
-
+        trunk.append(nn.Linear(traj_length * encoder_feature_dim + additional, self._units))
         trunk.append(self._act())
         for index in range(self._layers - 1):
             trunk.append(nn.Linear(self._units, self._units))
@@ -60,7 +57,7 @@ class SimParamModel(nn.Module):
                 input = obs_traj
             else:
                 raise NotImplementedError(type(obs_traj[0]))
-        if len(input) < 200:  # TODO: generalize!
+        if len(input) < self.traj_length:  # TODO: generalize!
             last = input[-1]
             last_arr = torch.stack([copy.deepcopy(last) for _ in range(200 - len(obs_traj))]).to(self.device)
             input = torch.cat([input, last_arr])

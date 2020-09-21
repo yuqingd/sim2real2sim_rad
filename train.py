@@ -100,6 +100,7 @@ def parse_args():
     parser.add_argument('--sim_param_layers', default=2, type=float)
     parser.add_argument('--sim_param_units', default=400, type=float)
 
+
     # Outer loop options
     parser.add_argument('--sample_real_every', default=2, type=int)
     parser.add_argument('--num_real_world', default=1, type=int)
@@ -114,6 +115,7 @@ def parse_args():
     # MISC
     parser.add_argument('--id', default='debug', type=str)
     parser.add_argument('--gpudevice', type=str, required=True, help='cuda visible devices')
+    parser.add_argument('--time_limit', default=200, type=float)
 
     args = parser.parse_args()
     if args.dr:
@@ -261,7 +263,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
         obs_dict = sim_env.reset()
         done = False
         obs_traj_sim = []
-        while not done:
+        while not done and len(obs_traj_sim) < args.time_limit:
             obs = obs_dict['image']
             # center crop image
             if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
@@ -474,6 +476,7 @@ def main():
             sim_param_lr=args.sim_param_lr,
             sim_param_beta=args.sim_param_beta,
             dist=dist,
+            traj_length=args.time_limit
         ).to(device)
     else:
         sim_param_model = None
