@@ -29,7 +29,7 @@ labmaze==1.0.3
 lxml==4.5.2
 Markdown==3.2.2
 matplotlib==3.3.1
--e git+https://github.com/yuqingd/sim2real2sim_rad.git@07484f76ce04a35409d3118fb3a1fa236b3da865#egg=metaworld&subdirectory=environments
+-e git+https://github.com/yuqingd/sim2real2sim_rad.git@e8b2c6757ffc18b98da47006868130424aa66467#egg=metaworld&subdirectory=environments
 mkl-fft==1.1.0
 mkl-random==1.1.1
 mkl-service==2.3.0
