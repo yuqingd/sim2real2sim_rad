@@ -510,7 +510,7 @@ def main():
 
     if load_model:
         agent_step = [int(x) for x in re.findall('\d+', agent_checkpoint)]
-        agent.load(model_dir, agent_step[-1])
+        agent.load_curl(model_dir, agent_step[-1])
         if sim_param_model is not None:
             sim_param_step = [int(x) for x in re.findall('\d+', sim_param_checkpoint)]
             sim_param_model.load(model_dir, sim_param_step[-1])
