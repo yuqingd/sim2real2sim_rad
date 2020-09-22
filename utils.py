@@ -340,7 +340,7 @@ class ReplayBuffer(Dataset):
 
         payload = [
             sliced_obses,
-            sliced_next_obses
+            sliced_next_obses,
             self.actions[self.last_save:self.idx],
             self.rewards[self.last_save:self.idx],
             self.not_dones[self.last_save:self.idx]
