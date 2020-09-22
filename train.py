@@ -19,6 +19,7 @@ from sim_param_model import SimParamModel
 from torchvision import transforms
 
 from dr import config_dr
+import re
 
 
 def parse_args():
@@ -504,9 +505,11 @@ def main():
         sim_param_model = None
 
     if load_model:
-        agent.load(model_dir, np.char.split(agent_checkpoint, '_')[-1])
+        agent_step = [int(x) for x in re.findall('\d+', agent_checkpoint)]
+        agent.load(model_dir, agent_step[-1])
         if sim_param_model is not None:
-            sim_param_model.load(model_dir, np.char.split(sim_param_checkpoint, '_')[-1])
+            sim_param_step = [int(x) for x in re.findall('\d+', sim_param_checkpoint)]
+            sim_param_model.load(model_dir, sim_param_step[-1])
 
     L = Logger(args.work_dir, use_tb=args.save_tb)
 
