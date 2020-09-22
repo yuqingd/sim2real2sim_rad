@@ -356,8 +356,10 @@ class ReplayBuffer(Dataset):
             path = os.path.join(save_dir, chunk)
             payload = torch.load(path)
             assert self.idx == start
-            self.obses[start:end] = payload[0]
-            self.next_obses[start:end] = payload[1]
+            for k,v in payload[0].items():
+                self.obses[k] = v[self.last_save:self.idx]
+            for k,v in payload[1].items():
+                self.next_obses[k] = v[self.last_save:self.idx]
             self.actions[start:end] = payload[2]
             self.rewards[start:end] = payload[3]
             self.not_dones[start:end] = payload[4]
