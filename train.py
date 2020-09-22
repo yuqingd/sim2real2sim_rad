@@ -75,7 +75,7 @@ def parse_args():
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_buffer', default=False, action='store_true')
     parser.add_argument('--save_video', default=False, action='store_true')
-    parser.add_argument('--save_model', default=False, action='store_true')
+    parser.add_argument('--save_model', default=True, action='store_true')
     parser.add_argument('--detach_encoder', default=False, action='store_true')
 
     parser.add_argument('--data_augs', default='crop', type=str)
@@ -422,6 +422,16 @@ def main():
     exp_name += '-s' + str(args.seed) + '-' + args.agent + '-' + args.encoder_type + '-' + args.data_augs
     args.work_dir = args.work_dir + '/' + args.id + '_' + exp_name
 
+    load_model = False
+    if os.path.exists(args.work_dir):
+        print("Loading checkpoint")
+        load_model = True
+        checkpoints = os.listdir(args.workdir)
+        agent_checkpoint = np.sort([f for f in checkpoints if 'curl' in f], order='AlphaNumColumn')[-1]
+        if args.outer_loop_version in [1,3]:
+            sim_param_checkpoint = np.sort([f for f in checkpoints if 'sim_param' in f], order='AlphaNumColumn')[-1]
+
+
     utils.make_dir(args.work_dir)
     sim_video_dir = utils.make_dir(os.path.join(args.work_dir, 'sim_video'))
     real_video_dir = utils.make_dir(os.path.join(args.work_dir, 'real_video'))
@@ -460,6 +470,7 @@ def main():
         args=args,
         device=device
     )
+
     if args.outer_loop_version in [1, 3]:
         dist = 'binary' if args.outer_loop_version == 3 else 'normal'
         sim_param_model = SimParamModel(
@@ -481,6 +492,11 @@ def main():
     else:
         sim_param_model = None
 
+    if load_model:
+        agent.load(model_dir, np.char.split(agent_checkpoint, '_')[-1])
+        if sim_param_model is not None:
+            sim_param_model.load(model_dir, np.char.split(sim_param_checkpoint, '_')[-1])
+
     L = Logger(args.work_dir, use_tb=args.save_tb)
 
     episode, episode_reward, done = 0, 0, True
@@ -494,6 +510,8 @@ def main():
             evaluate(real_env, sim_env, agent, sim_param_model, video, args.num_eval_episodes, L, step, args)
             if args.save_model:
                 agent.save_curl(model_dir, step)
+                if sim_param_model is not None:
+                    sim_param_model.save(model_dir, step)
             if args.save_buffer:
                 replay_buffer.save(buffer_dir)
 
