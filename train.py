@@ -19,6 +19,7 @@ from sim_param_model import SimParamModel
 from torchvision import transforms
 
 from dr import config_dr
+import re
 
 
 def parse_args():
@@ -75,7 +76,7 @@ def parse_args():
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_buffer', default=False, action='store_true')
     parser.add_argument('--save_video', default=False, action='store_true')
-    parser.add_argument('--save_model', default=False, action='store_true')
+    parser.add_argument('--save_model', default=True, action='store_true')
     parser.add_argument('--detach_encoder', default=False, action='store_true')
 
     parser.add_argument('--data_augs', default='crop', type=str)
@@ -100,6 +101,7 @@ def parse_args():
     parser.add_argument('--sim_param_layers', default=2, type=float)
     parser.add_argument('--sim_param_units', default=400, type=float)
 
+
     # Outer loop options
     parser.add_argument('--sample_real_every', default=2, type=int)
     parser.add_argument('--num_real_world', default=1, type=int)
@@ -114,6 +116,7 @@ def parse_args():
     # MISC
     parser.add_argument('--id', default='debug', type=str)
     parser.add_argument('--gpudevice', type=str, required=True, help='cuda visible devices')
+    parser.add_argument('--time_limit', default=200, type=float)
 
     args = parser.parse_args()
     if args.dr:
@@ -202,7 +205,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
             done = False
             episode_reward = 0
             obs_traj = []
-            while not done:
+            while not done and len(obs_traj) < args.time_limit:
                 obs = obs_dict['image']
                 # center crop image
                 if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
@@ -221,14 +224,14 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
             L.log('eval/' + prefix + 'episode_reward', episode_reward, step)
             all_ep_rewards.append(episode_reward)
 
-        if not args.outer_loop_version == 0:
-            update_sim_params(sim_param_model, sim_env, args, obs_traj, step, L)
-            sim_params = obs_dict['sim_params']
-            current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
-            if args.outer_loop_version == 1:
-                evaluate_sim_params(sim_param_model, args, obs_traj, step, L, "test", sim_params, current_sim_params)
-            elif args.outer_loop_version == 3:
-                evaluate_sim_params(sim_param_model, args, obs_traj, step, L, "test", sim_params, current_sim_params)
+            if not args.outer_loop_version == 0:
+                update_sim_params(sim_param_model, sim_env, args, obs_traj, step, L)
+                sim_params = obs_dict['sim_params']
+                current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
+                if args.outer_loop_version == 1:
+                    evaluate_sim_params(sim_param_model, args, obs_traj, step, L, "test", sim_params, current_sim_params)
+                elif args.outer_loop_version == 3:
+                    evaluate_sim_params(sim_param_model, args, obs_traj, step, L, "test", sim_params, current_sim_params)
 
 
         L.log('eval/' + prefix + 'eval_time', time.time() - start_time, step)
@@ -261,7 +264,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
         obs_dict = sim_env.reset()
         done = False
         obs_traj_sim = []
-        while not done:
+        while not done and len(obs_traj_sim) < args.time_limit:
             obs = obs_dict['image']
             # center crop image
             if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
@@ -276,12 +279,12 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
             obs_dict, reward, done, _ = sim_env.step(action)
             video.record(sim_env)
             sim_params = obs_dict['sim_params']
-            if sim_param_model is not None:
+        if sim_param_model is not None:
                 dist_mean = obs_dict['distribution_mean']
                 if args.outer_loop_version == 1:
                     evaluate_sim_params(sim_param_model, args, obs_traj_sim, step, L, "train", sim_params, current_sim_params)
                 elif args.outer_loop_version == 3:
-                    sim_param_model.train_classifier(obs_traj_sim, sim_params, dist_mean)
+                    sim_param_model.train_classifier(obs_traj_sim, sim_params, dist_mean, L, step, True)
         video.save('sim_%d.mp4' % step)
 
     run_eval_loop(sample_stochastically=False)
@@ -420,6 +423,31 @@ def main():
     exp_name += '-s' + str(args.seed) + '-' + args.agent + '-' + args.encoder_type + '-' + args.data_augs
     args.work_dir = args.work_dir + '/' + args.id + '_' + exp_name
 
+    load_model = False
+    if os.path.exists(os.path.join(args.work_dir, 'model')):
+        print("Loading checkpoint...")
+        load_model = True
+        checkpoints = os.listdir(os.path.join(args.work_dir, 'model'))
+
+        if len(checkpoints) == 0:
+            print("No checkpoints found")
+
+        else:
+            agent_checkpoint = [f for f in checkpoints if 'curl' in f]
+            if len(agent_checkpoint) > 1:
+                agent_checkpoint = np.sort(agent_checkpoint, order='AlphaNumColumn')[-1]
+            else:
+                agent_checkpoint = agent_checkpoint[-1]
+            if args.outer_loop_version in [1,3]:
+                sim_param_checkpoint = [f for f in checkpoints if 'sim_param' in f]
+                if len(sim_param_checkpoint) > 1:
+                    sim_param_checkpoint = np.sort(sim_param_checkpoint, order='AlphaNumColumn')[-1]
+                else:
+                    sim_param_checkpoint = sim_param_checkpoint[-1]
+
+
+
+
     utils.make_dir(args.work_dir)
     sim_video_dir = utils.make_dir(os.path.join(args.work_dir, 'sim_video'))
     real_video_dir = utils.make_dir(os.path.join(args.work_dir, 'real_video'))
@@ -458,6 +486,7 @@ def main():
         args=args,
         device=device
     )
+
     if args.outer_loop_version in [1, 3]:
         dist = 'binary' if args.outer_loop_version == 3 else 'normal'
         sim_param_model = SimParamModel(
@@ -474,16 +503,26 @@ def main():
             sim_param_lr=args.sim_param_lr,
             sim_param_beta=args.sim_param_beta,
             dist=dist,
+            traj_length=args.time_limit
         ).to(device)
     else:
         sim_param_model = None
+
+    start_step = 0
+    if load_model:
+        agent_step = [int(x) for x in re.findall('\d+', agent_checkpoint)]
+        agent.load_curl(model_dir, agent_step[-1])
+        if sim_param_model is not None:
+            sim_param_step = [int(x) for x in re.findall('\d+', sim_param_checkpoint)]
+            sim_param_model.load(model_dir, sim_param_step[-1])
+        start_step = min(agent_step[-1], sim_param_step[-1])
 
     L = Logger(args.work_dir, use_tb=args.save_tb)
 
     episode, episode_reward, done = 0, 0, True
     start_time = time.time()
 
-    for step in range(args.num_train_steps):
+    for step in range(start_step, args.num_train_steps):
         # evaluate agent periodically
 
         if step % args.eval_freq == 0:
@@ -491,6 +530,8 @@ def main():
             evaluate(real_env, sim_env, agent, sim_param_model, video, args.num_eval_episodes, L, step, args)
             if args.save_model:
                 agent.save_curl(model_dir, step)
+                if sim_param_model is not None:
+                    sim_param_model.save(model_dir, step)
             if args.save_buffer:
                 replay_buffer.save(buffer_dir)
 

@@ -23,6 +23,7 @@ class SimParamModel(nn.Module):
         self.device = device
         self.encoder_type = encoder_type
         self.batch = batch_size
+        self.traj_length = traj_length
         additional = 0 if dist == 'normal' else shape
 
         trunk = []
@@ -56,7 +57,7 @@ class SimParamModel(nn.Module):
                 input = obs_traj
             else:
                 raise NotImplementedError(type(obs_traj[0]))
-        if len(input) < 200:  # TODO: generalize!
+        if len(input) < self.traj_length:  # TODO: generalize!
             last = input[-1]
             last_arr = torch.stack([copy.deepcopy(last) for _ in range(200 - len(obs_traj))]).to(self.device)
             input = torch.cat([input, last_arr])
@@ -86,8 +87,8 @@ class SimParamModel(nn.Module):
         return pred_class
 
 
-    def train_classifier(self, obs_traj, sim_params, distribution_mean):
-        dist_range = 10 * torch.FloatTensor(distribution_mean)
+    def train_classifier(self, obs_traj, sim_params, distribution_mean,  L, step, should_log):
+        dist_range = torch.FloatTensor(distribution_mean)
         sim_params = torch.FloatTensor(sim_params)  # 1 - dimensional
         eps = 1e-3
         low = torch.FloatTensor(
@@ -106,6 +107,10 @@ class SimParamModel(nn.Module):
         pred_class = pred_class.flatten().unsqueeze(0).float()
         labels = labels.flatten().unsqueeze(0).float()
         loss = -nn.BCELoss()(pred_class, labels)
+
+        if should_log:
+            L.log('train_sim_params/loss', loss, step)
+
         # Optimize the critic
         self.sim_param_optimizer.zero_grad()
         loss.backward()
@@ -131,4 +136,14 @@ class SimParamModel(nn.Module):
         self.sim_param_optimizer.zero_grad()
         loss.backward()
         self.sim_param_optimizer.step()
+
+    def save(self, model_dir, step):
+        torch.save(
+            self.state_dict(), '%s/sim_param_%s.pt' % (model_dir, step)
+        )
+
+    def load(self, model_dir, step):
+        self.load_state_dict(
+            torch.load('%s/sim_param_%s.pt' % (model_dir, step))
+        )
 
