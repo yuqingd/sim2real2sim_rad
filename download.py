@@ -33,13 +33,16 @@ for file_name in files:
     videos.sort(key=os.path.getmtime, reverse=True)
 
     # Find the most recent video
-    last_video = videos[0]
-    print("downloading ", last_video)
+    try:
+        last_video = videos[0]
+        print("downloading ", last_video)
 
 
-    # Change of plans.  Since IDK an easy way to scp it down, I'm just gonna move it to a new directory and scp from there.
-    directory = "download_files"
-    copy(last_video, directory)
+        # Change of plans.  Since IDK an easy way to scp it down, I'm just gonna move it to a new directory and scp from there.
+        directory = "download_files"
+        copy(last_video, directory)
+    except:
+        print("No videos for ", file_name)
 
     # # Download it to my machine
     # ssh = createSSHClient(server, port, user, password)
