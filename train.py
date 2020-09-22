@@ -224,14 +224,14 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
             L.log('eval/' + prefix + 'episode_reward', episode_reward, step)
             all_ep_rewards.append(episode_reward)
 
-        if not args.outer_loop_version == 0:
-            update_sim_params(sim_param_model, sim_env, args, obs_traj, step, L)
-            sim_params = obs_dict['sim_params']
-            current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
-            if args.outer_loop_version == 1:
-                evaluate_sim_params(sim_param_model, args, obs_traj, step, L, "test", sim_params, current_sim_params)
-            elif args.outer_loop_version == 3:
-                evaluate_sim_params(sim_param_model, args, obs_traj, step, L, "test", sim_params, current_sim_params)
+            if not args.outer_loop_version == 0:
+                update_sim_params(sim_param_model, sim_env, args, obs_traj, step, L)
+                sim_params = obs_dict['sim_params']
+                current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
+                if args.outer_loop_version == 1:
+                    evaluate_sim_params(sim_param_model, args, obs_traj, step, L, "test", sim_params, current_sim_params)
+                elif args.outer_loop_version == 3:
+                    evaluate_sim_params(sim_param_model, args, obs_traj, step, L, "test", sim_params, current_sim_params)
 
 
         L.log('eval/' + prefix + 'eval_time', time.time() - start_time, step)
