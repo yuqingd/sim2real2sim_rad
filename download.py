@@ -40,6 +40,7 @@ for file_name in files:
 
         # Change of plans.  Since IDK an easy way to scp it down, I'm just gonna move it to a new directory and scp from there.
         directory = "download_files"
+        download_file = os.path.join(directory, last_video[last_video.index('real'):])
         copy(last_video, directory)
     except:
         print("No videos for ", file_name)
