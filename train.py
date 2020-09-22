@@ -427,12 +427,14 @@ def main():
         print("Loading checkpoint...")
         load_model = True
         checkpoints = os.listdir(args.work_dir)
-        agent_checkpoint = np.sort([f for f in checkpoints if 'curl' in f], order='AlphaNumColumn')[-1]
-        if args.outer_loop_version in [1,3]:
-            sim_param_checkpoint = np.sort([f for f in checkpoints if 'sim_param' in f], order='AlphaNumColumn')[-1]
-
-        if len(agent_checkpoint) < 1:
+        if len(checkpoints) < 1:
             print("No checkpoints found")
+        else:
+            agent_checkpoint = np.sort([f for f in checkpoints if 'curl' in f], order='AlphaNumColumn')[-1]
+            if args.outer_loop_version in [1,3]:
+                sim_param_checkpoint = np.sort([f for f in checkpoints if 'sim_param' in f], order='AlphaNumColumn')[-1]
+
+
 
 
     utils.make_dir(args.work_dir)
