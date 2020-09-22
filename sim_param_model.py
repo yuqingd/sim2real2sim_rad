@@ -79,7 +79,7 @@ class SimParamModel(nn.Module):
         pred_labels = pred_labels.to(self.device)
         feat = self.get_features(obs_traj)
         feat = feat.flatten()
-        feat_tiled = feat.unsqueeze(0).repeat(len(pred_labels), 1)
+        feat_tiled = feat.unsqueeze(0).repeat(1, len(pred_labels))
         fake_pred = torch.cat([pred_labels, feat_tiled], dim=-1)
         x = self.trunk(fake_pred)
         pred_class = torch.distributions.bernoulli.Bernoulli(logits=x)
