@@ -334,9 +334,13 @@ class ReplayBuffer(Dataset):
         if self.idx == self.last_save:
             return
         path = os.path.join(save_dir, '%d_%d.pt' % (self.last_save, self.idx))
+
+        sliced_obses = {k:v[self.last_save:self.idx] for k, v in self.obses.items()}
+        sliced_next_obses = {k:v[self.last_save:self.idx] for k, v in self.next_obses.items()}
+
         payload = [
-            self.obses[self.last_save:self.idx],
-            self.next_obses[self.last_save:self.idx],
+            sliced_obses,
+            sliced_next_obses
             self.actions[self.last_save:self.idx],
             self.rewards[self.last_save:self.idx],
             self.not_dones[self.last_save:self.idx]
