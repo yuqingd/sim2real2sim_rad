@@ -527,7 +527,7 @@ def main():
             num_updates = 1
             for _ in range(num_updates):
                 agent.update(replay_buffer, L, step)
-            if step % 50 == 0 and args.outer_loop_version == 1:  # TODO: update?
+            if step % 50 == 0 and args.outer_loop_version in [1,3]:  # TODO: update?
                 sim_param_model.update(replay_buffer, L, step, True) #TODO: change update freq if needed
 
 
