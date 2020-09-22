@@ -284,7 +284,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
                 if args.outer_loop_version == 1:
                     evaluate_sim_params(sim_param_model, args, obs_traj_sim, step, L, "train", sim_params, current_sim_params)
                 elif args.outer_loop_version == 3:
-                    sim_param_model.train_classifier(obs_traj_sim, sim_params, dist_mean)
+                    sim_param_model.train_classifier(obs_traj_sim, sim_params, dist_mean, L, step, True)
         video.save('sim_%d.mp4' % step)
 
     run_eval_loop(sample_stochastically=False)
@@ -508,19 +508,21 @@ def main():
     else:
         sim_param_model = None
 
+    start_step = 0
     if load_model:
         agent_step = [int(x) for x in re.findall('\d+', agent_checkpoint)]
         agent.load_curl(model_dir, agent_step[-1])
         if sim_param_model is not None:
             sim_param_step = [int(x) for x in re.findall('\d+', sim_param_checkpoint)]
             sim_param_model.load(model_dir, sim_param_step[-1])
+        start_step = min(agent_step[-1], sim_param_step[-1])
 
     L = Logger(args.work_dir, use_tb=args.save_tb)
 
     episode, episode_reward, done = 0, 0, True
     start_time = time.time()
 
-    for step in range(args.num_train_steps):
+    for step in range(start_step, args.num_train_steps):
         # evaluate agent periodically
 
         if step % args.eval_freq == 0:
@@ -563,7 +565,7 @@ def main():
             num_updates = 1
             for _ in range(num_updates):
                 agent.update(replay_buffer, L, step)
-            if step % 50 == 0 and args.outer_loop_version in [1,3]:  # TODO: update?
+            if step % 50 == 0 and args.outer_loop_version == 1:  # TODO: update?
                 sim_param_model.update(replay_buffer, L, step, True) #TODO: change update freq if needed
 
 

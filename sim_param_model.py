@@ -87,7 +87,7 @@ class SimParamModel(nn.Module):
         return pred_class
 
 
-    def train_classifier(self, obs_traj, sim_params, distribution_mean):
+    def train_classifier(self, obs_traj, sim_params, distribution_mean,  L, step, should_log):
         dist_range = torch.FloatTensor(distribution_mean)
         sim_params = torch.FloatTensor(sim_params)  # 1 - dimensional
         eps = 1e-3
@@ -107,6 +107,10 @@ class SimParamModel(nn.Module):
         pred_class = pred_class.flatten().unsqueeze(0).float()
         labels = labels.flatten().unsqueeze(0).float()
         loss = -nn.BCELoss()(pred_class, labels)
+
+        if should_log:
+            L.log('train_sim_params/loss', loss, step)
+
         # Optimize the critic
         self.sim_param_optimizer.zero_grad()
         loss.backward()
