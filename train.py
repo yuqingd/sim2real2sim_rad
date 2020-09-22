@@ -428,7 +428,7 @@ def main():
         print("Loading checkpoint...")
         load_model = True
         checkpoints = os.listdir(os.path.join(args.work_dir, 'model'))
-        buffer = os.path.join(args.work_dir, 'buffer')
+        buffer = os.listdir(os.path.join(args.work_dir, 'buffer'))
         if len(checkpoints) == 0 or len(buffer) == 0:
             print("No checkpoints found")
             load_model = False
