@@ -355,7 +355,8 @@ class ReplayBuffer(Dataset):
             start, end = [int(x) for x in chunk.split('.')[0].split('_')]
             path = os.path.join(save_dir, chunk)
             payload = torch.load(path)
-            assert self.idx == start
+            if self.idx != start:
+                continue
             for k,v in payload[0].items():
                 self.obses[k][start:end] = v
             for k,v in payload[1].items():
