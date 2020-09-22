@@ -426,7 +426,7 @@ def main():
     if os.path.exists(os.path.join(args.work_dir, 'model')):
         print("Loading checkpoint...")
         load_model = True
-        checkpoints = os.listdir(args.work_dir)
+        checkpoints = os.listdir(os.path.join(args.work_dir, 'model'))
         if len(checkpoints) < 1:
             print("No checkpoints found")
         else:
