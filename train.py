@@ -436,10 +436,14 @@ def main():
             agent_checkpoint = [f for f in checkpoints if 'curl' in f]
             if len(agent_checkpoint) > 1:
                 agent_checkpoint = np.sort(agent_checkpoint, order='AlphaNumColumn')[-1]
+            else:
+                agent_checkpoint = agent_checkpoint[-1]
             if args.outer_loop_version in [1,3]:
                 sim_param_checkpoint = [f for f in checkpoints if 'sim_param' in f]
                 if len(sim_param_checkpoint) > 1:
                     sim_param_checkpoint = np.sort(sim_param_checkpoint, order='AlphaNumColumn')[-1]
+                else:
+                    sim_param_checkpoint = sim_param_checkpoint[-1]
 
 
 
