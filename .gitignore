@@ -1,4 +1,5 @@
 *.gif
+download_files/
 logdir/
 .idea/
 *.py[cod]
