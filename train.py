@@ -428,10 +428,10 @@ def main():
         print("Loading checkpoint...")
         load_model = True
         checkpoints = os.listdir(os.path.join(args.work_dir, 'model'))
-
-        if len(checkpoints) == 0:
+        buffer = os.path.join(args.work_dir, 'buffer')
+        if len(checkpoints) == 0 or len(buffer) == 0:
             print("No checkpoints found")
-
+            load_model = False
         else:
             agent_checkpoint = [f for f in checkpoints if 'curl' in f]
             if args.outer_loop_version in [1,3]:
@@ -512,6 +512,7 @@ def main():
                 sim_param_step = max(sim_param_step,[int(x) for x in re.findall('\d+', checkpoint)][-1])
             sim_param_model.load(model_dir, sim_param_step)
         start_step = min(agent_step, sim_param_step)
+        replay_buffer.load(buffer_dir)
 
     L = Logger(args.work_dir, use_tb=args.save_tb)
 
