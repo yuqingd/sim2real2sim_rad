@@ -428,22 +428,14 @@ def main():
         print("Loading checkpoint...")
         load_model = True
         checkpoints = os.listdir(os.path.join(args.work_dir, 'model'))
-
-        if len(checkpoints) == 0:
+        buffer = os.listdir(os.path.join(args.work_dir, 'buffer'))
+        if len(checkpoints) == 0 or len(buffer) == 0:
             print("No checkpoints found")
-
+            load_model = False
         else:
             agent_checkpoint = [f for f in checkpoints if 'curl' in f]
-            if len(agent_checkpoint) > 1:
-                agent_checkpoint = np.sort(agent_checkpoint, order='AlphaNumColumn')[-1]
-            else:
-                agent_checkpoint = agent_checkpoint[-1]
             if args.outer_loop_version in [1,3]:
                 sim_param_checkpoint = [f for f in checkpoints if 'sim_param' in f]
-                if len(sim_param_checkpoint) > 1:
-                    sim_param_checkpoint = np.sort(sim_param_checkpoint, order='AlphaNumColumn')[-1]
-                else:
-                    sim_param_checkpoint = sim_param_checkpoint[-1]
 
 
 
@@ -510,12 +502,17 @@ def main():
 
     start_step = 0
     if load_model:
-        agent_step = [int(x) for x in re.findall('\d+', agent_checkpoint)]
-        agent.load_curl(model_dir, agent_step[-1])
+        agent_step = 0
+        for checkpoint in agent_checkpoint:
+            agent_step = max(agent_step, [int(x) for x in re.findall('\d+', checkpoint)][-1])
+        agent.load_curl(model_dir, agent_step)
         if sim_param_model is not None:
-            sim_param_step = [int(x) for x in re.findall('\d+', sim_param_checkpoint)]
-            sim_param_model.load(model_dir, sim_param_step[-1])
-        start_step = min(agent_step[-1], sim_param_step[-1])
+            sim_param_step = 0
+            for checkpoint in sim_param_checkpoint:
+                sim_param_step = max(sim_param_step,[int(x) for x in re.findall('\d+', checkpoint)][-1])
+            sim_param_model.load(model_dir, sim_param_step)
+        start_step = min(agent_step, sim_param_step)
+        replay_buffer.load(buffer_dir)
 
     L = Logger(args.work_dir, use_tb=args.save_tb)
 
