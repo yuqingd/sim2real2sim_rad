@@ -13,7 +13,7 @@ from curl_sac import weight_init
 class SimParamModel(nn.Module):
     def __init__(self, shape, layers, units, device, obs_shape, encoder_type,
         encoder_feature_dim, encoder_num_layers, encoder_num_filters, agent, sim_param_lr=1e-3, sim_param_beta=0.9,
-                 dist='normal', act=nn.ELU, batch_size=32, traj_length=200):
+                 dist='normal', act=nn.ELU, batch_size=32, traj_length=200, use_gru=True):
         super(SimParamModel, self).__init__()
         self._shape = shape
         self._layers = layers
@@ -24,10 +24,15 @@ class SimParamModel(nn.Module):
         self.encoder_type = encoder_type
         self.batch = batch_size
         self.traj_length = traj_length
+        self.use_gru = use_gru
+        self.encoder_feature_dim = encoder_feature_dim
         additional = 0 if dist == 'normal' else shape
 
         trunk = []
-        trunk.append(nn.Linear(traj_length * encoder_feature_dim + additional, self._units))
+        if self.use_gru:
+            trunk.append(nn.Linear(encoder_feature_dim + additional, self._units))
+        else:
+            trunk.append(nn.Linear(traj_length * encoder_feature_dim + additional, self._units))
         trunk.append(self._act())
         for index in range(self._layers - 1):
             trunk.append(nn.Linear(self._units, self._units))
@@ -40,15 +45,24 @@ class SimParamModel(nn.Module):
             encoder_num_filters, output_logits=True
         )
 
+        if self.use_gru:
+            self.gru = nn.GRU(encoder_feature_dim + additional, encoder_feature_dim + additional)
+
         self.apply(weight_init)
         self.encoder.copy_conv_weights_from(agent.critic.encoder)
 
-        self.sim_param_optimizer = torch.optim.Adam(
-            self.encoder.parameters(), lr=sim_param_lr, betas=(sim_param_beta, 0.999)
-        )
+        if self.use_gru:
+            self.sim_param_optimizer = torch.optim.Adam(
+                list(self.encoder.parameters())+ list(self.trunk.parameters()) + list(self.gru.parameters()), lr=sim_param_lr, betas=(sim_param_beta, 0.999)
+            )
+        else:
+            self.sim_param_optimizer = torch.optim.Adam(
+                list(self.encoder.parameters()) + list(self.trunk.parameters()), lr=sim_param_lr, betas=(sim_param_beta, 0.999)
+            )
 
     def get_features(self, obs_traj):
         # detach_encoder allows to stop gradient propagation to encoder
+
         with torch.no_grad():
             if type(obs_traj[0]) is np.ndarray:
                 obs = np.stack(obs_traj)
@@ -57,12 +71,15 @@ class SimParamModel(nn.Module):
                 input = obs_traj
             else:
                 raise NotImplementedError(type(obs_traj[0]))
-        if len(input) < self.traj_length:  # TODO: generalize!
-            last = input[-1]
-            last_arr = torch.stack([copy.deepcopy(last) for _ in range(200 - len(obs_traj))]).to(self.device)
-            input = torch.cat([input, last_arr])
 
-        features = self.encoder(input, detach=True)
+
+            if len(input) < self.traj_length:  # TODO: generalize!
+                    last = input[-1]
+                    last_arr = torch.stack([copy.deepcopy(last) for _ in range(self.traj_length - len(obs_traj))]).to(self.device)
+                    input = torch.cat([input, last_arr])
+
+            features = self.encoder(input, detach=True)
+
         return features
 
     def forward(self, obs_traj):
@@ -78,9 +95,18 @@ class SimParamModel(nn.Module):
     def forward_classifier(self, obs_traj, pred_labels):
         pred_labels = pred_labels.to(self.device)
         feat = self.get_features(obs_traj)
-        feat = feat.flatten()
-        feat_tiled = feat.unsqueeze(0).repeat(len(pred_labels), 1)
-        fake_pred = torch.cat([pred_labels, feat_tiled], dim=-1)
+        B = len(pred_labels)
+        num_traj = len(obs_traj)
+        #feat = feat.flatten()
+        feat_tiled = feat.unsqueeze(1).repeat(1, B, 1)
+        pred_tiled = pred_labels.unsqueeze(0).repeat(num_traj, 1, 1)
+        fake_pred = torch.cat([pred_tiled, feat_tiled], dim=-1).view(-1, B, self.encoder_feature_dim + self._shape)
+    
+        if self.use_gru:
+            hidden = torch.zeros(1, B, self.encoder_feature_dim + self._shape, device=self.device)
+            fake_pred, hidden = self.gru(fake_pred, hidden)
+            fake_pred = fake_pred[-1] #only look at end of traj
+
         x = self.trunk(fake_pred)
         pred_class = torch.distributions.bernoulli.Bernoulli(logits=x)
         pred_class = pred_class.mean
