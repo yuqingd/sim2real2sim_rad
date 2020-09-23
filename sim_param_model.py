@@ -74,6 +74,8 @@ class SimParamModel(nn.Module):
 
             if self.use_gru:
                 hidden = torch.zeros(1, self.encoder_feature_dim, device=self.device)
+                if len(input.shape) < 3:
+                    input.unsqueeze(1)
                 input = self.encoder(input, detach=True)
                 features, hidden = self.gru(input, hidden)
 
