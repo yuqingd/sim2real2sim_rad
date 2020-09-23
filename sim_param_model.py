@@ -72,20 +72,13 @@ class SimParamModel(nn.Module):
             else:
                 raise NotImplementedError(type(obs_traj[0]))
 
-            if self.use_gru:
-                hidden = torch.zeros(1, self.encoder_feature_dim, device=self.device)
-                if len(input.shape) < 3:
-                    input.unsqueeze(1)
-                input = self.encoder(input, detach=True)
-                features, hidden = self.gru(input, hidden)
 
-            else:
-                if len(input) < self.traj_length:  # TODO: generalize!
+            if len(input) < self.traj_length:  # TODO: generalize!
                     last = input[-1]
                     last_arr = torch.stack([copy.deepcopy(last) for _ in range(self.traj_length - len(obs_traj))]).to(self.device)
                     input = torch.cat([input, last_arr])
 
-                features = self.encoder(input, detach=True)
+            features = self.encoder(input, detach=True)
 
         return features
 
@@ -102,9 +95,16 @@ class SimParamModel(nn.Module):
     def forward_classifier(self, obs_traj, pred_labels):
         pred_labels = pred_labels.to(self.device)
         feat = self.get_features(obs_traj)
+
         feat = feat.flatten()
         feat_tiled = feat.unsqueeze(0).repeat(len(pred_labels), 1)
         fake_pred = torch.cat([pred_labels, feat_tiled], dim=-1)
+
+        if self.use_gru:
+            hidden = torch.zeros(1, self.encoder_feature_dim + self._shape, device=self.device)
+            fake_pred, hidden = self.gru(fake_pred, hidden)
+            fake_pred = fake_pred[-1] #only look at end of traj
+
         x = self.trunk(fake_pred)
         pred_class = torch.distributions.bernoulli.Bernoulli(logits=x)
         pred_class = pred_class.mean
