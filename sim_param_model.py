@@ -52,11 +52,11 @@ class SimParamModel(nn.Module):
 
         if self.use_gru:
             self.sim_param_optimizer = torch.optim.Adam(
-                [self.encoder.parameters(), self.trunk.parameters(), self.gru.parameters()], lr=sim_param_lr, betas=(sim_param_beta, 0.999)
+                list(self.encoder.parameters())+ list(self.trunk.parameters()) + list(self.gru.parameters()), lr=sim_param_lr, betas=(sim_param_beta, 0.999)
             )
         else:
             self.sim_param_optimizer = torch.optim.Adam(
-                [self.encoder.parameters(), self.trunk.parameters()], lr=sim_param_lr, betas=(sim_param_beta, 0.999)
+                list(self.encoder.parameters()) + list(self.trunk.parameters()), lr=sim_param_lr, betas=(sim_param_beta, 0.999)
             )
 
     def get_features(self, obs_traj):
