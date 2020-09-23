@@ -161,8 +161,9 @@ class DR_Env:
 class DR_MetaWorldEnv(DR_Env):  # TODO: consider passing through as kwargs
     def __init__(self, env, cameras, height=64, width=64, mean_only=False, dr_list=[], simple_randomization=False,
                  dr_shape=None, real_world=False, dr=None, use_state="None", use_img=True, name="task_name",
-                 grayscale=False):
-        env = MetaWorldEnv(env, from_pixels=use_img, cameras=cameras, height=height, width=width)
+                 grayscale=False, delay_steps=0):
+        env = MetaWorldEnv(env, from_pixels=use_img, cameras=cameras, height=height, width=width,
+                         delay_steps=delay_steps)
         super().__init__(env, cameras,
                          height=height, width=width,
                          mean_only=mean_only,
@@ -1028,7 +1029,7 @@ class DR_DMCEnv(DR_Env):
 def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range(1),
          visualize_reward=False, frame_skip=None, mean_only=False,  dr_list=[], simple_randomization=False, dr_shape=None,
                real_world=False, dr=None, use_state="None", use_img=True,
-                grayscale=False):
+                grayscale=False, delay_steps=0):
     # DMC
     if 'dmc' in domain_name:
         domain_name_root = domain_name[4:]  # Task name is formatted as dmc_walker.  Now just walker
@@ -1064,7 +1065,8 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
         env.seed(seed)
         env = DR_MetaWorldEnv(env, cameras=cameras, height=height, width=width, mean_only=mean_only,
                    dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape, name=task_name,
-                   real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale)
+                   real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
+                   delay_steps=delay_steps)
         return env
     elif 'kitchen' in domain_name:
         env = Kitchen(dr=dr, mean_only=mean_only,

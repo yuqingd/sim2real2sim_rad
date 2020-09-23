@@ -117,6 +117,7 @@ def parse_args():
     parser.add_argument('--id', default='debug', type=str)
     parser.add_argument('--gpudevice', type=str, required=True, help='cuda visible devices')
     parser.add_argument('--time_limit', default=200, type=float)
+    parser.add_argument('--delay_steps', default=0, type=int)
 
     args = parser.parse_args()
     if args.dr:
@@ -386,6 +387,7 @@ def main():
         use_state=args.use_state,
         use_img=args.use_img,
         grayscale=args.grayscale,
+        delay_steps=args.delay_steps,
     )
 
     real_env = env_wrapper.make(
@@ -404,6 +406,7 @@ def main():
         use_state=args.use_state,
         use_img=args.use_img,
         grayscale=args.grayscale,
+        delay_steps=args.delay_steps,
     )
 
 

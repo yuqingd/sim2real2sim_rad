@@ -72,13 +72,14 @@ all_cameras = [camera_0, camera_1, camera_2, camera_3, camera_4, camera_5, camer
 
 
 class MetaWorldEnv(gym.Env, ABC):
-    def __init__(self, env, cameras, from_pixels=True, height=100, width=100, channels_first=True):
+    def __init__(self, env, cameras, from_pixels=True, height=100, width=100, channels_first=True, delay_steps=0):
         self._env = env
         self.cameras = cameras
         self.from_pixels = from_pixels
         self.height = height
         self.width = width
         self.channels_first = channels_first
+        self.delay_steps = delay_steps
 
         self.viewer = None
 
@@ -135,6 +136,8 @@ class MetaWorldEnv(gym.Env, ABC):
 
     def step(self, action):
         self._state_obs, reward, done, info = self._env.step(action)
+        for _ in range(self.delay_steps):
+            o, _, _, _ = self._env.step(np.zeros(3, ))
         if self._env.curr_path_length >= self._env.max_path_length:
             done = True
         return self._get_obs(), reward, done, info
