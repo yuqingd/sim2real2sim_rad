@@ -43,7 +43,7 @@ def parse_args():
     parser.add_argument('--batch_size', default=32, type=int)
     parser.add_argument('--hidden_dim', default=1024, type=int)
     # eval
-    parser.add_argument('--eval_freq', default=1000, type=int)
+    parser.add_argument('--eval_freq', default=5000, type=int)
     parser.add_argument('--num_eval_episodes', default=10, type=int)
     # critic
     parser.add_argument('--critic_lr', default=1e-3, type=float)
@@ -108,7 +108,7 @@ def parse_args():
     parser.add_argument('--anneal_range_scale', default=1.0, type=float)
     parser.add_argument('--predict_val', default=True, type=bool)
     parser.add_argument('--outer_loop_version', default=0, type=int, choices=[0, 1, 3])
-    parser.add_argument('--alpha', default=.3, type=float)
+    parser.add_argument('--alpha', default=.1, type=float)
     parser.add_argument('--sim_params_size', default=0, type=int)
     parser.add_argument('--ol1_episodes', default=10, type=int)
     parser.add_argument('--binary_prediction', default=False, type=bool)
