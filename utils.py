@@ -354,8 +354,12 @@ class ReplayBuffer(Dataset):
         for chunk in chucks:
             start, end = [int(x) for x in chunk.split('.')[0].split('_')]
             path = os.path.join(save_dir, chunk)
-            payload = torch.load(path)
             if self.idx != start or end <= start:
+                continue
+            try:
+                payload = torch.load(path)
+            except:
+                print("Unable to load ", str(path))
                 continue
             for k,v in payload[0].items():
                 self.obses[k][start:end] = v
