@@ -114,7 +114,7 @@ class SimParamModel(nn.Module):
 
 
     def train_classifier(self, obs_traj, sim_params, distribution_mean,  L, step, should_log):
-        dist_range = torch.FloatTensor(distribution_mean)
+        dist_range = 10 * torch.FloatTensor(distribution_mean)
         sim_params = torch.FloatTensor(sim_params)  # 1 - dimensional
         eps = 1e-3
         low = torch.FloatTensor(
@@ -126,9 +126,11 @@ class SimParamModel(nn.Module):
                               low=sim_params,
                               high=sim_params + dist_range)).to(self.device)
         fake_pred = torch.cat([low, high], dim=0)
-        shuffled_indices = torch.stack([torch.randperm(len(fake_pred)) for _ in range(len(sim_params))], dim=1).to(self.device)
-        fake_pred = torch.gather(fake_pred, 0, shuffled_indices)
         labels = (fake_pred > sim_params.unsqueeze(0).to(self.device)).long()
+        shuffled_indices = torch.stack([torch.randperm(len(labels)) for _ in range(len(sim_params))], dim=1).to(self.device)
+        labels = torch.gather(labels, 0, shuffled_indices)
+        fake_pred = torch.gather(fake_pred, 0, shuffled_indices)
+        #labels = (fake_pred > sim_params.unsqueeze(0).to(self.device)).long()
         pred_class = self.forward_classifier(obs_traj, fake_pred)
         pred_class = pred_class.flatten().unsqueeze(0).float()
         labels = labels.flatten().unsqueeze(0).float()
