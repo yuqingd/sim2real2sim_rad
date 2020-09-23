@@ -331,7 +331,7 @@ class ReplayBuffer(Dataset):
         return obs_list, actions_list, rewards_list, next_obses_list, not_dones_list
         
     def save(self, save_dir):
-        if self.idx == self.last_save:
+        if self.idx <= self.last_save:
             return
         path = os.path.join(save_dir, '%d_%d.pt' % (self.last_save, self.idx))
 
@@ -355,7 +355,7 @@ class ReplayBuffer(Dataset):
             start, end = [int(x) for x in chunk.split('.')[0].split('_')]
             path = os.path.join(save_dir, chunk)
             payload = torch.load(path)
-            if self.idx != start:
+            if self.idx != start or end <= start:
                 continue
             for k,v in payload[0].items():
                 self.obses[k][start:end] = v
