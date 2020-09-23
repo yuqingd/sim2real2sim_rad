@@ -25,6 +25,7 @@ class SimParamModel(nn.Module):
         self.batch = batch_size
         self.traj_length = traj_length
         self.use_gru = use_gru
+        self.encoder_feature_dim = encoder_feature_dim
         additional = 0 if dist == 'normal' else shape
 
         trunk = []
