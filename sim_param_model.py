@@ -64,21 +64,20 @@ class SimParamModel(nn.Module):
         # detach_encoder allows to stop gradient propagation to encoder
 
         with torch.no_grad():
+            if type(obs_traj[0]) is np.ndarray:
+                obs = np.stack(obs_traj)
+                input = torch.FloatTensor(obs).to(self.device)
+            elif type(obs_traj[0]) is torch.Tensor:
+                input = obs_traj
+            else:
+                raise NotImplementedError(type(obs_traj[0]))
+
             if self.use_gru:
                 hidden = torch.zeros(1, self.encoder_feature_dim, device=self.device)
-                for obs in obs_traj:
-                    input = torch.FloatTensor(obs).to(self.device).unsqueeze(0)
-                    input = self.encoder(input, detach=True)
-                    features, hidden = self.gru(input, hidden)
+                input = self.encoder(input, detach=True)
+                features, hidden = self.gru(input, hidden)
 
             else:
-                if type(obs_traj[0]) is np.ndarray:
-                    obs = np.stack(obs_traj)
-                    input = torch.FloatTensor(obs).to(self.device)
-                elif type(obs_traj[0]) is torch.Tensor:
-                    input = obs_traj
-                else:
-                    raise NotImplementedError(type(obs_traj[0]))
                 if len(input) < self.traj_length:  # TODO: generalize!
                     last = input[-1]
                     last_arr = torch.stack([copy.deepcopy(last) for _ in range(self.traj_length - len(obs_traj))]).to(self.device)
