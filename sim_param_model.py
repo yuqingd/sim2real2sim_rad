@@ -46,7 +46,7 @@ class SimParamModel(nn.Module):
         )
 
         if self.use_gru:
-            self.gru = nn.GRU(encoder_feature_dim, encoder_feature_dim)
+            self.gru = nn.GRU(encoder_feature_dim + additional, encoder_feature_dim + additional)
 
         self.apply(weight_init)
         self.encoder.copy_conv_weights_from(agent.critic.encoder)
@@ -95,13 +95,15 @@ class SimParamModel(nn.Module):
     def forward_classifier(self, obs_traj, pred_labels):
         pred_labels = pred_labels.to(self.device)
         feat = self.get_features(obs_traj)
-
-        feat = feat.flatten()
-        feat_tiled = feat.unsqueeze(0).repeat(len(pred_labels), 1)
-        fake_pred = torch.cat([pred_labels, feat_tiled], dim=-1)
-
+        B = len(pred_labels)
+        num_traj = len(obs_traj)
+        #feat = feat.flatten()
+        feat_tiled = feat.unsqueeze(1).repeat(1, B, 1)
+        pred_tiled = pred_labels.unsqueeze(0).repeat(num_traj, 1, 1)
+        fake_pred = torch.cat([pred_tiled, feat_tiled], dim=-1).view(-1, B, self.encoder_feature_dim + self._shape)
+    
         if self.use_gru:
-            hidden = torch.zeros(1, self.encoder_feature_dim + self._shape, device=self.device)
+            hidden = torch.zeros(1, B, self.encoder_feature_dim + self._shape, device=self.device)
             fake_pred, hidden = self.gru(fake_pred, hidden)
             fake_pred = fake_pred[-1] #only look at end of traj
 
