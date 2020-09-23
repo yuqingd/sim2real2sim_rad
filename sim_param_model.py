@@ -65,7 +65,7 @@ class SimParamModel(nn.Module):
 
         with torch.no_grad():
             if self.use_gru:
-                hidden = torch.zeros(1, 1, self.encoder_feature_dim, device=self.device)
+                hidden = torch.zeros(1, self.encoder_feature_dim, device=self.device)
                 for obs in obs_traj:
                     input = torch.FloatTensor(obs).to(self.device).unsqueeze(0)
                     input = self.encoder(input, detach=True)
