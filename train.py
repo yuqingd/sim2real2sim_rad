@@ -112,6 +112,8 @@ def parse_args():
     parser.add_argument('--sim_params_size', default=0, type=int)
     parser.add_argument('--ol1_episodes', default=10, type=int)
     parser.add_argument('--binary_prediction', default=False, type=bool)
+    parser.add_argument('--start_outer_loop', default=0, type=int)
+
 
     # MISC
     parser.add_argument('--id', default='debug', type=str)
@@ -224,7 +226,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
             L.log('eval/' + prefix + 'episode_reward', episode_reward, step)
             all_ep_rewards.append(episode_reward)
 
-            if not args.outer_loop_version == 0:
+            if not args.outer_loop_version == 0 and step > args.start_outer_loop:
                 update_sim_params(sim_param_model, sim_env, args, obs_traj, step, L)
                 sim_params = obs_dict['sim_params']
                 current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
