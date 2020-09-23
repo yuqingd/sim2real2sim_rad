@@ -365,6 +365,7 @@ class ReplayBuffer(Dataset):
             self.rewards[start:end] = payload[3]
             self.not_dones[start:end] = payload[4]
             self.idx = end
+            self.last_save = end
 
     def __getitem__(self, idx):
         idx = np.random.randint(
