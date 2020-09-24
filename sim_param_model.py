@@ -114,8 +114,8 @@ class SimParamModel(nn.Module):
 
 
     def train_classifier(self, obs_traj, sim_params, distribution_mean,  L, step, should_log):
-        dist_range = 10 * torch.FloatTensor(distribution_mean)
-        sim_params = torch.FloatTensor(sim_params)  # 1 - dimensional
+        dist_range = 10 * torch.FloatTensor(distribution_mean).to(self.device)
+        sim_params = torch.FloatTensor(sim_params).to(self.device)  # 1 - dimensional
         eps = 1e-3
         low = torch.FloatTensor(
             np.random.uniform(size=(self.batch, len(sim_params)), low=torch.clamp(sim_params - dist_range, eps, float('inf')),
@@ -168,7 +168,7 @@ class SimParamModel(nn.Module):
             self.sim_param_optimizer.step()
         else:
             for traj in obs_list:
-                self.train_classifier(traj, traj['sim_params'], traj['distribution_mean'], L, step, should_log)
+                self.train_classifier(traj['image'], traj['sim_params'], traj['distribution_mean'], L, step, should_log)
 
 
     def save(self, model_dir, step):
