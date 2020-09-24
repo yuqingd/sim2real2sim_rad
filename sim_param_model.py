@@ -128,8 +128,9 @@ class SimParamModel(nn.Module):
                               high=sim_params + dist_range)).to(self.device)
         fake_pred = torch.cat([low, high], dim=0)
         labels = (fake_pred > sim_params.unsqueeze(0).to(self.device)).long()
-        labels = labels[torch.randperm(labels.size()[0])]
-        fake_pred = fake_pred[torch.randperm(fake_pred.size()[0])]
+        shuffled_indices = torch.randperm(labels.size()[0]).to(self.device)
+        labels = labels[shuffled_indices]
+        fake_pred = fake_pred[shuffled_indices]
         #shuffled_indices = torch.randperm(len(labels)).to(self.device)
         #labels = torch.gather(labels, 0, shuffled_indices)
         #fake_pred = torch.gather(fake_pred, 0, shuffled_indices)
