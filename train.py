@@ -147,7 +147,14 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
                 else:
                     L.log(f'eval/{prefix}/{param}/error', (pred_mean - real_dr_param), step)
         elif args.outer_loop_version == 3:
-            pred_sim_params = sim_param_model.forward_classifier(obs, current_sim_params)[0].cpu().numpy()
+            pred_sim_params = []
+            if len(obs) > 1:
+                for ob in obs:
+                    pred_sim_params.append(sim_param_model.forward_classifier(ob, current_sim_params)[0].cpu().numpy())
+            else:
+                pred_sim_params.append(sim_param_model.forward_classifier(obs[0], current_sim_params)[0].cpu().numpy())
+            pred_sim_params = np.mean(pred_sim_params, axis=0)
+
             real_dr_params = (real_dr_params - current_sim_params[0].cpu().numpy())
             for i, param in enumerate(args.real_dr_list):
                 try:
