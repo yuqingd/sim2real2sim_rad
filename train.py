@@ -169,7 +169,7 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
                 for ob in obs:
                     pred_sim_params.append(sim_param_model.forward_classifier(ob, current_sim_params)[0].cpu().numpy())
             else:
-                pred_sim_params.append(sim_param_model.forward_classifier(obs, current_sim_params)[0].cpu().numpy())
+                pred_sim_params.append(sim_param_model.forward_classifier(obs[0], current_sim_params)[0].cpu().numpy())
             pred_sim_params = np.mean(pred_sim_params, axis=0)
 
     for i, param in enumerate(args.real_dr_list):
