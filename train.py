@@ -164,8 +164,13 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
             pred_sim_params = pred_sim_params[0].cpu().numpy()
         elif args.outer_loop_version == 3:
             current_sim_params = torch.FloatTensor(sim_env.distribution_mean).unsqueeze(0)
-            pred_sim_params = sim_param_model.forward_classifier(obs, current_sim_params)
-            pred_sim_params = pred_sim_params[0].cpu().numpy()
+            pred_sim_params = []
+            if len(obs) > 1:
+                for ob in obs:
+                    pred_sim_params.append(sim_param_model.forward_classifier(ob, current_sim_params)[0].cpu().numpy())
+            else:
+                pred_sim_params.append(sim_param_model.forward_classifier(obs, current_sim_params)[0].cpu().numpy())
+            pred_sim_params = np.mean(pred_sim_params, axis=0)
 
     for i, param in enumerate(args.real_dr_list):
         prev_mean = sim_env.dr[param]
