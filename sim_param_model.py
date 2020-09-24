@@ -169,7 +169,7 @@ class SimParamModel(nn.Module):
             self.sim_param_optimizer.step()
         else:
             for traj in obs_list:
-                self.train_classifier(traj['image'].to('cpu'), traj['sim_params'][-1].to('cpu'), traj['distribution_mean'][-1].to('cpu'),
+                self.train_classifier(traj['image'], traj['sim_params'][-1].to('cpu'), traj['distribution_mean'][-1].to('cpu'),
                                       L, step, should_log)
 
 
