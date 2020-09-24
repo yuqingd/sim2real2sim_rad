@@ -424,7 +424,7 @@ def main():
         env_name = args.domain_name
     else:
         env_name = args.domain_name + '-' + args.task_name
-    exp_name = env_name + '-' + ts + '-im' + str(args.image_size) + '-b' + str(args.batch_size)
+    exp_name = env_name + '-im' + str(args.image_size) + '-b' + str(args.batch_size)
     exp_name += '-s' + str(args.seed) + '-' + args.agent + '-' + args.encoder_type + '-' + args.data_augs
     args.work_dir = args.work_dir + '/' + args.id + '_' + exp_name
 
