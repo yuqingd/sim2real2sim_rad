@@ -114,6 +114,7 @@ class SimParamModel(nn.Module):
 
 
     def train_classifier(self, obs_traj, sim_params, distribution_mean,  L, step, should_log):
+
         dist_range = 10 * torch.FloatTensor(distribution_mean)
         sim_params = torch.FloatTensor(sim_params) # 1 - dimensional
         eps = 1e-3
@@ -168,7 +169,8 @@ class SimParamModel(nn.Module):
             self.sim_param_optimizer.step()
         else:
             for traj in obs_list:
-                self.train_classifier(traj['image'], traj['sim_params'], traj['distribution_mean'], L, step, should_log)
+                self.train_classifier(traj['image'].to('cpu'), traj['sim_params'][-1].to('cpu'), traj['distribution_mean'][-1].to('cpu'),
+                                      L, step, should_log)
 
 
     def save(self, model_dir, step):

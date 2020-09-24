@@ -71,13 +71,13 @@ def preprocess_obs(obs, bits=5):
 
 class ReplayBuffer(Dataset):
     """Buffer to store environment transitions."""
-    def __init__(self, example_obs, action_shape, capacity, batch_size, device, image_size=84, transform=None):
+    def __init__(self, example_obs, action_shape, capacity, batch_size, device, image_size=84, transform=None, max_traj_length=200):
         self.capacity = capacity
         self.batch_size = batch_size
         self.device = device
         self.image_size = image_size
         self.transform = transform
-        self.max_traj_length = 200  # Generalize!
+        self.max_traj_length = max_traj_length  # Generalize!
 
         self.obses = {}
         self.next_obses = {}

@@ -475,6 +475,7 @@ def main():
         batch_size=args.batch_size,
         device=device,
         image_size=args.image_size,
+        max_traj_length=args.time_limit
     )
 
     agent = make_agent(
@@ -574,15 +575,15 @@ def main():
         next_obs, reward, done, _ = sim_env.step(action)
 
         # allow infinite bootstrap
-        # done_bool = 0 if episode_step + 1 == sim_env._max_episode_steps else float(
-        #     done
-        # )  # TODO: confirm this is what we want to do!
-        done_bool = float(done)
+        done_bool = 1 if episode_step + 1 >= args.time_limit else float(
+            done
+        )  # TODO: confirm this is what we want to do!
         episode_reward += reward
         replay_buffer.add(obs, action, reward, next_obs, done_bool)
 
         obs = next_obs
         episode_step += 1
+
 
 
 if __name__ == '__main__':
