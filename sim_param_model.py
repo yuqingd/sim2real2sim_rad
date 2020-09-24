@@ -138,7 +138,7 @@ class SimParamModel(nn.Module):
         pred_class = self.forward_classifier(obs_traj, fake_pred)
         pred_class = pred_class.flatten().unsqueeze(0).float()
         labels = labels.flatten().unsqueeze(0).float()
-        loss = -nn.BCELoss()(pred_class, labels)
+        loss = nn.BCELoss()(pred_class, labels)
 
         if should_log:
             L.log('train_sim_params/loss', loss, step)
