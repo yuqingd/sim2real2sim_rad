@@ -34,7 +34,7 @@
                             <geom name="xarm_collision6" class="xarm_col" mass="0.31344" mesh="link6" />
                             <geom name="xarm_viz6" class="xarm_viz"  mesh="link6" />
                             <body name="link7" pos="0.076 0.097 0" quat="0.707105 -0.707108 0 0">
-                                <site name='end_effector' pos='0 0 .15' type="sphere" size=".01" rgba="1 1 .1 1"/>
+                                <site name="end_effector" pos='0 0 .15' size="0.01" rgba='1 0 0 1' type="sphere" />
                                 <inertial pos="-0.000420033 -0.00287433 0.0257078" quat="0.999372 -0.0349129 -0.00605634 0.000551744" mass="0.85624" diaginertia="0.00137671 0.00118744 0.000514968" />
                                 <joint name="joint7" pos="0 0 0" axis="0 0 1" limited="true" range="-6.28319 6.28319" damping="2" frictionloss="1" />
                                 <geom name="xarm_collision7" class="xarm_col" mass="0.85624" mesh="link7" solimp="0.99 0.99 0.01" />
