@@ -105,7 +105,7 @@ def parse_args():
     # Outer loop options
     parser.add_argument('--sample_real_every', default=2, type=int)
     parser.add_argument('--num_real_world', default=1, type=int)
-    parser.add_argument('--anneal_range_scale', default=1.0, type=float)
+    parser.add_argument('--anneal_range_scale', default=0, type=float)
     parser.add_argument('--predict_val', default=True, type=bool)
     parser.add_argument('--outer_loop_version', default=0, type=int, choices=[0, 1, 3])
     parser.add_argument('--alpha', default=.1, type=float)
@@ -202,6 +202,8 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
     def run_eval_loop(sample_stochastically=True):
         start_time = time.time()
         prefix = 'stochastic_' if sample_stochastically else ''
+        obs_batch = []
+        sim_params = real_env.reset()['sim_params']
         for i in range(num_episodes):
             obs_dict = real_env.reset()
             video.init(enabled=(i == 0))
@@ -226,15 +228,14 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
             video.save('real_%d.mp4' % step)
             L.log('eval/' + prefix + 'episode_reward', episode_reward, step)
             all_ep_rewards.append(episode_reward)
-
-            if not args.outer_loop_version == 0 and step > args.start_outer_loop:
-                update_sim_params(sim_param_model, sim_env, args, obs_traj, step, L)
-                sim_params = obs_dict['sim_params']
-                current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
-                if args.outer_loop_version == 1:
-                    evaluate_sim_params(sim_param_model, args, obs_traj, step, L, "test", sim_params, current_sim_params)
-                elif args.outer_loop_version == 3:
-                    evaluate_sim_params(sim_param_model, args, obs_traj, step, L, "test", sim_params, current_sim_params)
+            obs_batch.append(obs_traj)
+        if not args.outer_loop_version == 0 and step > args.start_outer_loop:
+            update_sim_params(sim_param_model, sim_env, args, obs_batch, step, L)
+            current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
+            if args.outer_loop_version == 1:
+                evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test", sim_params, current_sim_params)
+            elif args.outer_loop_version == 3:
+                evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test", sim_params, current_sim_params)
 
 
         L.log('eval/' + prefix + 'eval_time', time.time() - start_time, step)
