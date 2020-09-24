@@ -150,20 +150,26 @@ class SimParamModel(nn.Module):
         else:
             obs_list, actions_list, rewards_list, next_obses_list, not_dones_list = replay_buffer.sample_proprio_traj(16)
 
-        pred_sim_params = []
-        actual_params = []
-        for traj in obs_list:
-            pred_sim_params.append(self.forward(traj['image']).mean[0])
-            actual_params.append(traj['sim_params'][-1]) #take last obs
+        if self._dist == 'normal':
+            pred_sim_params = []
+            actual_params = []
+            for traj in obs_list:
+                pred_sim_params.append(self.forward(traj['image']).mean[0])
+                actual_params.append(traj['sim_params'][-1]) #take last obs
 
-        loss = F.mse_loss(torch.stack(pred_sim_params), torch.stack(actual_params))
-        if should_log:
-            L.log('train_sim_params/loss', loss, step)
+            loss = F.mse_loss(torch.stack(pred_sim_params), torch.stack(actual_params))
 
-        # Optimize the critic
-        self.sim_param_optimizer.zero_grad()
-        loss.backward()
-        self.sim_param_optimizer.step()
+            if should_log:
+                L.log('train_sim_params/loss', loss, step)
+
+            # Optimize the critic
+            self.sim_param_optimizer.zero_grad()
+            loss.backward()
+            self.sim_param_optimizer.step()
+        else:
+            for traj in obs_list:
+                self.train_classifier(traj, traj['sim_params'], traj['distribution_mean'], L, step, should_log)
+
 
     def save(self, model_dir, step):
         torch.save(
