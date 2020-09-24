@@ -153,17 +153,16 @@ class DR_Env:
   def render(self, size=None, *args, **kwargs):
     if kwargs.get('mode', 'rgb_array') != 'rgb_array':
       raise ValueError("Only render mode 'rgb_array' is supported.")
-
+    kwargs['mode'] = 'rgb_array'
     height, width = self._size
-    return self._env.render(mode='rgb_array', width=width, height=height)
+    return self._env.render(width=width, height=height, **kwargs)
 
 
 class DR_MetaWorldEnv(DR_Env):  # TODO: consider passing through as kwargs
     def __init__(self, env, cameras, height=64, width=64, mean_only=False, dr_list=[], simple_randomization=False,
                  dr_shape=None, real_world=False, dr=None, use_state="None", use_img=True, name="task_name",
                  grayscale=False, delay_steps=0):
-        env = MetaWorldEnv(env, from_pixels=use_img, cameras=cameras, height=height, width=width,
-                         delay_steps=delay_steps)
+        env = MetaWorldEnv(env, from_pixels=use_img, cameras=cameras, height=height, width=width)
         super().__init__(env, cameras,
                          height=height, width=width,
                          mean_only=mean_only,
@@ -176,6 +175,10 @@ class DR_MetaWorldEnv(DR_Env):  # TODO: consider passing through as kwargs
                          use_img=use_img,
                          name=name,
                          grayscale=grayscale)
+
+    def render(self, mode='rgb_array', camera_id=2, **kwargs):
+        obs = super().render(mode, camera_id=camera_id, **kwargs)
+        return obs
 
 
     @property
@@ -1065,8 +1068,7 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
         env.seed(seed)
         env = DR_MetaWorldEnv(env, cameras=cameras, height=height, width=width, mean_only=mean_only,
                    dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape, name=task_name,
-                   real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
-                   delay_steps=delay_steps)
+                   real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale)
         return env
     elif 'kitchen' in domain_name:
         env = Kitchen(dr=dr, mean_only=mean_only,
@@ -1082,7 +1084,8 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
                       initial_randomization_steps=3,
                       minimal=False,
                       grayscale=grayscale,
-                      time_limit=200)
+                      time_limit=200,
+                      delay_steps=delay_steps)
         env = DR_Kitchen(env, cameras=cameras, height=height, width=width, mean_only=mean_only,
                    dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape, name=task_name,
                    real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale)

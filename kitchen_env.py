@@ -24,10 +24,10 @@ XPOS_INDICES = {
 
 class Kitchen:
   def __init__(self, task='reach_kettle', size=(100, 100), real_world=False, dr=None, mean_only=False,
-               early_termination=False, use_state="None", step_repeat=200, dr_list=[],
-               step_size=0.05, simple_randomization=False, time_limit=200,
+               early_termination=False, use_state="None", step_repeat=30, dr_list=[],
+               step_size=0.03, simple_randomization=False, time_limit=200,
                control_version='mocap_ik', distance=2., azimuth=50, elevation=-40,
-               initial_randomization_steps=1, minimal=False, dataset_step=None, grayscale=False):
+               initial_randomization_steps=1, minimal=False, dataset_step=None, grayscale=False, delay_steps=0):
     if 'rope' in task:
       distance = 1.5
       azimuth = 20
@@ -88,6 +88,7 @@ class Kitchen:
     self.has_cabinet = False if minimal else True
     self.dataset_step = dataset_step
     self.grayscale = grayscale
+    self.delay_steps = delay_steps
     self._max_episode_steps = time_limit
     self.reward_range = (-float('inf'), float('inf'))
     # TODO: maybe update this.  Currently just placeholder values.
@@ -198,7 +199,7 @@ class Kitchen:
       raise NotImplementedError(self.task)
 
 
-    self.randomize_start()
+    # self.randomize_start()
 
   def randomize_start(self):
     # Randomize start position
@@ -429,8 +430,13 @@ class Kitchen:
       self._env.sim.step()
     #need to linearly space out control with multiple steps so simulator doesnt break
 
-
   def step(self, action):
+    output = self.single_step(action)
+    for _ in range(self.delay_steps):
+      output = self.single_step(np.zeros(3, ))
+    return output
+
+  def single_step(self, action):
     update = None
     if self.control_version == 'mocap_ik':
         action = np.clip(action, self.action_space.low, self.action_space.high)
