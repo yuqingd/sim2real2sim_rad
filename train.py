@@ -147,7 +147,7 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
             real_dr_params = (real_dr_params - current_sim_params[0].cpu().numpy())
 
         for i, param in enumerate(args.real_dr_list):
-            filename = args.work_dir + f'/{prefix}/{param}/error.npy'
+            filename = args.work_dir + f'/{prefix}_{param}_error.npy'
             print("PREFIX PARAM", prefix, param, filename)
             key = args.domain_name + '-' + str(args.task_name) + '-' + args.data_augs
             try:
