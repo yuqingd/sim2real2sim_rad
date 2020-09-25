@@ -105,7 +105,7 @@ def parse_args():
     # Outer loop options
     parser.add_argument('--sample_real_every', default=2, type=int)
     parser.add_argument('--num_real_world', default=1, type=int)
-    parser.add_argument('--anneal_range_scale', default=1.0, type=float)
+    parser.add_argument('--anneal_range_scale', default=0, type=float)
     parser.add_argument('--predict_val', default=True, type=bool)
     parser.add_argument('--outer_loop_version', default=0, type=int, choices=[0, 1, 3])
     parser.add_argument('--alpha', default=.1, type=float)
@@ -136,7 +136,14 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
         if args.outer_loop_version == 1:
             pred_sim_params = sim_param_model.forward(obs).mean[0].cpu().numpy()
         elif args.outer_loop_version == 3:
-            pred_sim_params = sim_param_model.forward_classifier(obs, current_sim_params)[0].cpu().numpy()
+            pred_sim_params = []
+            if len(obs) > 1:
+                for ob in obs:
+                    pred_sim_params.append(sim_param_model.forward_classifier(ob, current_sim_params)[0].cpu().numpy())
+            else:
+                pred_sim_params.append(sim_param_model.forward_classifier(obs[0], current_sim_params)[0].cpu().numpy())
+            pred_sim_params = np.mean(pred_sim_params, axis=0)
+
             real_dr_params = (real_dr_params - current_sim_params[0].cpu().numpy())
 
         for i, param in enumerate(args.real_dr_list):
@@ -181,8 +188,13 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
             pred_sim_params = pred_sim_params[0].cpu().numpy()
         elif args.outer_loop_version == 3:
             current_sim_params = torch.FloatTensor(sim_env.distribution_mean).unsqueeze(0)
-            pred_sim_params = sim_param_model.forward_classifier(obs, current_sim_params)
-            pred_sim_params = pred_sim_params[0].cpu().numpy()
+            pred_sim_params = []
+            if len(obs) > 1:
+                for ob in obs:
+                    pred_sim_params.append(sim_param_model.forward_classifier(ob, current_sim_params)[0].cpu().numpy())
+            else:
+                pred_sim_params.append(sim_param_model.forward_classifier(obs[0], current_sim_params)[0].cpu().numpy())
+            pred_sim_params = np.mean(pred_sim_params, axis=0)
 
     for i, param in enumerate(args.real_dr_list):
         prev_mean = sim_env.dr[param]
@@ -237,6 +249,8 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
     def run_eval_loop(sample_stochastically=True):
         start_time = time.time()
         prefix = 'stochastic_' if sample_stochastically else ''
+        obs_batch = []
+        sim_params = real_env.reset()['sim_params']
         for i in range(num_episodes):
             obs_dict = real_env.reset()
             video.init(enabled=(i == 0))
@@ -261,15 +275,14 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
             video.save('real_%d.mp4' % step)
             L.log('eval/' + prefix + 'episode_reward', episode_reward, step)
             all_ep_rewards.append(episode_reward)
-
-            if not args.outer_loop_version == 0 and step > args.start_outer_loop:
-                update_sim_params(sim_param_model, sim_env, args, obs_traj, step, L)
-                sim_params = obs_dict['sim_params']
-                current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
-                if args.outer_loop_version == 1:
-                    evaluate_sim_params(sim_param_model, args, obs_traj, step, L, "test", sim_params, current_sim_params)
-                elif args.outer_loop_version == 3:
-                    evaluate_sim_params(sim_param_model, args, obs_traj, step, L, "test", sim_params, current_sim_params)
+            obs_batch.append(obs_traj)
+        if not args.outer_loop_version == 0 and step > args.start_outer_loop:
+            update_sim_params(sim_param_model, sim_env, args, obs_batch, step, L)
+            current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
+            if args.outer_loop_version == 1:
+                evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test", sim_params, current_sim_params)
+            elif args.outer_loop_version == 3:
+                evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test", sim_params, current_sim_params)
 
 
         L.log('eval/' + prefix + 'eval_time', time.time() - start_time, step)
@@ -610,9 +623,8 @@ def main():
         next_obs, reward, done, _ = sim_env.step(action)
 
         # allow infinite bootstrap
-        done_bool = 1 if episode_step + 1 >= args.time_limit else float(
-            done
-        )  # TODO: confirm this is what we want to do!
+        done = 1 if episode_step + 1 > args.time_limit else done
+        done_bool = float(done)  # TODO: confirm this is what we want to do!
         episode_reward += reward
         replay_buffer.add(obs, action, reward, next_obs, done_bool)
 
