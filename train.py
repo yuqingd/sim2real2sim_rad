@@ -135,7 +135,23 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
     with torch.no_grad():
         if args.outer_loop_version == 1:
             pred_sim_params = sim_param_model.forward(obs).mean[0].cpu().numpy()
-            for i, param in enumerate(args.real_dr_list):
+        elif args.outer_loop_version == 3:
+            pred_sim_params = sim_param_model.forward_classifier(obs, current_sim_params)[0].cpu().numpy()
+            real_dr_params = (real_dr_params - current_sim_params[0].cpu().numpy())
+
+        for i, param in enumerate(args.real_dr_list):
+            filename = args.work_dir + f'/{prefix}/{param}/error.npy'
+            key = args.domain_name + '-' + str(args.task_name) + '-' + args.data_augs
+            try:
+                log_data = np.load(filename, allow_pickle=True)
+                log_data = log_data.item()
+            except FileNotFoundError:
+                log_data = {}
+            if key not in log_data:
+                log_data[key] = {}
+            log_data[key][step] = {}
+
+            if args.outer_loop_version == 1:
                 try:
                     pred_mean = pred_sim_params[i]
                 except:
@@ -143,19 +159,20 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
                 real_dr_param = real_dr_params[i]
 
                 if not np.mean(real_dr_param) == 0:
-                    L.log(f'eval/{prefix}/{param}/error', (pred_mean - real_dr_param) / real_dr_param, step)
+                    error = (pred_mean - real_dr_param) / real_dr_param
                 else:
-                    L.log(f'eval/{prefix}/{param}/error', (pred_mean - real_dr_param), step)
-        elif args.outer_loop_version == 3:
-            pred_sim_params = sim_param_model.forward_classifier(obs, current_sim_params)[0].cpu().numpy()
-            real_dr_params = (real_dr_params - current_sim_params[0].cpu().numpy())
-            for i, param in enumerate(args.real_dr_list):
+                    error = pred_mean - real_dr_param
+            elif args.outer_loop_version == 3:
                 try:
                     pred_mean = pred_sim_params[i]
                 except:
                     pred_mean = pred_sim_params
                 real_dr_param = real_dr_params[i]
-                L.log(f'eval/{prefix}/{param}/error', np.mean(pred_mean - real_dr_param), step)
+                error = np.mean(pred_mean - real_dr_param)
+
+            L.log(f'eval/{prefix}/{param}/error', error, step)
+            log_data[key][step]['pred_mean'] = error
+            np.save(filename, log_data)
 
 def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
     with torch.no_grad():
@@ -183,17 +200,35 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
         new_mean = max(new_mean, 1e-3)
         sim_env.dr[param] = new_mean
 
+        filename = args.work_dir + f'/agent-sim-params_{param}.npy'
+        key = args.domain_name + '-' + str(args.task_name) + '-' + args.data_augs
+        try:
+            log_data = np.load(filename, allow_pickle=True)
+            log_data = log_data.item()
+        except FileNotFoundError:
+            log_data = {}
+        if key not in log_data:
+            log_data[key] = {}
+        log_data[key][step] = {}
+
         print("NEW MEAN", param, new_mean, step, pred_mean, "!" * 30)
         L.log(f'eval/agent-sim_param/{param}/mean', new_mean, step)
         L.log(f'eval/agent-sim_param/{param}/pred_mean', pred_mean, step)
+        log_data[key][step]['mean'] = new_mean
+        log_data[key][step]['pred_mean'] = pred_mean
         if args.anneal_range_scale > 0:
-            L.log(f'eval/agent-sim_param/{param}/range', args.anneal_range_scale * (1 - float(step / args.num_train_steps)), step)
+            range_value = args.anneal_range_scale * (1 - float(step / args.num_train_steps))
+            L.log(f'eval/agent-sim_param/{param}/range', range_value, step)
+            log_data[key][step]['range'] = range_value
 
         real_dr_param = args.real_dr_params[param]
         if not np.mean(real_dr_param) == 0:
-            L.log(f'eval/agent-sim_param/{param}/sim_param_error', (new_mean - real_dr_param) / real_dr_param, step)
+            sim_param_error = (new_mean - real_dr_param) / real_dr_param
         else:
-            L.log(f'eval/agent-sim_param/{param}/sim_param_error', (new_mean - real_dr_param), step)
+            sim_param_error = new_mean - real_dr_param
+        L.log(f'eval/agent-sim_param/{param}/sim_param_error', sim_param_error, step)
+        log_data[key][step]['sim_param_error'] = sim_param_error
+        np.save(filename, log_data)
 
 
 def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, step, args):
