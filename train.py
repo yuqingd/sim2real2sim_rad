@@ -593,7 +593,20 @@ def main():
                     L.dump(step)
                 start_time = time.time()
             if step % args.log_interval == 0:
+                filename = args.work_dir + f'/train_reward.npy'
+                key = args.domain_name + '-' + str(args.task_name) + '-' + args.data_augs
+                try:
+                    log_data = np.load(filename, allow_pickle=True)
+                    log_data = log_data.item()
+                except FileNotFoundError:
+                    log_data = {}
+                if key not in log_data:
+                    log_data[key] = {}
+                log_data[key][step] = {}
+
                 L.log('train/episode_reward', episode_reward, step)
+                log_data[key][step]['episode_reward'] = episode_reward
+                np.save(filename, log_data)
 
             obs = sim_env.reset()
             done = False
