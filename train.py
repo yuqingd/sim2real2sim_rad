@@ -148,7 +148,6 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
 
         for i, param in enumerate(args.real_dr_list):
             filename = args.work_dir + f'/{prefix}_{param}_error.npy'
-            print("PREFIX PARAM", prefix, param, filename)
             key = args.domain_name + '-' + str(args.task_name) + '-' + args.data_augs
             try:
                 log_data = np.load(filename, allow_pickle=True)
