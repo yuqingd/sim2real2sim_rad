@@ -72,11 +72,11 @@ class SimParamModel(nn.Module):
             else:
                 raise NotImplementedError(type(obs_traj[0]))
 
-
-            if len(input) < self.traj_length:  # TODO: generalize!
-                    last = input[-1]
-                    last_arr = torch.stack([copy.deepcopy(last) for _ in range(self.traj_length - len(obs_traj))]).to(self.device)
-                    input = torch.cat([input, last_arr])
+            #
+            # if len(input) < self.traj_length:  # TODO: generalize!
+            #         last = input[-1]
+            #         last_arr = torch.stack([copy.deepcopy(last) for _ in range(self.traj_length - len(obs_traj))]).to(self.device)
+            #         input = torch.cat([input, last_arr])
 
             features = self.encoder(input, detach=True)
 
