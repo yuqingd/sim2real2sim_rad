@@ -110,7 +110,7 @@ class Kitchen:
     elif 'rope' in self.task:
       body_id = self._env.sim.model.body_name2id('boxes_with_hole')
       box_loc = self._env.sim.model.body_pos[body_id]
-      #box_loc[2] += np.random.normal(0, .05) #move box height only
+      box_loc[2] += np.random.normal(0, .025) #move box height only
       self._env.sim.model.body_pos[body_id] = box_loc
       self._env.sim.forward()
 
