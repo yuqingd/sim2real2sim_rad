@@ -113,6 +113,7 @@ def parse_args():
     parser.add_argument('--ol1_episodes', default=10, type=int)
     parser.add_argument('--binary_prediction', default=False, type=bool)
     parser.add_argument('--start_outer_loop', default=0, type=int)
+    parser.add_argument('--use_gru', default=True, type=bool)
 
 
     # MISC
@@ -549,7 +550,8 @@ def main():
             sim_param_lr=args.sim_param_lr,
             sim_param_beta=args.sim_param_beta,
             dist=dist,
-            traj_length=args.time_limit
+            traj_length=args.time_limit,
+            use_gru=args.use_gru,
         ).to(device)
     else:
         sim_param_model = None
