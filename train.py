@@ -410,7 +410,7 @@ def make_agent(obs_shape, action_shape, args, device):
 def main():
     args = parse_args()
     os.environ['EGL_DEVICE_ID'] = args.gpudevice
-    if 'dmc' in args.domain_name:
+    if 'dmc' or 'kitchen' in args.domain_name:
         os.environ['MUJOCO_GL'] = 'egl'
     else:
         os.environ['MUJOCO_GL'] = 'osmesa'
