@@ -343,7 +343,8 @@ class ReplayBuffer(Dataset):
             sliced_next_obses,
             self.actions[self.last_save:self.idx],
             self.rewards[self.last_save:self.idx],
-            self.not_dones[self.last_save:self.idx]
+            self.not_dones[self.last_save:self.idx],
+            self.traj_ids[self.last_save:self.idx]
         ]
         self.last_save = self.idx
         torch.save(payload, path)
@@ -368,6 +369,7 @@ class ReplayBuffer(Dataset):
             self.actions[start:end] = payload[2]
             self.rewards[start:end] = payload[3]
             self.not_dones[start:end] = payload[4]
+            self.traj_ids[start:end] = payload[5]
             self.idx = end
             self.last_save = end
 
