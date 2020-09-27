@@ -619,7 +619,7 @@ def main():
                 L.log('train/episode_reward', episode_reward, step)
                 log_data[key][step]['episode_reward'] = episode_reward
                 if success is not None:
-                    L.log('train/episode_reward', success, step)
+                    L.log('train/episode_success', success, step)
                     log_data[key][step]['episode_success'] = success
 
                 np.save(filename, log_data)
