@@ -291,10 +291,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
         if not args.outer_loop_version == 0 and step > args.start_outer_loop:
             update_sim_params(sim_param_model, sim_env, args, obs_batch, step, L)
             current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
-            if args.outer_loop_version == 1:
-                evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test", sim_params, current_sim_params)
-            elif args.outer_loop_version == 3:
-                evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test", sim_params, current_sim_params)
+            evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test", sim_params, current_sim_params)
 
 
         L.log('eval/' + prefix + 'eval_time', time.time() - start_time, step)
@@ -343,11 +340,10 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
             video.record(sim_env)
             sim_params = obs_dict['sim_params']
         if sim_param_model is not None:
-                dist_mean = obs_dict['distribution_mean']
-                if args.outer_loop_version == 1:
-                    evaluate_sim_params(sim_param_model, args, obs_traj_sim, step, L, "train", sim_params, current_sim_params)
-                elif args.outer_loop_version == 3:
-                    sim_param_model.train_classifier(obs_traj_sim, sim_params, dist_mean, L, step, True)
+            dist_mean = obs_dict['distribution_mean']
+            evaluate_sim_params(sim_param_model, args, [obs_traj_sim], step, L, "train", sim_params, current_sim_params)
+            if args.outer_loop_version == 3:
+                sim_param_model.train_classifier(obs_traj_sim, sim_params, dist_mean, L, step, True)
         video.save('sim_%d.mp4' % step)
 
     run_eval_loop(sample_stochastically=False)
