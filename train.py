@@ -562,12 +562,13 @@ def main():
         for checkpoint in agent_checkpoint:
             agent_step = max(agent_step, [int(x) for x in re.findall('\d+', checkpoint)][-1])
         agent.load_curl(model_dir, agent_step)
+        start_step = agent_step
         if sim_param_model is not None:
             sim_param_step = 0
             for checkpoint in sim_param_checkpoint:
                 sim_param_step = max(sim_param_step,[int(x) for x in re.findall('\d+', checkpoint)][-1])
             sim_param_model.load(model_dir, sim_param_step)
-        start_step = min(agent_step, sim_param_step)
+            start_step = min(start_step, sim_param_step)
         replay_buffer.load(buffer_dir)
 
     L = Logger(args.work_dir, use_tb=args.save_tb)
