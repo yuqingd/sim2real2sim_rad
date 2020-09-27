@@ -145,7 +145,7 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
                 pred_sim_params.append(sim_param_model.forward_classifier(obs[0], current_sim_params)[0].cpu().numpy())
             pred_sim_params = np.mean(pred_sim_params, axis=0)
 
-            real_dr_params = (real_dr_params - current_sim_params[0].cpu().numpy())
+            real_dr_params = (current_sim_params[0].cpu().numpy() > real_dr_params).astype(np.int32)
 
         for i, param in enumerate(args.real_dr_list):
             filename = args.work_dir + f'/{prefix}_{param}_error.npy'
@@ -176,10 +176,20 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
                 except:
                     pred_mean = pred_sim_params
                 real_dr_param = real_dr_params[i]
+                try:
+                    assert real_dr_param >= 0
+                    assert real_dr_param <= 1
+                    assert pred_mean >= 0
+                    assert pred_mean <= 1
+                except:
+                    print("PRED MEAN", pred_mean)
+                    print("REAL DR", real_dr_param)
+                    import IPython
+                    IPython.embed()
                 error = np.mean(pred_mean - real_dr_param)
 
             L.log(f'eval/{prefix}/{param}/error', error, step)
-            log_data[key][step]['pred_mean'] = error
+            log_data[key][step]['error'] = error
             np.save(filename, log_data)
 
 def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
@@ -209,7 +219,8 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
         if args.outer_loop_version == 1:
             new_mean = prev_mean * (1 - alpha) + alpha * pred_mean
         elif args.outer_loop_version == 3:
-            new_mean = prev_mean - alpha * (np.mean(pred_mean) - 0.5) * prev_mean
+            scale_factor = max(prev_mean, .1)
+            new_mean = prev_mean - alpha * (np.mean(pred_mean) - 0.5) * scale_factor
         new_mean = max(new_mean, 1e-3)
         sim_env.dr[param] = new_mean
 
@@ -283,10 +294,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
         if not args.outer_loop_version == 0 and step > args.start_outer_loop:
             update_sim_params(sim_param_model, sim_env, args, obs_batch, step, L)
             current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
-            if args.outer_loop_version == 1:
-                evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test", sim_params, current_sim_params)
-            elif args.outer_loop_version == 3:
-                evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test", sim_params, current_sim_params)
+            evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test", sim_params, current_sim_params)
 
 
         L.log('eval/' + prefix + 'eval_time', time.time() - start_time, step)
@@ -340,11 +348,10 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
             video.record(sim_env)
             sim_params = obs_dict['sim_params']
         if sim_param_model is not None:
-                dist_mean = obs_dict['distribution_mean']
-                if args.outer_loop_version == 1:
-                    evaluate_sim_params(sim_param_model, args, obs_traj_sim, step, L, "train", sim_params, current_sim_params)
-                elif args.outer_loop_version == 3:
-                    sim_param_model.train_classifier(obs_traj_sim, sim_params, dist_mean, L, step, True)
+            dist_mean = obs_dict['distribution_mean']
+            evaluate_sim_params(sim_param_model, args, [obs_traj_sim], step, L, "train", sim_params, current_sim_params)
+            if args.outer_loop_version == 3:
+                sim_param_model.train_classifier(obs_traj_sim, sim_params, dist_mean, L, step, True)
         video.save('sim_%d.mp4' % step)
 
     run_eval_loop(sample_stochastically=False)
