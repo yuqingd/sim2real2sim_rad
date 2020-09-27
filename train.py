@@ -145,7 +145,7 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
                 pred_sim_params.append(sim_param_model.forward_classifier(obs[0], current_sim_params)[0].cpu().numpy())
             pred_sim_params = np.mean(pred_sim_params, axis=0)
 
-            real_dr_params = (real_dr_params - current_sim_params[0].cpu().numpy())
+            real_dr_params = (current_sim_params[0].cpu().numpy() > real_dr_params).astype(np.int32)
 
         for i, param in enumerate(args.real_dr_list):
             filename = args.work_dir + f'/{prefix}_{param}_error.npy'
@@ -176,10 +176,20 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
                 except:
                     pred_mean = pred_sim_params
                 real_dr_param = real_dr_params[i]
+                try:
+                    assert real_dr_param >= 0
+                    assert real_dr_param <= 1
+                    assert pred_mean >= 0
+                    assert pred_mean <= 1
+                except:
+                    print("PRED MEAN", pred_mean)
+                    print("REAL DR", real_dr_param)
+                    import IPython
+                    IPython.embed()
                 error = np.mean(pred_mean - real_dr_param)
 
             L.log(f'eval/{prefix}/{param}/error', error, step)
-            log_data[key][step]['pred_mean'] = error
+            log_data[key][step]['error'] = error
             np.save(filename, log_data)
 
 def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
@@ -209,7 +219,8 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
         if args.outer_loop_version == 1:
             new_mean = prev_mean * (1 - alpha) + alpha * pred_mean
         elif args.outer_loop_version == 3:
-            new_mean = prev_mean - alpha * (np.mean(pred_mean) - 0.5) * prev_mean
+            scale_factor = max(prev_mean, .1)
+            new_mean = prev_mean - alpha * (np.mean(pred_mean) - 0.5) * scale_factor
         new_mean = max(new_mean, 1e-3)
         sim_env.dr[param] = new_mean
 
