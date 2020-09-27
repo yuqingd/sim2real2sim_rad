@@ -487,7 +487,7 @@ class Kitchen:
             print("Physics error:", e)
 
     reward, done = self.get_reward()
-    info = {'discount': 1.0}
+    info = {'discount': 1.0, 'success': done}
     state = self.goal
     if self.use_state is not "None":
         robot_state = self.get_state()

@@ -246,7 +246,7 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
 
 def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, step, args):
     all_ep_rewards = []
-
+    all_ep_success = []
     def run_eval_loop(sample_stochastically=True):
         start_time = time.time()
         prefix = 'stochastic_' if sample_stochastically else ''
@@ -275,6 +275,9 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
 
             video.save('real_%d.mp4' % step)
             L.log('eval/' + prefix + 'episode_reward', episode_reward, step)
+            if 'success' in obs_dict.keys():
+                L.log('eval/' + prefix + 'episode_success', obs_dict['success'], step)
+                all_ep_success.append(obs_dict['success'])
             all_ep_rewards.append(episode_reward)
             obs_batch.append(obs_traj)
         if not args.outer_loop_version == 0 and step > args.start_outer_loop:
@@ -292,6 +295,9 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
         std_ep_reward = np.std(all_ep_rewards)
         L.log('eval/' + prefix + 'mean_episode_reward', mean_ep_reward, step)
         L.log('eval/' + prefix + 'best_episode_reward', best_ep_reward, step)
+        if len(all_ep_success) > 0:
+            mean_ep_success = np.mean(all_ep_success)
+            L.log('eval/' + prefix + 'mean_episode_success', mean_ep_success, step)
 
         filename = args.work_dir + '/eval_scores.npy'
         key = args.domain_name + '-' + str(args.task_name) + '-' + args.data_augs
@@ -310,6 +316,8 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
         log_data[key][step]['max_ep_reward'] = best_ep_reward
         log_data[key][step]['std_ep_reward'] = std_ep_reward
         log_data[key][step]['env_step'] = step * args.action_repeat
+        if len(all_ep_success) > 0:
+            log_data[key][step]['mean_ep_success'] = mean_ep_success
 
         np.save(filename, log_data)
 
@@ -575,6 +583,7 @@ def main():
 
     episode, episode_reward, done = 0, 0, True
     start_time = time.time()
+    success = None
 
     for step in range(start_step, args.num_train_steps):
         # evaluate agent periodically
@@ -609,10 +618,15 @@ def main():
 
                 L.log('train/episode_reward', episode_reward, step)
                 log_data[key][step]['episode_reward'] = episode_reward
+                if success is not None:
+                    L.log('train/episode_reward', success, step)
+                    log_data[key][step]['episode_success'] = success
+
                 np.save(filename, log_data)
 
             obs = sim_env.reset()
             done = False
+            success = 0.0 if 'success' in obs.keys() else None
             episode_reward = 0
             episode_step = 0
             episode += 1
@@ -643,6 +657,9 @@ def main():
         done_bool = float(done)  # TODO: confirm this is what we want to do!
         episode_reward += reward
         replay_buffer.add(obs, action, reward, next_obs, done_bool)
+
+        if 'success' in obs.keys():
+            success = obs['success']
 
         obs = next_obs
         episode_step += 1
