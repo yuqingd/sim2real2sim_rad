@@ -3,7 +3,7 @@ import os
 
 # import paramiko
 # from scp import SCPClient
-from shutil import copy
+from shutil import copyfile
 
 # Source: https://stackoverflow.com/questions/250283/how-to-scp-in-python
 # def createSSHClient(server, port, user, password):
@@ -36,12 +36,13 @@ for file_name in files:
     try:
         last_video = videos[0]
         print("downloading ", last_video)
-
+        print("OG", last_video)
 
         # Change of plans.  Since IDK an easy way to scp it down, I'm just gonna move it to a new directory and scp from there.
-        directory = "download_files"
-        download_file = os.path.join(directory, last_video[last_video.index('real'):])
-        copy(last_video, directory)
+        download_file = os.path.join('download_files', file_name + last_video[last_video.index('real'):])
+        print("LAST VIEO", last_video)
+        print("DOWNLOAD FILE", download_file)
+        copyfile(last_video, download_file)
     except:
         print("No videos for ", file_name)
 

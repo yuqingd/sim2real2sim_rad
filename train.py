@@ -292,10 +292,10 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
             all_ep_rewards.append(episode_reward)
             obs_batch.append(obs_traj)
         if not args.outer_loop_version == 0 and step > args.start_outer_loop:
+            print("GOT HERE")
             update_sim_params(sim_param_model, sim_env, args, obs_batch, step, L)
             current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
             evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test", sim_params, current_sim_params)
-
 
         L.log('eval/' + prefix + 'eval_time', time.time() - start_time, step)
         mean_ep_reward = np.mean(all_ep_rewards)
