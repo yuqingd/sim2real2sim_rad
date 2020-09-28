@@ -349,6 +349,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
             sim_params = obs_dict['sim_params']
         if sim_param_model is not None:
             dist_mean = obs_dict['distribution_mean']
+            current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
             evaluate_sim_params(sim_param_model, args, [obs_traj_sim], step, L, "train", sim_params, current_sim_params)
             if args.outer_loop_version == 3:
                 sim_param_model.train_classifier(obs_traj_sim, sim_params, dist_mean, L, step, True)
