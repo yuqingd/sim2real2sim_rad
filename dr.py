@@ -45,6 +45,10 @@ def config_dr_dmc(config):
             config.real_dr_list = [
                 "cup_mass", "ball_mass", "cup_r", "cup_g", "cup_b", "ball_r", "ball_g", "ball_b",
             ]
+        elif dr_option == 'visual_dr':
+            config.real_dr_list = [
+                "cup_r", "cup_g", "cup_b", "ball_r", "ball_g", "ball_b",
+            ]
     elif "walker" in config.domain_name:
         real_dr_values = {
             "torso_mass": 10.3,
@@ -73,6 +77,10 @@ def config_dr_dmc(config):
             config.real_dr_list = [
                 "right_hip", "right_knee", "right_ankle", "left_hip", "left_knee", "left_ankle", "ground_r", "ground_g",
                 "ground_b", "body_r", "body_g", "body_b"
+            ]
+        elif dr_option == 'visual_dr':
+            config.real_dr_list = [
+                "ground_r", "ground_g", "ground_b", "body_r", "body_g", "body_b"
             ]
     elif "finger" in config.domain_name:
         real_dr_values = {
