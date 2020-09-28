@@ -348,7 +348,6 @@ class Kitchen:
       raise NotImplementedError
 
     self.timesteps += 1
-    done = done or (self.timesteps >= self._max_episode_steps)
     return reward, done
 
   def get_sim(self):
