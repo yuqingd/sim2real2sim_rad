@@ -110,7 +110,7 @@ class Kitchen:
     elif 'rope' in self.task:
       body_id = self._env.sim.model.body_name2id('boxes_with_hole')
       box_loc = self._env.sim.model.body_pos[body_id]
-      box_loc[2] += np.random.normal(0, .025) #move box height only
+      box_loc[2] += np.random.normal(0, .01) #move box height only
       self._env.sim.model.body_pos[body_id] = box_loc
       self._env.sim.forward()
 
@@ -348,7 +348,6 @@ class Kitchen:
       raise NotImplementedError
 
     self.timesteps += 1
-    done = done or (self.timesteps >= self._max_episode_steps)
     return reward, done
 
   def get_sim(self):
@@ -488,6 +487,7 @@ class Kitchen:
 
     reward, done = self.get_reward()
     info = {'discount': 1.0, 'success': done}
+    done = False
     state = self.goal
     if self.use_state is not "None":
         robot_state = self.get_state()
