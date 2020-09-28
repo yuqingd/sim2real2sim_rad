@@ -640,7 +640,6 @@ def main():
             episode += 1
             if step % args.log_interval == 0:
                 L.log('train/episode', episode, step)
-        episode_step = 0
 
         # sample action for data collection
         if step < args.init_steps:
@@ -661,7 +660,7 @@ def main():
         next_obs, reward, done, _ = sim_env.step(action)
 
         # allow infinite bootstrap
-        done = 1 if episode_step + 1 > args.time_limit else done
+        done = True if episode_step + 1 > args.time_limit else done
         done_bool = float(done)  # TODO: confirm this is what we want to do!
         episode_reward += reward
         replay_buffer.add(obs, action, reward, next_obs, done_bool)
