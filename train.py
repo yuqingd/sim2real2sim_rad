@@ -220,7 +220,7 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
             new_mean = prev_mean * (1 - alpha) + alpha * pred_mean
         elif args.outer_loop_version == 3:
             scale_factor = max(prev_mean, .1)
-            new_mean = prev_mean - alpha * (np.mean(pred_mean) - 0.5) * scale_factor
+            new_mean = prev_mean - alpha * (np.mean(pred_mean) - 0.5) #* scale_factor
         new_mean = max(new_mean, 1e-3)
         sim_env.dr[param] = new_mean
 
