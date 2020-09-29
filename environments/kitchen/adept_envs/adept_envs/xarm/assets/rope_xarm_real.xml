@@ -1,0 +1,117 @@
+<!--Copyright 2020 Google LLC-->
+
+<!--Licensed under the Apache License, Version 2.0 (the "License");-->
+<!--you may not use this file except in compliance with the License.-->
+<!--You may obtain a copy of the License at-->
+
+    <!--https://www.apache.org/licenses/LICENSE-2.0-->
+
+<!--Unless required by applicable law or agreed to in writing, software-->
+<!--distributed under the License is distributed on an "AS IS" BASIS,-->
+<!--WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.-->
+<!--See the License for the specific language governing permissions and-->
+<!--limitations under the License.-->
+
+<mujoco model="franka_mocap_studyTable_buttons">
+
+<!--    <default>-->
+<!--        <joint armature="1" damping="1" limited="true"/>-->
+<!--        <geom conaffinity="1" condim="3" density="5.0" friction="1 0.5 0.5" margin="0.01" rgba="0.8 0.6 0.4 1"/>-->
+<!--    </default>-->
+
+    <default>
+    <default class="cup">
+      <joint type="slide" damping="3" stiffness="20"/>
+      <geom type="capsule" size=".008"/>
+    </default>
+    </default>
+
+    <size njmax='1000' nconmax='1000'/>
+
+    <include file="assets.xml"/>
+    <include file="../../../../adept_models/scenes/basic_scene.xml"/>
+    <include file="../../../../adept_models/kitchen/actuators.xml"/>
+
+
+    <visual>
+    <global offwidth="2560" offheight="1920" />
+    <quality shadowsize="4096" offsamples="8" />
+    <map force="0.1" fogend="5" />
+    </visual>
+
+    <compiler angle="radian"
+              meshdir="../../../../adept_models/kitchen"
+              texturedir="../../../../adept_models/kitchen"/>
+
+    <equality>
+        <weld body1="mocap" body2="link7" solref="0.02 1" />
+    </equality>
+
+    <worldbody>
+
+        <body mocap="true" name="mocap" pos="-0.15 0.01 1.95">
+            <geom conaffinity="0" contype="0" pos="0 0 0" rgba="0.0 0.5 0.5 0" size="0.01" type="sphere"></geom>
+            <site name="mocap" pos="0 0 0" rgba="0 0 1 0" size="0.1" type="sphere"></site>
+        </body>
+
+
+
+        <site name='target' pos='0 0 0' size='0.1' rgba='0 2 0 .2'/>
+        <camera name='left_cap' pos='-1.2 -0.5 1.8' quat='0.78 0.49 -0.22 -0.32' />
+        <camera name='right_cap' pos='1.2 -0.5 1.8' quat='0.76 0.5 0.21 0.35'/>
+
+        <!-- Robot -->
+        <body pos='0. 0 1' euler='0 0 1.57'>
+            <geom type='box' size='.4 .4 .50' pos='-.3 0 -0.50' class='xarm_viz'/>
+            <include file="xarm_chain_rope_real.xml"/>
+        </body>
+
+
+<!--        <body name="box_with_hole" pos="-.15 .5 .5" euler="1.57 1.57 -0.5">-->
+<!--            <geom name="box_col" class="xarm_col"  mass="0.023013"  mesh="cubewithhole" />-->
+<!--            <geom name="box_viz" class="xarm_viz" rgba=".2 1 .2 1"   mesh="cubewithhole" />-->
+<!--            <site name="box_with_hole" pos=".125 .125 .125" rgba="0.0 0.5 0.5 1" size="0.01" type="sphere"></site>-->
+<!--        </body>-->
+
+        <body name="table" pos="0.05 .403 .55" euler="0 0 0">
+            <geom name="table_col" class="xarm_col"  mass="0.023013"  size=".5 0.3 .1" type="box" pos="-0.1 0 0"/>
+            <geom name="table_viz" class="xarm_viz" rgba="1 1 1 1"   size=".5 0.3 .1"  type="box" pos="-0.1 0 0"/>
+        </body>
+
+        <body name="boxes_with_hole" pos="0 .403 .715" euler=".4 0 0">
+            <geom name="box_col_1" class="xarm_col"  mass="0.023013"  size="0.04 0.04 .05" type="box" pos="-0.09 0.01 0"/>
+            <geom name="box_viz_1" class="xarm_viz" rgba=".2 1 .2 1"   size="0.04 0.04 .05" type="box" pos="-0.09 0.01 0"/>
+            <geom name="box_col_2" class="xarm_col"  mass="0.023013"  size="0.04 0.015 .05" type="box" pos="-0.015 -0.015 0"/>
+            <geom name="box_viz_2" class="xarm_viz" rgba=".2 1 .2 1"   size="0.04 0.015 .05" type="box" pos="-0.015 -0.015 0"/>
+<!--            <geom name="box_col_3" class="xarm_col"  mass="0.023013"  size="0.05 0.05 .1" type="box" pos="-0.1 -0.1 0"/>-->
+<!--            <geom name="box_viz_3" class="xarm_viz" rgba=".2 1 .2 1"   size="0.05 0.05 .1" type="box" pos="-0.1 -0.1 0"/>-->
+            <geom name="box_col_4" class="xarm_col"  mass="0.023013"  size="0.015 0.04 .05" type="box" pos="0.015 0.015 0"/>
+            <geom name="box_viz_4" class="xarm_viz" rgba=".2 1 .2 1"   size="0.015 0.04 .05" type="box" pos="0.015 0.015 0"/>
+            <geom name="box_col_5" class="xarm_col"  mass="0.023013"  size="0.04 0.04 .05" type="box" pos="-0.01 0.09 0"/>
+            <geom name="box_viz_5" class="xarm_viz" rgba=".2 1 .2 1"   size="0.04 0.04 .05" type="box" pos="-0.01 0.09 0"/>
+<!--            <geom name="box_col_6" class="xarm_col"  mass="0.023013"  size="0.05 0.05 .1" type="box" pos="0.1 0.1 0"/>-->
+<!--            <geom name="box_viz_6" class="xarm_viz" rgba=".2 1 .2 1"   size="0.05 0.05 .1" type="box" pos="0.1 0.1 0"/>-->
+<!--            <geom name="box_col_7" class="xarm_col"  mass="0.023013"  size="0.05 0.05 .1" type="box" pos="0.1 -0.1 0"/>-->
+<!--            <geom name="box_viz_7" class="xarm_viz" rgba=".2 1 .2 1"   size="0.05 0.05 .1" type="box" pos="0.1 -0.1 0"/>-->
+            <geom name="box_col_8" class="xarm_col"  mass="0.023013"  size="0.04 0.04 .05" type="box" pos="-0.09 0.09 0"/>
+            <geom name="box_viz_8" class="xarm_viz" rgba=".2 1 .2 1"   size="0.04 0.04 .05" type="box" pos="-0.09 0.09 0"/>
+            <site name="box_with_hole" pos="-.025 .025 0" rgba="0.0 0.5 0.5 1" size="0.01" type="sphere"></site>
+        </body>
+
+
+    </worldbody>
+
+
+      <tendon>
+        <spatial name="string" limited="true" range="0 0.2" width="0.003">
+          <site site="cylinder"/>
+            <site site="end_effector"/>
+        </spatial>
+     </tendon>
+
+
+<!--    <keyframe>-->
+<!--        <key qpos='0.16 -1.76 1.84 -2.51 0.36 0.79 1.55 0.00 0.0 1.25561e-05 1.57437e-07 1.25561e-05 1.57437e-07 1.25561e-05 1.57437e-07 1.25561e-05 1.57437e-07 8.24417e-05 9.48283e-05 0 0 0 0 -0.269 0.35 1.61523 1 1.34939e-19 -3.51612e-05 -7.50168e-19'/>-->
+<!--    </keyframe>-->
+
+</mujoco>
