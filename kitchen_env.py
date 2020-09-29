@@ -29,9 +29,9 @@ class Kitchen:
                control_version='mocap_ik', distance=2., azimuth=50, elevation=-40,
                initial_randomization_steps=1, minimal=False, dataset_step=None, grayscale=False, delay_steps=0):
     if 'rope' in task:
-      distance = 1.5
-      azimuth = 20
-      elevation = -20
+      distance = 1
+      azimuth = 40
+      elevation = -50
     if 'cabinet' in task:
       distance = 2.5
       azimuth = 120
@@ -110,7 +110,7 @@ class Kitchen:
     elif 'rope' in self.task:
       body_id = self._env.sim.model.body_name2id('boxes_with_hole')
       box_loc = self._env.sim.model.body_pos[body_id]
-      box_loc[2] += np.random.normal(0, .01) #move box height only
+      #box_loc[2] += np.random.normal(0, .0) #move box height only
       self._env.sim.model.body_pos[body_id] = box_loc
       self._env.sim.forward()
 

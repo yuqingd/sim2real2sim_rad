@@ -46,7 +46,7 @@ class KitchenV0(robot_env.RobotEnv):
         'xarm/assets/kitchen_kettleonly.xml')
     ROPE_MODEL = os.path.join(
         os.path.dirname(__file__),
-        'xarm/assets/rope_xarm.xml')
+        'xarm/assets/rope_xarm_real.xml')
     N_DOF_ROBOT = 13
     N_DOF_OBJECT = 21
 
