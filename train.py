@@ -114,6 +114,7 @@ def parse_args():
     parser.add_argument('--binary_prediction', default=False, type=bool)
     parser.add_argument('--start_outer_loop', default=0, type=int)
     parser.add_argument('--use_gru', default=True, type=bool)
+    parser.add_argument('--train_sim_param_every', default=50, type=int)
 
 
     # MISC
@@ -262,7 +263,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
         start_time = time.time()
         prefix = 'stochastic_' if sample_stochastically else ''
         obs_batch = []
-        sim_params = real_env.reset()['sim_params']
+        real_sim_params = real_env.reset()['sim_params']
         for i in range(num_episodes):
             obs_dict = real_env.reset()
             video.init(enabled=(i == 0))
@@ -292,10 +293,10 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
             all_ep_rewards.append(episode_reward)
             obs_batch.append(obs_traj)
         if not args.outer_loop_version == 0 and step > args.start_outer_loop:
-            print("GOT HERE")
-            update_sim_params(sim_param_model, sim_env, args, obs_batch, step, L)
             current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
-            evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test", sim_params, current_sim_params)
+            evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test", real_sim_params, current_sim_params)
+            update_sim_params(sim_param_model, sim_env, args, obs_batch, step, L)
+            evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test_after_update", real_sim_params, current_sim_params)
 
         L.log('eval/' + prefix + 'eval_time', time.time() - start_time, step)
         mean_ep_reward = np.mean(all_ep_rewards)
@@ -585,7 +586,7 @@ def main():
                 sim_param_step = max(sim_param_step,[int(x) for x in re.findall('\d+', checkpoint)][-1])
             sim_param_model.load(model_dir, sim_param_step)
             start_step = min(start_step, sim_param_step)
-        replay_buffer.load(buffer_dir)
+        replay_buffer.load(buffer_dir)  # TODO: do we have to save optimizer?
 
     L = Logger(args.work_dir, use_tb=args.save_tb)
 
@@ -633,7 +634,6 @@ def main():
                 np.save(filename, log_data)
 
             obs = sim_env.reset()
-            done = False
             success = 0.0 if 'success' in obs.keys() else None
             episode_reward = 0
             episode_step = 0
@@ -653,15 +653,15 @@ def main():
             num_updates = 1
             for _ in range(num_updates):
                 agent.update(replay_buffer, L, step)
-            if step % 50 == 0 and args.outer_loop_version != 0:  # TODO: update?
-                sim_param_model.update(replay_buffer, L, step, True) #TODO: change update freq if needed
+            if step % args.train_sim_param_every == 0 and args.outer_loop_version != 0:
+                sim_param_model.update(replay_buffer, L, step, True)
 
 
         next_obs, reward, done, _ = sim_env.step(action)
 
         # allow infinite bootstrap
         done = True if episode_step + 1 > args.time_limit else done
-        done_bool = float(done)  # TODO: confirm this is what we want to do!
+        done_bool = float(done)
         episode_reward += reward
         replay_buffer.add(obs, action, reward, next_obs, done_bool)
 

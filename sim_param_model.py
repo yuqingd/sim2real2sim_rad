@@ -53,7 +53,7 @@ class SimParamModel(nn.Module):
 
         if self.use_gru:
             self.sim_param_optimizer = torch.optim.Adam(
-                list(self.encoder.parameters())+ list(self.trunk.parameters()) + list(self.gru.parameters()), lr=sim_param_lr, betas=(sim_param_beta, 0.999)
+                list(self.encoder.parameters()) + list(self.trunk.parameters()) + list(self.gru.parameters()), lr=sim_param_lr, betas=(sim_param_beta, 0.999)
             )
         else:
             self.sim_param_optimizer = torch.optim.Adam(
@@ -71,12 +71,6 @@ class SimParamModel(nn.Module):
                 input = obs_traj
             else:
                 raise NotImplementedError(type(obs_traj[0]))
-
-            #
-            # if len(input) < self.traj_length:  # TODO: generalize!
-            #         last = input[-1]
-            #         last_arr = torch.stack([copy.deepcopy(last) for _ in range(self.traj_length - len(obs_traj))]).to(self.device)
-            #         input = torch.cat([input, last_arr])
 
             features = self.encoder(input, detach=True)
 
@@ -97,7 +91,6 @@ class SimParamModel(nn.Module):
         feat = self.get_features(obs_traj)
         B = len(pred_labels)
         num_traj = len(obs_traj)
-        #feat = feat.flatten()
         feat_tiled = feat.unsqueeze(1).repeat(1, B, 1)
         pred_tiled = pred_labels.unsqueeze(0).repeat(num_traj, 1, 1)
         fake_pred = torch.cat([pred_tiled, feat_tiled], dim=-1).view(-1, B, self.encoder_feature_dim + self._shape)
@@ -128,13 +121,11 @@ class SimParamModel(nn.Module):
                               high=sim_params + dist_range)).to(self.device)
         fake_pred = torch.cat([low, high], dim=0)
         labels = (fake_pred > sim_params.unsqueeze(0).to(self.device)).long()
-        shuffled_indices = torch.randperm(labels.size()[0]).to(self.device)
-        labels = labels[shuffled_indices]
-        fake_pred = fake_pred[shuffled_indices]
-        #shuffled_indices = torch.randperm(len(labels)).to(self.device)
-        #labels = torch.gather(labels, 0, shuffled_indices)
-        #fake_pred = torch.gather(fake_pred, 0, shuffled_indices)
-        #labels = (fake_pred > sim_params.unsqueeze(0).to(self.device)).long()
+
+        shuffled_indices = torch.stack([torch.randperm(len(fake_pred)) for _ in range(len(sim_params))], dim=1).to(self.device)
+        labels = torch.gather(labels, 0, shuffled_indices)
+        fake_pred = torch.gather(fake_pred, 0, shuffled_indices)
+
         pred_class = self.forward_classifier(obs_traj, fake_pred)
         pred_class = pred_class.flatten().unsqueeze(0).float()
         labels = labels.flatten().unsqueeze(0).float()
