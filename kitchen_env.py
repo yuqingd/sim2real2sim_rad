@@ -29,9 +29,9 @@ class Kitchen:
                control_version='mocap_ik', distance=2., azimuth=50, elevation=-40,
                initial_randomization_steps=1, minimal=False, dataset_step=None, grayscale=False, delay_steps=0):
     if 'rope' in task:
-      distance = 1.5
-      azimuth = 20
-      elevation = -20
+      distance = 1
+      azimuth = 40
+      elevation = -50
     if 'cabinet' in task:
       distance = 2.5
       azimuth = 120

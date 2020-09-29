@@ -523,9 +523,12 @@ class DR_Kitchen(DR_Env):
             box_viz_3 = model.geom_name2id('box_viz_3')
             box_viz_4 = model.geom_name2id('box_viz_4')
             box_viz_5 = model.geom_name2id('box_viz_5')
-            box_viz_6 = model.geom_name2id('box_viz_6')
-            box_viz_7 = model.geom_name2id('box_viz_7')
-            box_viz_8 = model.geom_name2id('box_viz_8')
+            # try:
+            #     box_viz_6 = model.geom_name2id('box_viz_6')
+            #     box_viz_7 = model.geom_name2id('box_viz_7')
+            #     box_viz_8 = model.geom_name2id('box_viz_8')
+            # except:
+            #     pass
 
             dr_update_dict = {
                 'joint1_damping': (model.dof_damping[0:1], None),
@@ -558,15 +561,15 @@ class DR_Kitchen(DR_Env):
                 'box5_r': (model.geom_rgba[:, 0], box_viz_5),
                 'box5_g': (model.geom_rgba[:, 1], box_viz_5),
                 'box5_b': (model.geom_rgba[:, 2], box_viz_5),
-                'box6_r': (model.geom_rgba[:, 0], box_viz_6),
-                'box6_g': (model.geom_rgba[:, 1], box_viz_6),
-                'box6_b': (model.geom_rgba[:, 2], box_viz_6),
-                'box7_r': (model.geom_rgba[:, 0], box_viz_7),
-                'box7_g': (model.geom_rgba[:, 1], box_viz_7),
-                'box7_b': (model.geom_rgba[:, 2], box_viz_7),
-                'box8_r': (model.geom_rgba[:, 0], box_viz_8),
-                'box8_g': (model.geom_rgba[:, 1], box_viz_8),
-                'box8_b': (model.geom_rgba[:, 2], box_viz_8),
+                # 'box6_r': (model.geom_rgba[:, 0], box_viz_6),
+                # 'box6_g': (model.geom_rgba[:, 1], box_viz_6),
+                # 'box6_b': (model.geom_rgba[:, 2], box_viz_6),
+                # 'box7_r': (model.geom_rgba[:, 0], box_viz_7),
+                # 'box7_g': (model.geom_rgba[:, 1], box_viz_7),
+                # 'box7_b': (model.geom_rgba[:, 2], box_viz_7),
+                # 'box8_r': (model.geom_rgba[:, 0], box_viz_8),
+                # 'box8_g': (model.geom_rgba[:, 1], box_viz_8),
+                # 'box8_b': (model.geom_rgba[:, 2], box_viz_8),
 
                 'rope_damping': (model.tendon_damping, None),
                 'rope_friction': (model.tendon_frictionloss, None),
@@ -678,9 +681,9 @@ class DR_Kitchen(DR_Env):
             box_viz_3 = model.geom_name2id('box_viz_3')
             box_viz_4 = model.geom_name2id('box_viz_4')
             box_viz_5 = model.geom_name2id('box_viz_5')
-            box_viz_6 = model.geom_name2id('box_viz_6')
-            box_viz_7 = model.geom_name2id('box_viz_7')
-            box_viz_8 = model.geom_name2id('box_viz_8')
+            # box_viz_6 = model.geom_name2id('box_viz_6')
+            # box_viz_7 = model.geom_name2id('box_viz_7')
+            # box_viz_8 = model.geom_name2id('box_viz_8')
             xarm_viz_indices = 2  # [geom_dict[name] for name in geom_dict.keys() if "xarm_viz" in name]
             model = model
 
@@ -715,15 +718,15 @@ class DR_Kitchen(DR_Env):
                 'box5_r': model.geom_rgba[box_viz_5, 0],
                 'box5_g': model.geom_rgba[box_viz_5, 1],
                 'box5_b': model.geom_rgba[box_viz_5, 2],
-                'box6_r': model.geom_rgba[box_viz_6, 0],
-                'box6_g': model.geom_rgba[box_viz_6, 1],
-                'box6_b': model.geom_rgba[box_viz_6, 2],
-                'box7_r': model.geom_rgba[box_viz_7, 0],
-                'box7_g': model.geom_rgba[box_viz_7, 1],
-                'box7_b': model.geom_rgba[box_viz_7, 2],
-                'box8_r': model.geom_rgba[box_viz_8, 0],
-                'box8_g': model.geom_rgba[box_viz_8, 1],
-                'box8_b': model.geom_rgba[box_viz_8, 2],
+                # 'box6_r': model.geom_rgba[box_viz_6, 0],
+                # 'box6_g': model.geom_rgba[box_viz_6, 1],
+                # 'box6_b': model.geom_rgba[box_viz_6, 2],
+                # 'box7_r': model.geom_rgba[box_viz_7, 0],
+                # 'box7_g': model.geom_rgba[box_viz_7, 1],
+                # 'box7_b': model.geom_rgba[box_viz_7, 2],
+                # 'box8_r': model.geom_rgba[box_viz_8, 0],
+                # 'box8_g': model.geom_rgba[box_viz_8, 1],
+                # 'box8_b': model.geom_rgba[box_viz_8, 2],
 
                 'rope_damping': model.tendon_damping[0],
                 'rope_friction': model.tendon_frictionloss[0],
