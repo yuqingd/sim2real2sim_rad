@@ -122,13 +122,9 @@ class SimParamModel(nn.Module):
         fake_pred = torch.cat([low, high], dim=0)
         labels = (fake_pred > sim_params.unsqueeze(0).to(self.device)).long()
 
-        # Shuffle each column independently so we don't always have the large sim params together
-        num_rows, num_cols = labels.size()
-        for col in range(num_cols):
-            shuffled_indices = torch.randperm(num_rows).to(self.device)
-            labels[:, col] = labels[shuffled_indices, col]
-            fake_pred[:, col] = fake_pred[shuffled_indices, col]
-
+        shuffled_indices = torch.stack([torch.randperm(len(fake_pred)) for _ in range(len(sim_params))], dim=1).to(self.device)
+        labels = torch.gather(labels, 0, shuffled_indices)
+        fake_pred = torch.gather(fake_pred, 0, shuffled_indices)
 
         pred_class = self.forward_classifier(obs_traj, fake_pred)
         pred_class = pred_class.flatten().unsqueeze(0).float()
