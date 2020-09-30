@@ -494,6 +494,7 @@ def main():
     exp_name += '-s' + str(args.seed) + '-' + args.agent + '-' + args.encoder_type + '-' + args.data_augs
     args.work_dir = args.work_dir + '/' + args.id + '_' + exp_name
 
+    print("about to load checkpoint")
     load_model = False
     if os.path.exists(os.path.join(args.work_dir, 'model')):
         print("Loading checkpoint...")
@@ -507,6 +508,8 @@ def main():
             agent_checkpoint = [f for f in checkpoints if 'curl' in f]
             if args.outer_loop_version in [1,3]:
                 sim_param_checkpoint = [f for f in checkpoints if 'sim_param' in f]
+    else:
+        print("couldn't find any file to load at", os.path.join(args.work_dir, 'model'))
 
 
 
