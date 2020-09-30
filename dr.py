@@ -138,8 +138,8 @@ def config_dr_dmc(config):
             "body_g": .5,
             "body_b": .5,
         }
+        config.real_dr_list = list(config.real_dr_params.keys())
     config.real_dr_params = real_dr_values
-    config.real_dr_list = list(config.real_dr_params.keys())
 
     if config.simple_randomization:
         if "cup_catch" in config.task_name:
@@ -153,7 +153,8 @@ def config_dr_dmc(config):
     mean_scale = config.mean_scale
     range_scale = config.range_scale
     config.dr = {}  # (mean, range)
-    for key, real_val in config.real_dr_params.items():
+    for key in config.real_dr_list:
+        real_val = config.real_dr_params[key]
         if real_val == 0:
             real_val = 5e-2
         if config.mean_only:
@@ -354,7 +355,8 @@ def config_dr_kitchen(config):
         mean_scale = config.mean_scale
         range_scale = config.range_scale
         config.dr = {}  # (mean, range)
-        for key, real_val in config.real_dr_params.items():
+        for key in config.real_dr_list:
+            real_val = config.real_dr_params[key]
             if real_val == 0:
                 real_val = 5e-2
             config.dr[key] = (real_val * mean_scale, real_val * range_scale)
@@ -441,7 +443,8 @@ def config_dr_metaworld(config):
       mean_scale = config.mean_scale
       range_scale = config.range_scale
       config.dr = {}  # (mean, range)
-      for key, real_val in config.real_dr_params.items():
+      for key in config.real_dr_list:
+        real_val = config.real_dr_params[key]
         if real_val == 0:
           real_val = 5e-2
         if config.mean_only:
