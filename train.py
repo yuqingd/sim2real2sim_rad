@@ -582,10 +582,11 @@ def main():
         start_step = agent_step
         if sim_param_model is not None:
             sim_param_step = 0
-            for checkpoint in sim_param_checkpoint:
-                sim_param_step = max(sim_param_step,[int(x) for x in re.findall('\d+', checkpoint)][-1])
-            sim_param_model.load(model_dir, sim_param_step)
-            start_step = min(start_step, sim_param_step)
+            if len(sim_param_checkpoint) > 0:
+                for checkpoint in sim_param_checkpoint:
+                    sim_param_step = max(sim_param_step, [int(x) for x in re.findall('\d+', checkpoint)][-1])
+                sim_param_model.load(model_dir, sim_param_step)
+                start_step = min(start_step, sim_param_step)
         replay_buffer.load(buffer_dir)  # TODO: do we have to save optimizer?
 
     L = Logger(args.work_dir, use_tb=args.save_tb)
@@ -606,70 +607,69 @@ def main():
                     sim_param_model.save(model_dir, step)
             if args.save_buffer:
                 replay_buffer.save(buffer_dir)
+        #
+        # if done:
+        #     if step > 0:
+        #         if step % args.log_interval == 0:
+        #             L.log('train/duration', time.time() - start_time, step)
+        #             L.dump(step)
+        #         start_time = time.time()
+        #     if step % args.log_interval == 0:
+        #         filename = args.work_dir + f'/train_reward.npy'
+        #         key = args.domain_name + '-' + str(args.task_name) + '-' + args.data_augs
+        #         try:
+        #             log_data = np.load(filename, allow_pickle=True)
+        #             log_data = log_data.item()
+        #         except FileNotFoundError:
+        #             log_data = {}
+        #         if key not in log_data:
+        #             log_data[key] = {}
+        #         log_data[key][step] = {}
+        #
+        #         L.log('train/episode_reward', episode_reward, step)
+        #         log_data[key][step]['episode_reward'] = episode_reward
+        #         if success is not None:
+        #             L.log('train/episode_success', success, step)
+        #             log_data[key][step]['episode_success'] = success
+        #
+        #         np.save(filename, log_data)
+        #
+        #     obs = sim_env.reset()
+        #     success = 0.0 if 'success' in obs.keys() else None
+        #     episode_reward = 0
+        #     episode_step = 0
+        #     episode += 1
+        #     if step % args.log_interval == 0:
+        #         L.log('train/episode', episode, step)
 
-        if done:
-            if step > 0:
-                if step % args.log_interval == 0:
-                    L.log('train/duration', time.time() - start_time, step)
-                    L.dump(step)
-                start_time = time.time()
-            if step % args.log_interval == 0:
-                filename = args.work_dir + f'/train_reward.npy'
-                key = args.domain_name + '-' + str(args.task_name) + '-' + args.data_augs
-                try:
-                    log_data = np.load(filename, allow_pickle=True)
-                    log_data = log_data.item()
-                except FileNotFoundError:
-                    log_data = {}
-                if key not in log_data:
-                    log_data[key] = {}
-                log_data[key][step] = {}
-
-                L.log('train/episode_reward', episode_reward, step)
-                log_data[key][step]['episode_reward'] = episode_reward
-                if success is not None:
-                    L.log('train/episode_success', success, step)
-                    log_data[key][step]['episode_success'] = success
-
-                np.save(filename, log_data)
-
-            obs = sim_env.reset()
-            success = 0.0 if 'success' in obs.keys() else None
-            episode_reward = 0
-            episode_step = 0
-            episode += 1
-            if step % args.log_interval == 0:
-                L.log('train/episode', episode, step)
-
-        # sample action for data collection
-        if step < args.init_steps:
-            action = sim_env.action_space.sample()
-        else:
-            with utils.eval_mode(agent):
-                action = agent.sample_action(obs['image'])
+        # # sample action for data collection
+        # if step < args.init_steps:
+        #     action = sim_env.action_space.sample()
+        # else:
+        #     with utils.eval_mode(agent):
+        #         action = agent.sample_action(obs['image'])
 
         # run training update
-        if step >= args.init_steps:
+        # if step >= args.init_steps:
             num_updates = 1
-            for _ in range(num_updates):
-                agent.update(replay_buffer, L, step)
-            if step % args.train_sim_param_every == 0 and args.outer_loop_version != 0:
-                sim_param_model.update(replay_buffer, L, step, True)
+            # for _ in range(num_updates):
+            #     agent.update(replay_buffer, L, step)
+        sim_param_model.update(replay_buffer, L, step, True)
 
 
-        next_obs, reward, done, _ = sim_env.step(action)
+        # next_obs, reward, done, _ = sim_env.step(action)
 
         # allow infinite bootstrap
-        done = True if episode_step + 1 > args.time_limit else done
-        done_bool = float(done)
-        episode_reward += reward
-        replay_buffer.add(obs, action, reward, next_obs, done_bool)
-
-        if 'success' in obs.keys():
-            success = obs['success']
-
-        obs = next_obs
-        episode_step += 1
+        # done = True if episode_step + 1 > args.time_limit else done
+        # done_bool = float(done)
+        # episode_reward += reward
+        # # replay_buffer.add(obs, action, reward, next_obs, done_bool)
+        #
+        # if 'success' in obs.keys():
+        #     success = obs['success']
+        #
+        # obs = next_obs
+        # episode_step += 1
 
 
 
