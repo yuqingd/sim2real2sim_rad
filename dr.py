@@ -90,6 +90,10 @@ def config_dr_dmc(config):
             config.real_dr_list = [
                 'torso_mass'
             ]
+        elif dr_option == 'single_visual_dr':
+            config.real_dr_list = [
+                "ground_r"
+            ]
     elif "finger" in config.domain_name:
         real_dr_values = {
             "proximal_mass": .805,
