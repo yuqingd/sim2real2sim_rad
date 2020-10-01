@@ -113,7 +113,6 @@ def parse_args():
     parser.add_argument('--ol1_episodes', default=10, type=int)
     parser.add_argument('--binary_prediction', default=False, type=bool)
     parser.add_argument('--start_outer_loop', default=0, type=int)
-    parser.add_argument('--use_gru', default=True, type=bool)
     parser.add_argument('--train_sim_param_every', default=50, type=int)
 
 
@@ -141,9 +140,9 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
             pred_sim_params = []
             if len(obs) > 1:
                 for ob in obs:
-                    pred_sim_params.append(sim_param_model.forward_classifier(ob, current_sim_params)[0].cpu().numpy())
+                    pred_sim_params.append(predict_sim_params(sim_param_model, ob, current_sim_params))
             else:
-                pred_sim_params.append(sim_param_model.forward_classifier(obs[0], current_sim_params)[0].cpu().numpy())
+                pred_sim_params.append(predict_sim_params(sim_param_model, obs[0], current_sim_params))
             pred_sim_params = np.mean(pred_sim_params, axis=0)
 
             real_dr_params = (current_sim_params[0].cpu().numpy() > real_dr_params).astype(np.int32)
@@ -193,6 +192,24 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
             log_data[key][step]['error'] = error
             np.save(filename, log_data)
 
+def predict_sim_params(sim_param_model, traj, current_sim_params, step=5, confidence_level=.3):
+    segment_length = sim_param_model.num_frames
+    windows = []
+    index = 0
+    while index < len(traj) - segment_length:
+        windows.append(traj[index: index + segment_length])
+        index += step
+    preds = sim_param_model.forward_classifier(windows, current_sim_params).cpu().numpy()
+    confident_preds = preds[(preds < confidence_level) | (preds > 1 - confidence_level)]
+    if len(confident_preds) == 0:
+        confident_preds = preds
+    # Round to the nearest integer so each prediction is voting up or down
+    # Alternatively, we could just take a mean of their probabilities
+    # The only difference is whether we want to give each confident segment equal weight or not
+    # And whether we want to be confident (e.g. if all windows predict .6, do we predict .6 or 1?
+    confident_preds = np.mean(np.round(confident_preds), axis=0)
+    return confident_preds
+
 def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
     with torch.no_grad():
         if args.outer_loop_version == 1:
@@ -203,9 +220,9 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
             pred_sim_params = []
             if len(obs) > 1:
                 for ob in obs:
-                    pred_sim_params.append(sim_param_model.forward_classifier(ob, current_sim_params)[0].cpu().numpy())
+                    pred_sim_params.append(predict_sim_params(sim_param_model, ob, current_sim_params))
             else:
-                pred_sim_params.append(sim_param_model.forward_classifier(obs[0], current_sim_params)[0].cpu().numpy())
+                pred_sim_params.append(predict_sim_params(sim_param_model, obs[0], current_sim_params))
             pred_sim_params = np.mean(pred_sim_params, axis=0)
 
     for i, param in enumerate(args.real_dr_list):
@@ -568,7 +585,6 @@ def main():
             sim_param_beta=args.sim_param_beta,
             dist=dist,
             traj_length=args.time_limit,
-            use_gru=args.use_gru,
         ).to(device)
     else:
         sim_param_model = None

@@ -9,11 +9,13 @@ import utils
 from encoder import make_encoder, PixelEncoder
 import data_augs as rad
 from curl_sac import weight_init
+from positional_encoding import get_embedder
 
 class SimParamModel(nn.Module):
     def __init__(self, shape, layers, units, device, obs_shape, encoder_type,
         encoder_feature_dim, encoder_num_layers, encoder_num_filters, agent, sim_param_lr=1e-3, sim_param_beta=0.9,
-                 dist='normal', act=nn.ELU, batch_size=32, traj_length=200, use_gru=True):
+                 dist='normal', act=nn.ELU, batch_size=32, traj_length=200, num_frames=10,
+                 embedding_multires=10,):
         super(SimParamModel, self).__init__()
         self._shape = shape
         self._layers = layers
@@ -24,15 +26,14 @@ class SimParamModel(nn.Module):
         self.encoder_type = encoder_type
         self.batch = batch_size
         self.traj_length = traj_length
-        self.use_gru = use_gru
         self.encoder_feature_dim = encoder_feature_dim
-        additional = 0 if dist == 'normal' else shape
+        self.num_frames = num_frames
+        positional_encoding, embedding_dim = get_embedder(embedding_multires, shape, i=0)
+        self.positional_encoding = positional_encoding
+        additional = 0 if dist == 'normal' else embedding_dim
 
         trunk = []
-        if self.use_gru:
-            trunk.append(nn.Linear(encoder_feature_dim + additional, self._units))
-        else:
-            trunk.append(nn.Linear(traj_length * encoder_feature_dim + additional, self._units))
+        trunk.append(nn.Linear(encoder_feature_dim + additional, self._units))
         trunk.append(self._act())
         for index in range(self._layers - 1):
             trunk.append(nn.Linear(self._units, self._units))
@@ -40,39 +41,36 @@ class SimParamModel(nn.Module):
         trunk.append(nn.Linear(self._units, np.prod(self._shape)))
         self.trunk = nn.Sequential(*trunk).to(self.device)
 
+        # change obs_shape to account for the trajectory length, since images are stacked channel-wise
+        c, h, w = obs_shape
+        obs_shape = (3 * self.num_frames, h, w)
+
         self.encoder = make_encoder(
             encoder_type, obs_shape, encoder_feature_dim, encoder_num_layers,
             encoder_num_filters, output_logits=True
         )
 
-        if self.use_gru:
-            self.gru = nn.GRU(encoder_feature_dim + additional, encoder_feature_dim + additional)
-
         self.apply(weight_init)
-        self.encoder.copy_conv_weights_from(agent.critic.encoder)
 
-        if self.use_gru:
-            self.sim_param_optimizer = torch.optim.Adam(
-                list(self.encoder.parameters()) + list(self.trunk.parameters()) + list(self.gru.parameters()), lr=sim_param_lr, betas=(sim_param_beta, 0.999)
-            )
-        else:
-            self.sim_param_optimizer = torch.optim.Adam(
-                list(self.encoder.parameters()) + list(self.trunk.parameters()), lr=sim_param_lr, betas=(sim_param_beta, 0.999)
-            )
+        self.sim_param_optimizer = torch.optim.Adam(
+            list(self.encoder.parameters()) + list(self.trunk.parameters()), lr=sim_param_lr, betas=(sim_param_beta, 0.999)
+        )
 
     def get_features(self, obs_traj):
         # detach_encoder allows to stop gradient propagation to encoder
 
         with torch.no_grad():
-            if type(obs_traj[0]) is np.ndarray:
-                obs = np.stack(obs_traj)
-                input = torch.FloatTensor(obs).to(self.device)
-            elif type(obs_traj[0]) is torch.Tensor:
-                input = obs_traj
+            if type(obs_traj[0][0]) is np.ndarray:
+                input = torch.FloatTensor(obs_traj).to(self.device)
+                B, num_frames, C, H, W = input.shape
+                input = input.view(B, num_frames * C, H, W)
+            elif type(obs_traj[0][0]) is torch.Tensor:
+                input = torch.stack([torch.cat([o for o in traj], dim=0) for traj in obs_traj], dim=0)
             else:
-                raise NotImplementedError(type(obs_traj[0]))
+                raise NotImplementedError(type(obs_traj[0][0]))
 
             features = self.encoder(input, detach=True)
+            features = features / torch.norm(features)
 
         return features
 
@@ -87,18 +85,25 @@ class SimParamModel(nn.Module):
         raise NotImplementedError(self._dist)
 
     def forward_classifier(self, obs_traj, pred_labels):
+        """ obs traj list of lists, pred labels is array [B, num_sim_params] """
+        new_obs_traj = []
+        for traj in obs_traj:
+            if len(traj) > self.num_frames:
+                start_index = np.random.randint(0, len(traj) - self.num_frames)
+                traj = traj[start_index:start_index + self.num_frames]
+            new_obs_traj.append([o[:3] for o in traj])
+        obs_traj = new_obs_traj
+
+        # normalize [-1, 1]
         pred_labels = pred_labels.to(self.device)
+
+        encoded_pred_labels = self.positional_encoding(pred_labels)
+        encoded_pred_labels = encoded_pred_labels / torch.norm(encoded_pred_labels)
+
         feat = self.get_features(obs_traj)
-        B = len(pred_labels)
-        num_traj = len(obs_traj)
-        feat_tiled = feat.unsqueeze(1).repeat(1, B, 1)
-        pred_tiled = pred_labels.unsqueeze(0).repeat(num_traj, 1, 1)
-        fake_pred = torch.cat([pred_tiled, feat_tiled], dim=-1).view(-1, B, self.encoder_feature_dim + self._shape)
-    
-        if self.use_gru:
-            hidden = torch.zeros(1, B, self.encoder_feature_dim + self._shape, device=self.device)
-            fake_pred, hidden = self.gru(fake_pred, hidden)
-            fake_pred = fake_pred[-1] #only look at end of traj
+        B_label = len(pred_labels)
+        B_traj = len(obs_traj)
+        fake_pred = torch.cat([encoded_pred_labels.repeat(B_traj, 1), feat.repeat(B_label, 1)], dim=-1)
 
         x = self.trunk(fake_pred)
         pred_class = torch.distributions.bernoulli.Bernoulli(logits=x)
@@ -107,7 +112,6 @@ class SimParamModel(nn.Module):
 
 
     def train_classifier(self, obs_traj, sim_params, distribution_mean,  L, step, should_log):
-
         dist_range = 10 * torch.FloatTensor(distribution_mean)
         sim_params = torch.FloatTensor(sim_params) # 1 - dimensional
         eps = 1e-3
@@ -126,7 +130,7 @@ class SimParamModel(nn.Module):
         labels = torch.gather(labels, 0, shuffled_indices)
         fake_pred = torch.gather(fake_pred, 0, shuffled_indices)
 
-        pred_class = self.forward_classifier(obs_traj, fake_pred)
+        pred_class = self.forward_classifier([obs_traj], fake_pred)
         pred_class = pred_class.flatten().unsqueeze(0).float()
         labels = labels.flatten().unsqueeze(0).float()
         loss = nn.BCELoss()(pred_class, labels)
