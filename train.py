@@ -201,13 +201,14 @@ def predict_sim_params(sim_param_model, traj, current_sim_params, step=5, confid
         index += step
     preds = sim_param_model.forward_classifier(windows, current_sim_params).cpu().numpy()
     mask = (preds > confidence_level) & (preds < 1 - confidence_level)
+    preds = np.round(preds)
     preds[mask] = 0.5
 
     # Round to the nearest integer so each prediction is voting up or down
     # Alternatively, we could just take a mean of their probabilities
     # The only difference is whether we want to give each confident segment equal weight or not
     # And whether we want to be confident (e.g. if all windows predict .6, do we predict .6 or 1?
-    confident_preds = np.mean(np.round(preds), axis=0)
+    confident_preds = np.mean(preds, axis=0)
     return confident_preds
 
 def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
