@@ -96,6 +96,7 @@ class ReplayBuffer(Dataset):
         self.traj_id = 0
 
         self.idx = 0
+        self.done_idx = 0
         self.last_save = 0
         self.full = False
 
@@ -109,7 +110,10 @@ class ReplayBuffer(Dataset):
         np.copyto(self.not_dones[self.idx], not done)
         np.copyto(self.traj_ids[self.idx], self.traj_id)
         if done:
+            if not self.idx % 200 == 199:
+                print("???")
             self.traj_id += 1
+            self.done_idx = (self.idx + 1) % self.capacity
 
         self.idx = (self.idx + 1) % self.capacity
         self.full = self.full or self.idx == 0
@@ -117,7 +121,7 @@ class ReplayBuffer(Dataset):
     def sample_proprio(self):
         
         idxs = np.random.randint(
-            0, self.capacity if self.full else self.idx, size=self.batch_size
+            0, self.capacity if self.full else self.done_idx, size=self.batch_size
         )
 
         return self._sample_proprio(idxs, image_only=True)
@@ -158,7 +162,7 @@ class ReplayBuffer(Dataset):
 
     def sample_proprio_traj(self, num_trajs):
         # Select trajectory indices
-        unique_trajs = np.unique(self.traj_ids[:self.capacity if self.full else self.idx])
+        unique_trajs = np.unique(self.traj_ids[:self.capacity if self.full else self.done_idx])
         traj_ids = np.random.choice(unique_trajs, size=num_trajs, replace=True)
 
         # Obtain indices for each trajectory
@@ -169,6 +173,7 @@ class ReplayBuffer(Dataset):
         not_dones_list = []
         for traj in traj_ids:
             idxs = np.where(self.traj_ids == traj)[0]
+            # We should never have to use this if case unless we're using an environment with early termination.
             if len(idxs) < self.max_traj_length:
                 last = idxs[-1]
                 last_repeat = np.zeros(self.max_traj_length - len(idxs), dtype=np.int32) + last
@@ -184,7 +189,7 @@ class ReplayBuffer(Dataset):
     def sample_cpc(self):
 
         idxs = np.random.randint(
-            0, self.capacity if self.full else self.idx, size=self.batch_size
+            0, self.capacity if self.full else self.done_idx, size=self.batch_size
         )
         return self._sample_cpc(idxs, image_only=True)
 
@@ -227,7 +232,7 @@ class ReplayBuffer(Dataset):
 
     def sample_cpc_traj(self, num_trajs):
         # Select trajectory indices
-        unique_trajs = np.unique(self.traj_ids[:self.capacity if self.full else self.idx])
+        unique_trajs = np.unique(self.traj_ids[:self.capacity if self.full else self.done_idx])
         traj_ids = np.random.choice(unique_trajs, size=num_trajs, replace=True)
 
         # Obtain indices for each trajectory
@@ -238,7 +243,7 @@ class ReplayBuffer(Dataset):
         not_dones_list = []
         cpc_kwargs_list = []
         for traj_id in traj_ids:
-            idxs = np.where(self.traj_ids[:self.capacity if self.full else self.idx] == traj_id)[0]
+            idxs = np.where(self.traj_ids[:self.capacity if self.full else self.done_idx] == traj_id)[0]
             if len(idxs) < self.max_traj_length:
                 last = idxs[-1]
                 last_repeat = np.zeros(self.max_traj_length - len(idxs), dtype=np.int32) + last
@@ -254,7 +259,7 @@ class ReplayBuffer(Dataset):
 
     def sample_rad(self, aug_funcs):
         idxs = np.random.randint(
-            0, self.capacity if self.full else self.idx, size=self.batch_size
+            0, self.capacity if self.full else self.done_idx, size=self.batch_size
         )
         return self._sample_rad(aug_funcs, idxs, image_only=True)
 
@@ -307,7 +312,7 @@ class ReplayBuffer(Dataset):
 
     def sample_rad_traj(self, aug_funcs, num_trajs):
         # Select trajectory indices
-        unique_trajs = np.unique(self.traj_ids[:self.capacity if self.full else self.idx])
+        unique_trajs = np.unique(self.traj_ids[:self.capacity if self.full else self.done_idx])
         traj_ids = np.random.choice(unique_trajs, size=num_trajs, replace=True)
 
         # Obtain indices for each trajectory

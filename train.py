@@ -677,7 +677,7 @@ def main():
         next_obs, reward, done, _ = sim_env.step(action)
 
         # allow infinite bootstrap
-        done = True if episode_step + 1 > args.time_limit else done
+        done = True if episode_step >= args.time_limit - 1 else done
         done_bool = float(done)
         episode_reward += reward
         replay_buffer.add(obs, action, reward, next_obs, done_bool)
