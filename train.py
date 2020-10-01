@@ -670,8 +670,8 @@ def main():
             num_updates = 1
             for _ in range(num_updates):
                 agent.update(replay_buffer, L, step)
-            if step % args.train_sim_param_every == 0 and args.outer_loop_version != 0:
-                sim_param_model.update(replay_buffer, L, step, True)
+                if step % args.train_sim_param_every == 0 and args.outer_loop_version != 0:
+                    sim_param_model.update(replay_buffer, L, step, True)
 
 
         next_obs, reward, done, _ = sim_env.step(action)
