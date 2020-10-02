@@ -381,10 +381,12 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
             current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
             test_preds_after = evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test_after_update", real_sim_params, current_sim_params)
             train_preds_after = evaluate_sim_params(sim_param_model, args, [obs_traj_sim], step, L, "train_after_update", sim_params, current_sim_params)
-        for i, param in enumerate(args.real_dr_list):
-            L.log(f'eval/train/{param}/train_diff', train_preds_after[i] - train_preds_before[i], step)
-            L.log(f'eval/test/{param}/test_diff', test_preds_after[i] - test_preds_before[i], step)
-            L.log(f'eval/train/{param}/train_test_diff', train_preds_before[i] - test_preds_before[i], step)
+            for i, param in enumerate(args.real_dr_list):
+                L.log(f'eval/train/{param}/train_diff', train_preds_after[i] - train_preds_before[i], step)
+                L.log(f'eval/test/{param}/test_diff', test_preds_after[i] - test_preds_before[i], step)
+                L.log(f'eval/train/{param}/train_test_diff', train_preds_before[i] - test_preds_before[i], step)
+        else:
+            print("skipping outer loop on", step)
 
     run_eval_loop(sample_stochastically=False)
     L.dump(step)
