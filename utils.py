@@ -376,6 +376,7 @@ class ReplayBuffer(Dataset):
             self.not_dones[start:end] = payload[4]
             self.traj_ids[start:end] = payload[5]
             self.idx = end
+            self.done_idx = end // self.max_traj_length
             self.last_save = end
 
     def __getitem__(self, idx):
