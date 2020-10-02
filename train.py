@@ -628,6 +628,9 @@ def main():
 
         if done:
             if step > 0:
+                if args.outer_loop_version != 0:
+                    sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True)
+
                 if step % args.log_interval == 0:
                     L.log('train/duration', time.time() - start_time, step)
                     L.dump(step)
@@ -652,6 +655,7 @@ def main():
 
                 np.save(filename, log_data)
 
+
             obs = sim_env.reset()
             obs_traj = [obs['image']]
             success = 0.0 if 'success' in obs.keys() else None
@@ -660,8 +664,7 @@ def main():
             episode += 1
             if step % args.log_interval == 0:
                 L.log('train/episode', episode, step)
-            if args.outer_loop_version != 0:
-                sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True)
+
 
         # sample action for data collection
         if step < args.init_steps:

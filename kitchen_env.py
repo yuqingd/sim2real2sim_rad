@@ -23,7 +23,7 @@ XPOS_INDICES = {
 }
 
 class Kitchen:
-  def __init__(self, task='reach_kettle', size=(100, 100), real_world=False, dr=None, mean_only=False,
+  def __init__(self, task='reach_kettle', size=(84, 84), real_world=False, dr=None, mean_only=False,
                early_termination=False, use_state="None", step_repeat=30, dr_list=[],
                step_size=0.03, simple_randomization=False, time_limit=200,
                control_version='mocap_ik', distance=2., azimuth=50, elevation=-40,
