@@ -110,8 +110,6 @@ class ReplayBuffer(Dataset):
         np.copyto(self.not_dones[self.idx], not done)
         np.copyto(self.traj_ids[self.idx], self.traj_id)
         if done:
-            if not self.idx % 200 == 199:
-                print("???")
             self.traj_id += 1
             self.done_idx = (self.idx + 1) % self.capacity
 
