@@ -653,12 +653,15 @@ def main():
                 np.save(filename, log_data)
 
             obs = sim_env.reset()
+            obs_traj = [obs['image']]
             success = 0.0 if 'success' in obs.keys() else None
             episode_reward = 0
             episode_step = 0
             episode += 1
             if step % args.log_interval == 0:
                 L.log('train/episode', episode, step)
+            if args.outer_loop_version != 0:
+                sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True)
 
         # sample action for data collection
         if step < args.init_steps:
@@ -672,8 +675,7 @@ def main():
             num_updates = 1
             for _ in range(num_updates):
                 agent.update(replay_buffer, L, step)
-                if step % args.train_sim_param_every == 0 and args.outer_loop_version != 0:
-                    sim_param_model.update(replay_buffer, L, step, True)
+
 
 
         next_obs, reward, done, _ = sim_env.step(action)
@@ -688,6 +690,7 @@ def main():
             success = obs['success']
 
         obs = next_obs
+        obs_traj.append(obs['image'])
         episode_step += 1
 
 
