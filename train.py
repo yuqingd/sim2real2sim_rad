@@ -354,7 +354,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
         obs_dict = sim_env.reset()
         done = False
         obs_traj_sim = []
-        video_sim.init(enabled=(i == 0))
+        video_sim.init(enabled=True)
         while not done and len(obs_traj_sim) < args.time_limit:
             obs = obs_dict['image']
             # center crop image
