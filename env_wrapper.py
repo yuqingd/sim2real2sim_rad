@@ -12,7 +12,7 @@ from kitchen_env import Kitchen
 class DR_Env:
   def __init__(self, env, cameras, height=64, width=64, mean_only=False, dr_list=[], simple_randomization=False, dr_shape=None,
                real_world=False, dr=None, use_state="None", use_img=True, name="task_name",
-               grayscale=False, dataset_step=None):
+               grayscale=False, dataset_step=None, range_scale=.1):
 
     self._env = env
 
@@ -29,6 +29,7 @@ class DR_Env:
     self.grayscale = grayscale
     self.name = name
     self.dataset_step = dataset_step
+    self.range_scale = range_scale
 
     self.apply_dr()
 
@@ -58,7 +59,7 @@ class DR_Env:
     if param_name in self.dr:
       if self.mean_only:
         mean = self.dr[param_name]
-        range = max(0.1 * mean, eps) #TODO: tune this?
+        range = max(self.range_scale * mean, eps)
       else:
         mean, range = self.dr[param_name]
         range = max(range, eps)  # TODO: consider re-adding anneal_range_scale
@@ -161,7 +162,7 @@ class DR_Env:
 class DR_MetaWorldEnv(DR_Env):  # TODO: consider passing through as kwargs
     def __init__(self, env, cameras, height=64, width=64, mean_only=False, dr_list=[], simple_randomization=False,
                  dr_shape=None, real_world=False, dr=None, use_state="None", use_img=True, name="task_name",
-                 grayscale=False, delay_steps=0):
+                 grayscale=False, delay_steps=0, range_scale=.1):
         env = MetaWorldEnv(env, from_pixels=use_img, cameras=cameras, height=height, width=width)
         super().__init__(env, cameras,
                          height=height, width=width,
@@ -174,7 +175,8 @@ class DR_MetaWorldEnv(DR_Env):  # TODO: consider passing through as kwargs
                          use_state=use_state,
                          use_img=use_img,
                          name=name,
-                         grayscale=grayscale)
+                         grayscale=grayscale,
+                         range_scale=range_scale)
 
     def render(self, mode='rgb_array', camera_id=2, **kwargs):
         obs = super().render(mode, camera_id=camera_id, **kwargs)
@@ -455,7 +457,7 @@ class DR_MetaWorldEnv(DR_Env):  # TODO: consider passing through as kwargs
 class DR_Kitchen(DR_Env):
     def __init__(self, env, cameras, height=100, width=100, mean_only=False, dr_list=[], simple_randomization=False,
                  dr_shape=None, real_world=False, dr=None, use_state="None", use_img=True, name="task_name",
-                 grayscale=False, domain_name=""):
+                 grayscale=False, domain_name="", range_scale=.1):
         super().__init__(env, cameras,
                          height=height, width=width,
                          mean_only=mean_only,
@@ -467,7 +469,8 @@ class DR_Kitchen(DR_Env):
                          use_state=use_state,
                          use_img=use_img,
                          name=name,
-                         grayscale=grayscale)
+                         grayscale=grayscale,
+                         range_scale=range_scale)
 
     def __getattr__(self, attr):
         orig_attr = self._env.__getattribute__(attr)
@@ -822,7 +825,7 @@ class DR_Kitchen(DR_Env):
 class DR_DMCEnv(DR_Env):
     def __init__(self, env, cameras, height=64, width=64, mean_only=False, dr_list=[], simple_randomization=False,
                  dr_shape=None, real_world=False, dr=None, use_state="None", use_img=True, name="task_name",
-                 grayscale=False, domain_name=""):
+                 grayscale=False, domain_name="", range_scale=.1):
         self.domain_name = domain_name
         super().__init__(env, cameras,
                          height=height, width=width,
@@ -835,7 +838,8 @@ class DR_DMCEnv(DR_Env):
                          use_state=use_state,
                          use_img=use_img,
                          name=name,
-                         grayscale=grayscale)
+                         grayscale=grayscale,
+                         range_scale=range_scale)
 
     def render(self, mode, **kwargs):
         obs = super().render(mode, **kwargs)
@@ -1035,7 +1039,7 @@ class DR_DMCEnv(DR_Env):
 def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range(1),
          visualize_reward=False, frame_skip=None, mean_only=False,  dr_list=[], simple_randomization=False, dr_shape=None,
                real_world=False, dr=None, use_state="None", use_img=True,
-                grayscale=False, delay_steps=0):
+                grayscale=False, delay_steps=0, range_scale=.1):
     # DMC
     if 'dmc' in domain_name:
         domain_name_root = domain_name[4:]  # Task name is formatted as dmc_walker.  Now just walker
@@ -1054,7 +1058,8 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
         env = DR_DMCEnv(env, cameras=cameras, height=height, width=width, mean_only=mean_only,
                               dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape,
                               name=task_name, domain_name=domain_name_root,
-                              real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale)
+                              real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
+                              range_scale=range_scale)
         return env
     elif 'metaworld' in domain_name:
         if task_name + '-v1' in ed.ALL_V1_ENVIRONMENTS.keys():
@@ -1071,7 +1076,8 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
         env.seed(seed)
         env = DR_MetaWorldEnv(env, cameras=cameras, height=height, width=width, mean_only=mean_only,
                    dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape, name=task_name,
-                   real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale)
+                   real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
+                   range_scale=range_scale)
         return env
     elif 'kitchen' in domain_name:
         env = Kitchen(dr=dr, mean_only=mean_only,
@@ -1091,7 +1097,8 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
                       delay_steps=delay_steps)
         env = DR_Kitchen(env, cameras=cameras, height=height, width=width, mean_only=mean_only,
                    dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape, name=task_name,
-                   real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale)
+                   real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
+                   range_scale=range_scale)
         return env
     else:
         raise KeyError("Domain name not found. " + str(domain_name))
