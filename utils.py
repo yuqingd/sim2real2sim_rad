@@ -110,8 +110,6 @@ class ReplayBuffer(Dataset):
         np.copyto(self.not_dones[self.idx], not done)
         np.copyto(self.traj_ids[self.idx], self.traj_id)
         if done:
-            if not self.idx % 200 == 199:
-                print("???")
             self.traj_id += 1
             self.done_idx = (self.idx + 1) % self.capacity
 
@@ -376,6 +374,7 @@ class ReplayBuffer(Dataset):
             self.not_dones[start:end] = payload[4]
             self.traj_ids[start:end] = payload[5]
             self.idx = end
+            self.done_idx = end // self.max_traj_length
             self.last_save = end
 
     def __getitem__(self, idx):
