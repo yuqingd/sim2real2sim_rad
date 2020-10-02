@@ -146,6 +146,7 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
             pred_sim_params = np.mean(pred_sim_params, axis=0)
 
             real_dr_params = (current_sim_params[0].cpu().numpy() > real_dr_params).astype(np.int32)
+            assert len(pred_sim_params.shape) == len(real_dr_params.shape) == 1
 
         preds = []
 
@@ -278,7 +279,7 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
         np.save(filename, log_data)
 
 
-def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, step, args):
+def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, num_episodes, L, step, args):
     all_ep_rewards = []
     all_ep_success = []
     def run_eval_loop(sample_stochastically=True):
@@ -288,7 +289,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
         real_sim_params = real_env.reset()['sim_params']
         for i in range(num_episodes):
             obs_dict = real_env.reset()
-            video.init(enabled=(i == 0))
+            video_real.init(enabled=(i == 0))
             done = False
             episode_reward = 0
             obs_traj = []
@@ -304,10 +305,10 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
                         action = agent.select_action(obs)
                 obs_traj.append(obs)
                 obs_dict, reward, done, _ = real_env.step(action)
-                video.record(real_env)
+                video_real.record(real_env)
                 episode_reward += reward
 
-            video.save('real_%d.mp4' % step)
+            video_real.save('real_%d.mp4' % step)
             L.log('eval/' + prefix + 'episode_reward', episode_reward, step)
             if 'success' in obs_dict.keys():
                 L.log('eval/' + prefix + 'episode_success', obs_dict['success'], step)
@@ -353,6 +354,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
         obs_dict = sim_env.reset()
         done = False
         obs_traj_sim = []
+        video_sim.init(enabled=(i == 0))
         while not done and len(obs_traj_sim) < args.time_limit:
             obs = obs_dict['image']
             # center crop image
@@ -366,7 +368,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
                     action = agent.select_action(obs)
             obs_traj_sim.append(obs)
             obs_dict, reward, done, _ = sim_env.step(action)
-            video.record(sim_env)
+            video_sim.record(sim_env)
             sim_params = obs_dict['sim_params']
         if sim_param_model is not None:
             dist_mean = obs_dict['distribution_mean']
@@ -374,7 +376,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
             train_preds_before = evaluate_sim_params(sim_param_model, args, [obs_traj_sim], step, L, "train", sim_params, current_sim_params)
             if args.outer_loop_version == 3:
                 sim_param_model.train_classifier(obs_traj_sim, sim_params, dist_mean, L, step, True)
-        video.save('sim_%d.mp4' % step)
+        video_sim.save('sim_%d.mp4' % step)
 
         if not args.outer_loop_version == 0 and step > args.start_outer_loop:
             update_sim_params(sim_param_model, sim_env, args, obs_batch, step, L)
@@ -385,6 +387,29 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
                 L.log(f'eval/train/{param}/train_diff', train_preds_after[i] - train_preds_before[i], step)
                 L.log(f'eval/test/{param}/test_diff', test_preds_after[i] - test_preds_before[i], step)
                 L.log(f'eval/train/{param}/train_test_diff', train_preds_before[i] - test_preds_before[i], step)
+
+            obs_dict = sim_env.reset()
+            done = False
+            obs_traj_sim = []
+            while not done and len(obs_traj_sim) < args.time_limit:
+                obs = obs_dict['image']
+                # center crop image
+                if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
+                    args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
+                    obs = utils.center_crop_image(obs, args.image_size)
+                with utils.eval_mode(agent):
+                    if sample_stochastically:
+                        action = agent.sample_action(obs)
+                    else:
+                        action = agent.select_action(obs)
+                obs_traj_sim.append(obs)
+                obs_dict, reward, done, _ = sim_env.step(action)
+                sim_params = obs_dict['sim_params']
+            if sim_param_model is not None:
+                current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
+                train_preds_before = evaluate_sim_params(sim_param_model, args, [obs_traj_sim], step, L, "train_final",
+                                                         sim_params, current_sim_params)
+
         else:
             print("skipping outer loop on", step)
 
@@ -551,7 +576,8 @@ def main():
     model_dir = utils.make_dir(os.path.join(args.work_dir, 'model'))
     buffer_dir = utils.make_dir(os.path.join(args.work_dir, 'buffer'))
 
-    video = VideoRecorder(sim_video_dir if args.save_video else None, camera_id=args.cameras[0])
+    video_real = VideoRecorder(real_video_dir if args.save_video else None, camera_id=args.cameras[0])
+    video_sim = VideoRecorder(sim_video_dir if args.save_video else None, camera_id=args.cameras[0])
 
     # with open(os.path.join(args.work_dir, 'args.json'), 'w') as f:
     #     json.dump(vars(args), f, sort_keys=True, indent=4)
@@ -632,7 +658,7 @@ def main():
 
         if step % args.eval_freq == 0:
             L.log('eval/episode', episode, step)
-            evaluate(real_env, sim_env, agent, sim_param_model, video, args.num_eval_episodes, L, step, args)
+            evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, args.num_eval_episodes, L, step, args)
             if args.save_model:
                 agent.save_curl(model_dir, step)
                 if sim_param_model is not None:
