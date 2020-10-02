@@ -131,12 +131,54 @@ class SimParamModel(nn.Module):
         fake_pred = torch.gather(fake_pred, 0, shuffled_indices)
 
         pred_class = self.forward_classifier([obs_traj], fake_pred)
-        pred_class = pred_class.flatten().unsqueeze(0).float()
-        labels = labels.flatten().unsqueeze(0).float()
-        loss = nn.BCELoss()(pred_class, labels)
+        pred_class_flat = pred_class.flatten().unsqueeze(0).float()
+        labels_flat = labels.flatten().unsqueeze(0).float()
+        loss = nn.BCELoss()(pred_class_flat, labels_flat)
 
         if should_log:
             L.log('train_sim_params/loss', loss, step)
+
+            error = torch.mean(pred_class - labels, dim=0).detach().cpu().numpy()
+
+
+            preds = pred_class
+            confidence_level = .3
+            mask = (preds > confidence_level) & (preds < 1 - confidence_level)
+            preds = torch.round(preds)
+            preds[mask] = 0.5
+            confident_error = torch.mean(preds - labels, dim=0).detach().cpu().numpy()
+
+            label_mean = torch.mean(labels.float(), dim=0).detach().cpu().numpy()
+
+            fake_pred_high = torch.max(fake_pred, dim=0)[0]
+            fake_pred_high = fake_pred_high.detach().cpu().numpy()
+            fake_pred_mean = torch.mean(fake_pred, dim=0).detach().cpu().numpy()
+            fake_pred_low = torch.min(fake_pred, dim=0)[0].detach().cpu().numpy()
+
+            pred_mean = torch.mean(pred_class, dim=0).detach().cpu().numpy()
+            pred_higher_proportion = torch.mean((pred_class > .5).float(), dim=0).detach().cpu().numpy()
+
+            low_confident = (pred_class < confidence_level).float()
+            proportion_low_confident = torch.mean(low_confident, dim=0).detach().cpu().numpy()
+            high_confident = (pred_class > (1 - confidence_level)).float()
+            proportion_high_confident = torch.mean(high_confident, dim=0).detach().cpu().numpy()
+
+            proportion_confident = torch.mean((1 - mask.float()), dim=0).detach().cpu().numpy()
+
+            for i in range(len(error)):
+                L.log(f'train_real{i}/error', error[i], step)
+                L.log(f'train_real{i}/confident_error', confident_error[i], step)
+                L.log(f'train_real{i}/proportion_confident', proportion_confident[i], step)
+                L.log(f'train_real{i}/proportion_high_confident', proportion_high_confident[i], step)
+                L.log(f'train_real{i}/proportion_low_confident', proportion_low_confident[i], step)
+                L.log(f'train_real{i}/pred_higher_proportion', pred_higher_proportion[i], step)
+                L.log(f'train_real{i}/pred_mean', pred_mean[i], step)
+                L.log(f'train_real{i}/label_high', label_mean[i], step)
+                L.log(f'train_real{i}/fake_pred_low', fake_pred_low[i], step)
+                L.log(f'train_real{i}/fake_pred_mean', fake_pred_mean[i], step)
+                L.log(f'train_real{i}/fake_pred_high', fake_pred_high[i], step)
+                L.log(f'train_real{i}/sim_params', sim_params[i], step)
+                L.log(f'train_real{i}/distribution_mean_low', distribution_mean[i], step)
 
         # Optimize the critic
         self.sim_param_optimizer.zero_grad()
