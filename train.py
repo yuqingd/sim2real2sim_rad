@@ -147,6 +147,8 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
 
             real_dr_params = (current_sim_params[0].cpu().numpy() > real_dr_params).astype(np.int32)
 
+        preds = []
+
         for i, param in enumerate(args.real_dr_list):
             filename = args.work_dir + f'/{prefix}_{param}_error.npy'
             key = args.domain_name + '-' + str(args.task_name) + '-' + args.data_augs
@@ -191,6 +193,8 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
             L.log(f'eval/{prefix}/{param}/error', error, step)
             log_data[key][step]['error'] = error
             np.save(filename, log_data)
+            preds.append(error)
+        return preds
 
 def predict_sim_params(sim_param_model, traj, current_sim_params, step=5, confidence_level=.3):
     segment_length = sim_param_model.num_frames
@@ -312,9 +316,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
             obs_batch.append(obs_traj)
         if not args.outer_loop_version == 0 and step > args.start_outer_loop:
             current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
-            evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test", real_sim_params, current_sim_params)
-            update_sim_params(sim_param_model, sim_env, args, obs_batch, step, L)
-            evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test_after_update", real_sim_params, current_sim_params)
+            test_preds_before = evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test", real_sim_params, current_sim_params)
 
         L.log('eval/' + prefix + 'eval_time', time.time() - start_time, step)
         mean_ep_reward = np.mean(all_ep_rewards)
@@ -369,10 +371,20 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
         if sim_param_model is not None:
             dist_mean = obs_dict['distribution_mean']
             current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
-            evaluate_sim_params(sim_param_model, args, [obs_traj_sim], step, L, "train", sim_params, current_sim_params)
+            train_preds_before = evaluate_sim_params(sim_param_model, args, [obs_traj_sim], step, L, "train", sim_params, current_sim_params)
             if args.outer_loop_version == 3:
                 sim_param_model.train_classifier(obs_traj_sim, sim_params, dist_mean, L, step, True)
         video.save('sim_%d.mp4' % step)
+
+        if not args.outer_loop_version == 0 and step > args.start_outer_loop:
+            update_sim_params(sim_param_model, sim_env, args, obs_batch, step, L)
+            current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
+            test_preds_after = evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test_after_update", real_sim_params, current_sim_params)
+            train_preds_after = evaluate_sim_params(sim_param_model, args, [obs_traj_sim], step, L, "train_after_update", sim_params, current_sim_params)
+        for i, param in enumerate(args.real_dr_list):
+            L.log(f'eval/train/{param}/train_diff', train_preds_after[i] - train_preds_before[i], step)
+            L.log(f'eval/test/{param}/test_diff', test_preds_after[i] - test_preds_before[i], step)
+            L.log(f'eval/train/{param}/train_test_diff', train_preds_before[i] - test_preds_before[i], step)
 
     run_eval_loop(sample_stochastically=False)
     L.dump(step)
