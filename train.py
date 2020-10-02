@@ -94,7 +94,7 @@ def parse_args():
     parser.add_argument('--mass_mean', default=.2, type=float)
     parser.add_argument('--mass_range', default=.01, type=float)
     parser.add_argument('--mean_scale', default=.67, type=float)
-    parser.add_argument('--range_scale', default=.33, type=float)
+    parser.add_argument('--range_scale', default=.1, type=float)
     parser.add_argument('--range_only', default=False, type=bool)
     parser.add_argument('--sim_param_lr', default=1e-3, type=float)
     parser.add_argument('--sim_param_beta', default=0.9, type=float)
@@ -488,6 +488,7 @@ def main():
         use_img=args.use_img,
         grayscale=args.grayscale,
         delay_steps=args.delay_steps,
+        range_scale=args.range_scale,
     )
 
     real_env = env_wrapper.make(
@@ -507,6 +508,7 @@ def main():
         use_img=args.use_img,
         grayscale=args.grayscale,
         delay_steps=args.delay_steps,
+        range_scale=args.range_scale,
     )
 
 
