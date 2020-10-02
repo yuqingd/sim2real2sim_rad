@@ -19,8 +19,9 @@ def copy_last_video(file_name, prefix):
         print("downloading ", prefix, video_name)
         download_file = os.path.join('download_files', file_name + video_name)
         copyfile(last_video, download_file)
-    except:
-        print("No videos for ", prefix, file_name)
+    except Exception as e:
+        print("Error downloading videos for ", prefix, file_name)
+        print(e)
 
 # Find relevant filenames
 files = os.listdir('logdir')
