@@ -657,7 +657,11 @@ def main():
 
 
             obs = sim_env.reset()
-            obs_traj = [obs['image']]
+            obs_img = obs['image']
+            if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
+                    args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
+                obs_img = utils.center_crop_image(obs_img, args.image_size)
+            obs_traj = [obs_img]
             success = 0.0 if 'success' in obs.keys() else None
             episode_reward = 0
             episode_step = 0
@@ -693,7 +697,13 @@ def main():
             success = obs['success']
 
         obs = next_obs
-        obs_traj.append(obs['image'])
+        obs_img = obs['image']
+
+        if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
+                args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
+            obs_img = utils.center_crop_image(obs_img, args.image_size)
+
+        obs_traj.append(obs_img)
         episode_step += 1
 
 
