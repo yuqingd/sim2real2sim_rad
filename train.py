@@ -216,7 +216,179 @@ def predict_sim_params(sim_param_model, traj, current_sim_params, step=5, confid
     confident_preds = np.mean(preds, axis=0)
     return confident_preds
 
-def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
+
+def predict_sim_params_range(sim_param_model, traj_list, current_sim_params, L, step, prefix, real_sim_params, alpha,
+                             num_steps=10, confidence_level=.3, randomization_range=1):  # TODO: real_sim_params
+    pred_list = []
+    sim_param_value = current_sim_params[0].item()  # TODO: currently hard-coded for a single param.  If this works, generalize for arbitrary vectors
+    min_val = max(1e-3, sim_param_value - randomization_range * sim_param_value)
+    max_val = sim_param_value + randomization_range * sim_param_value
+    sim_param_range = torch.FloatTensor(np.linspace(min_val, max_val, num_steps)).unsqueeze(1)
+    for traj in traj_list:
+        preds = sim_param_model.forward_classifier([traj], sim_param_range).cpu().numpy()
+        pred_list.append(preds)
+
+    def to_numpy(arr):
+        return arr.detach().cpu().numpy()
+
+    # For every index, log what percent predicted higher:
+    pred_arr = np.stack(pred_list, axis=0)[:, :, 0]  # num_trajs by step
+    for i in range(num_steps):
+        L.log(f'eval/update_{prefix}/step{i}/mean_prob', np.mean(pred_arr, axis=0)[i], step)
+        L.log(f'eval/update_{prefix}/step{i}/mean_std', np.std(pred_arr, axis=0)[i], step)
+        L.log(f'eval/update_{prefix}/step{i}/mean_higher', np.mean(np.round(pred_arr), axis=0)[i], step)
+        L.log(f'eval/update_{prefix}/step{i}/mean_higher_real', sim_param_range[i].item() > real_sim_params.item(), step)
+
+        # Log the first one separately
+        L.log(f'eval/update/step{i}/first_prob', pred_arr[0, i].item(), step)
+        L.log(f'eval/update/step{i}/first_higher', np.round(pred_arr[0, i]).item(), step)
+
+    all_same = []
+    increasing_pred = []
+    increasing_pred_rounded = []
+    nondecreasing_pred_rounded = []
+    split = []
+    correct_split = []
+    correct_at_current_sim = []
+    correct_at_real_below = []
+    correct_at_real_above = []
+    totally_correct = []
+    prediction_at_current_sim = []
+    interpolated = []
+
+    predictions = []
+
+
+    # TODO: if this seems promising, batch it!
+    sim_param_range = to_numpy(sim_param_range)[:, 0]
+    for i, pred in enumerate(pred_list):
+        pred = pred[:, 0]
+        pred_rounded = np.round(pred)
+        all_same.append( np.min(pred_rounded) == np.max(pred_rounded))
+        increasing_pred.append(np.min(np.diff(pred)) > 0)
+        increasing_pred_rounded.append(np.min(np.diff(pred_rounded)) > 0)
+        nondecreasing_rounded = np.min(np.diff(pred_rounded)) >= 0
+        nondecreasing_pred_rounded.append(nondecreasing_rounded)
+        if nondecreasing_rounded:
+            split_index = np.argmax(pred_rounded)
+            split.append(split_index)
+        desired_split = np.argmax(sim_param_range > real_sim_params.item())
+        correct_split.append(desired_split)
+
+        # check if we're actually taking that desired split
+        chose_correct_split = split_index == desired_split
+        totally_correct.append(chose_correct_split)
+
+        # Is our prediction accurate around the current sim_param mean?
+        current_sim_index = np.argmin(sim_param_range - sim_param_value)
+        current_correct_at_sim = pred_rounded[current_sim_index] == (sim_param_value > real_sim_params.item())
+        correct_at_current_sim.append(current_correct_at_sim)
+        prediction_at_current_sim.append(pred_rounded[current_sim_index])
+
+        # Is our prediction accurate around the real sim param mean?
+        above = sim_param_range > real_sim_params.item()
+        first_above = np.argmax(above)
+        last_below = first_above - 1
+        if np.min(above) == 1:  # the entire range is above
+            correct_at_real_below.append(-1)
+            assert first_above == 0
+            correct_at_real_above.append(pred[first_above] == 1)
+            interpolated.append(0)
+        elif np.max(above) == 0:  # the entire range is below
+            correct_at_real_below.append(pred[-1] == 0)
+            correct_at_real_above.append(-1)
+            interpolated.append(0)
+        else:
+            correct_at_real_below.append(pred_rounded[last_below] == 0)
+            correct_at_real_above.append(pred_rounded[first_above] == 1)
+            interpolated.append(1)
+
+        if nondecreasing_rounded: # If there is a correct split, go there
+            predictions.append(sim_param_range[split_index])
+
+    # If we have any runs with a clean split, update based on that.  Otherwise, update using the original formula
+    if len(predictions) > 0:
+        update = np.mean(predictions)
+        update_fancy = 0
+    else:
+        update_direction = np.mean(prediction_at_current_sim) - .5
+        new_mean = current_sim_params - alpha * (update_direction - 0.5)
+        update = max(new_mean, 1e-3)
+        update_fancy = 1
+
+    L.log(f'eval/update_{prefix}/update_fancy', update_fancy, step)
+    L.log(f'eval/update_{prefix}/update', update, step)
+    L.log(f'eval/update_{prefix}/all_same', np.mean(all_same), step)
+    L.log(f'eval/update_{prefix}/increasing_pred', np.mean(increasing_pred), step)
+    L.log(f'eval/update_{prefix}/increasing_pred_rounded', np.mean(increasing_pred_rounded), step)
+    L.log(f'eval/update_{prefix}/split', np.mean(split), step)
+    L.log(f'eval/update_{prefix}/correct_split', np.mean(correct_split), step)
+    L.log(f'eval/update_{prefix}/correct_at_current_sim', np.mean(correct_at_current_sim), step)
+    L.log(f'eval/update_{prefix}/correct_at_real_below', np.mean(correct_at_real_below), step)
+    L.log(f'eval/update_{prefix}/correct_at_real_above', np.mean(correct_at_real_above), step)
+    L.log(f'eval/update_{prefix}/totally_correct', np.mean(totally_correct), step)
+    L.log(f'eval/update_{prefix}/prediction_at_current_sim', np.mean(prediction_at_current_sim), step)
+    L.log(f'eval/update_{prefix}/interpolated', np.mean(interpolated), step)
+
+    return update
+
+
+def update_sim_params_exact(sim_param_model, sim_env, args, obs, step, L, real_sim_params):
+    assert args.outer_loop_version == 3, "this version of updating is only defined for OL3"
+    with torch.no_grad():
+        current_sim_params = torch.FloatTensor(sim_env.distribution_mean).unsqueeze(0)
+        pred_sim_params = predict_sim_params_range(sim_param_model, obs, current_sim_params, L, step, "test",
+                                                   real_sim_params, args.alpha)
+
+    for i, param in enumerate(args.real_dr_list):
+        prev_mean = sim_env.dr[param]
+
+        try:
+            pred_mean = pred_sim_params[i]
+        except:
+            pred_mean = pred_sim_params
+        alpha = args.alpha
+
+        if args.outer_loop_version == 1:
+            new_mean = prev_mean * (1 - alpha) + alpha * pred_mean
+        elif args.outer_loop_version == 3:
+            scale_factor = max(prev_mean, .1)
+            new_mean = pred_mean
+        new_mean = max(new_mean, 1e-3)
+        sim_env.dr[param] = new_mean
+
+        filename = args.work_dir + f'/agent-sim-params_{param}.npy'
+        key = args.domain_name + '-' + str(args.task_name) + '-' + args.data_augs
+        try:
+            log_data = np.load(filename, allow_pickle=True)
+            log_data = log_data.item()
+        except FileNotFoundError:
+            log_data = {}
+        if key not in log_data:
+            log_data[key] = {}
+        log_data[key][step] = {}
+
+        print("NEW MEAN", param, new_mean, step, pred_mean, "!" * 30)
+        L.log(f'eval/agent-sim_param/{param}/mean', new_mean, step)
+        L.log(f'eval/agent-sim_param/{param}/pred_mean', pred_mean, step)
+        log_data[key][step]['mean'] = new_mean
+        log_data[key][step]['pred_mean'] = pred_mean
+        if args.anneal_range_scale > 0:
+            range_value = args.anneal_range_scale * (1 - float(step / args.num_train_steps))
+            L.log(f'eval/agent-sim_param/{param}/range', range_value, step)
+            log_data[key][step]['range'] = range_value
+
+        real_dr_param = args.real_dr_params[param]
+        if not np.mean(real_dr_param) == 0:
+            sim_param_error = (new_mean - real_dr_param) / real_dr_param
+        else:
+            sim_param_error = new_mean - real_dr_param
+        L.log(f'eval/agent-sim_param/{param}/sim_param_error', sim_param_error, step)
+        log_data[key][step]['sim_param_error'] = sim_param_error
+        np.save(filename, log_data)
+
+
+def update_sim_params_step(sim_param_model, sim_env, args, obs, step, L):
     with torch.no_grad():
         if args.outer_loop_version == 1:
             pred_sim_params = sim_param_model.forward(obs).mean
@@ -379,7 +551,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
         video_sim.save('sim_%d.mp4' % step)
 
         if not args.outer_loop_version == 0 and step > args.start_outer_loop:
-            update_sim_params(sim_param_model, sim_env, args, obs_batch, step, L)
+            update_sim_params_exact(sim_param_model, sim_env, args, obs_batch, step, L, real_sim_params)  # TODO: change this back, or make an option
             current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
             test_preds_after = evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test_after_update", real_sim_params, current_sim_params)
             train_preds_after = evaluate_sim_params(sim_param_model, args, [obs_traj_sim], step, L, "train_after_update", sim_params, current_sim_params)
