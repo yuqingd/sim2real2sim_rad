@@ -143,11 +143,12 @@ class SimParamModel(nn.Module):
         loss.backward()
         self.sim_param_optimizer.step()
 
-    def update(self, obs_list, sim_params, dist_mean, L, step, should_log):
-        # if self.encoder_type == 'pixel':
-        #     obs_list2, actions_list, rewards_list, next_obses_list, not_dones_list, cpc_kwargs_list = replay_buffer.sample_cpc_traj(1)
-        # else:
-        #     obs_list, actions_list, rewards_list, next_obses_list, not_dones_list = replay_buffer.sample_proprio_traj(16)
+    def update(self, obs_list, sim_params, dist_mean, L, step, should_log, replay_buffer=None):
+        if replay_buffer is not None:
+            if self.encoder_type == 'pixel':
+                obs_list, actions_list, rewards_list, next_obses_list, not_dones_list, cpc_kwargs_list = replay_buffer.sample_cpc_traj(1)
+            else:
+                obs_list, actions_list, rewards_list, next_obses_list, not_dones_list = replay_buffer.sample_proprio_traj(16)
 
         if self._dist == 'normal':
             pred_sim_params = []

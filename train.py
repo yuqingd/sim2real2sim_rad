@@ -630,6 +630,8 @@ def main():
             if step > 0:
                 if args.outer_loop_version != 0:
                     sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True)
+                    sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True, replay_buffer)
+
 
                 if step % args.log_interval == 0:
                     L.log('train/duration', time.time() - start_time, step)
