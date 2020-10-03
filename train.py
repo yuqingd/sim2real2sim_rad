@@ -612,6 +612,7 @@ def main():
     episode, episode_reward, done = 0, 0, True
     start_time = time.time()
     success = None
+    obs_traj = None
 
     for step in range(start_step, args.num_train_steps):
         # evaluate agent periodically
@@ -628,7 +629,7 @@ def main():
 
         if done:
             if step > 0:
-                if args.outer_loop_version != 0:
+                if args.outer_loop_version != 0 and obs_traj is not None:
                     sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True)
                     sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True, replay_buffer)
 

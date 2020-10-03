@@ -167,8 +167,13 @@ class SimParamModel(nn.Module):
             loss.backward()
             self.sim_param_optimizer.step()
         else:
-            self.train_classifier(obs_list, sim_params, dist_mean, # traj['sim_params'][-1].to('cpu'), traj['distribution_mean'][-1].to('cpu'),
+            if replay_buffer is None:
+                self.train_classifier(obs_list, sim_params, dist_mean, # traj['sim_params'][-1].to('cpu'), traj['distribution_mean'][-1].to('cpu'),
                                       L, step, should_log)
+            else:
+                for traj in obs_list:
+                    self.train_classifier(traj['image'], traj['sim_params'][-1].to('cpu'),
+                                          traj['distribution_mean'][-1].to('cpu'), L, step, should_log)
 
 
     def save(self, model_dir, step):
