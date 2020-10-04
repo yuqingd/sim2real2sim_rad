@@ -146,7 +146,7 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
             pred_sim_params = np.mean(pred_sim_params, axis=0)
 
             real_dr_params = (current_sim_params[0].cpu().numpy() > real_dr_params).astype(np.int32)
-            assert len(pred_sim_params.shape) == len(real_dr_params.shape) == 1
+            assert len(pred_sim_params.shape) == len(real_dr_params.shape) == 1, (pred_sim_params.shape, real_dr_params.shape)
 
         preds = []
 
