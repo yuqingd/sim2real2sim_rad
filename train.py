@@ -272,12 +272,15 @@ def predict_sim_params_range(sim_param_model, traj_list, current_sim_params, L, 
         if nondecreasing_rounded:
             split_index = np.argmax(pred_rounded)
             split.append(split_index)
+
+            # check if we're actually taking that desired split
+            chose_correct_split = split_index == desired_split
+            totally_correct.append(chose_correct_split)
+        else:
+            totally_correct.append(0)
+
         desired_split = np.argmax(sim_param_range > real_sim_params.item())
         correct_split.append(desired_split)
-
-        # check if we're actually taking that desired split
-        chose_correct_split = split_index == desired_split
-        totally_correct.append(chose_correct_split)
 
         # Is our prediction accurate around the current sim_param mean?
         current_sim_index = np.argmin(sim_param_range - sim_param_value)
@@ -321,7 +324,8 @@ def predict_sim_params_range(sim_param_model, traj_list, current_sim_params, L, 
     L.log(f'eval/update_{prefix}/all_same', np.mean(all_same), step)
     L.log(f'eval/update_{prefix}/increasing_pred', np.mean(increasing_pred), step)
     L.log(f'eval/update_{prefix}/increasing_pred_rounded', np.mean(increasing_pred_rounded), step)
-    L.log(f'eval/update_{prefix}/split', np.mean(split), step)
+    if len(split) > 0:
+        L.log(f'eval/update_{prefix}/split', np.mean(split), step)
     L.log(f'eval/update_{prefix}/correct_split', np.mean(correct_split), step)
     L.log(f'eval/update_{prefix}/correct_at_current_sim', np.mean(correct_at_current_sim), step)
     L.log(f'eval/update_{prefix}/correct_at_real_below', np.mean(correct_at_real_below), step)
