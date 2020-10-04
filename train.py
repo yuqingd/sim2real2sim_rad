@@ -269,6 +269,10 @@ def predict_sim_params_range(sim_param_model, traj_list, current_sim_params, L, 
         increasing_pred_rounded.append(np.min(np.diff(pred_rounded)) >= 0 and np.max(np.diff(pred_rounded)) > 0)
         nondecreasing_rounded = np.min(np.diff(pred_rounded)) >= 0
         nondecreasing_pred_rounded.append(nondecreasing_rounded)
+
+        desired_split = np.argmax(sim_param_range > real_sim_params.item())
+        correct_split.append(desired_split)
+
         if nondecreasing_rounded:
             split_index = np.argmax(pred_rounded)
             split.append(split_index)
@@ -278,9 +282,6 @@ def predict_sim_params_range(sim_param_model, traj_list, current_sim_params, L, 
             totally_correct.append(chose_correct_split)
         else:
             totally_correct.append(0)
-
-        desired_split = np.argmax(sim_param_range > real_sim_params.item())
-        correct_split.append(desired_split)
 
         # Is our prediction accurate around the current sim_param mean?
         current_sim_index = np.argmin(sim_param_range - sim_param_value)
