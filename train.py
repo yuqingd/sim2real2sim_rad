@@ -265,8 +265,8 @@ def predict_sim_params_range(sim_param_model, traj_list, current_sim_params, L, 
         pred = pred[:, 0]
         pred_rounded = np.round(pred)
         all_same.append( np.min(pred_rounded) == np.max(pred_rounded))
-        increasing_pred.append(np.min(np.diff(pred)) > 0)
-        increasing_pred_rounded.append(np.min(np.diff(pred_rounded)) > 0)
+        increasing_pred.append(np.min(np.diff(pred)) > 0 and np.max(np.diff(pred)) > 0)
+        increasing_pred_rounded.append(np.min(np.diff(pred_rounded)) >= 0 and np.max(np.diff(pred_rounded)) > 0)
         nondecreasing_rounded = np.min(np.diff(pred_rounded)) >= 0
         nondecreasing_pred_rounded.append(nondecreasing_rounded)
         if nondecreasing_rounded:
@@ -281,7 +281,7 @@ def predict_sim_params_range(sim_param_model, traj_list, current_sim_params, L, 
 
         # Is our prediction accurate around the current sim_param mean?
         current_sim_index = np.argmin(sim_param_range - sim_param_value)
-        current_correct_at_sim = pred_rounded[current_sim_index] == (sim_param_value > real_sim_params.item())
+        current_correct_at_sim = pred_rounded[current_sim_index] == (sim_param_range[current_sim_index] > real_sim_params.item())
         correct_at_current_sim.append(current_correct_at_sim)
         prediction_at_current_sim.append(pred_rounded[current_sim_index])
 
