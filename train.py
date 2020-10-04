@@ -630,8 +630,9 @@ def main():
         if done:
             if step > 0:
                 if args.outer_loop_version != 0 and obs_traj is not None:
-                    sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True)
-                   # sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True, replay_buffer)
+                    for _ in range(10):
+                        sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True)
+                        #sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True, replay_buffer)
 
 
                 if step % args.log_interval == 0:
