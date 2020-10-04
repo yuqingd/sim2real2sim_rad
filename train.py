@@ -222,7 +222,9 @@ def predict_sim_params_range(sim_param_model, traj_list, current_sim_params, L, 
     pred_list = []
     sim_param_value = current_sim_params[0].item()  # TODO: currently hard-coded for a single param.  If this works, generalize for arbitrary vectors
     min_val = max(1e-3, sim_param_value - randomization_range * sim_param_value)
-    max_val = sim_param_value + randomization_range * sim_param_value
+    max_val = max(.5, sim_param_value + randomization_range * sim_param_value)
+    L.log(f'eval/update_{prefix}/min_val', min_val, step)
+    L.log(f'eval/update_{prefix}/max_val', max_val, step)
     sim_param_range = torch.FloatTensor(np.linspace(min_val, max_val, num_steps)).unsqueeze(1)
     for traj in traj_list:
         preds = sim_param_model.forward_classifier([traj], sim_param_range).cpu().numpy()
@@ -271,6 +273,8 @@ def predict_sim_params_range(sim_param_model, traj_list, current_sim_params, L, 
         nondecreasing_pred_rounded.append(nondecreasing_rounded)
 
         desired_split = np.argmax(sim_param_range > real_sim_params.item())
+        if sim_param_range[desired_split] < real_sim_params.item():
+            desired_split += 1
         correct_split.append(desired_split)
 
         if nondecreasing_rounded:
@@ -712,6 +716,27 @@ def main():
         delay_steps=args.delay_steps,
         range_scale=args.range_scale,
     )
+
+    real_env_2 = env_wrapper.make(
+        domain_name=args.domain_name,
+        task_name=args.task_name,
+        seed=args.seed,
+        visualize_reward=False,
+        from_pixels=(args.observation_type == 'pixel'),
+        height=args.pre_transform_image_size,
+        width=args.pre_transform_image_size,
+        frame_skip=args.action_repeat,
+        dr_list=args.real_dr_list,
+        dr_shape=args.sim_params_size,
+        mean_only=args.mean_only,
+        real_world=True,
+        use_state=args.use_state,
+        use_img=args.use_img,
+        grayscale=args.grayscale,
+        delay_steps=args.delay_steps,
+        range_scale=args.range_scale,
+    )
+    real_env_2._env.physics.model.geom_rgba[0:1, 0] = 2
 
 
     # stack several consecutive frames together
