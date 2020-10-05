@@ -133,6 +133,9 @@ def parse_args():
 
 
 def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_params, current_sim_params):
+    if len(real_dr_params) == 0:
+        return
+
     with torch.no_grad():
         if args.outer_loop_version == 1:
             pred_sim_params = sim_param_model.forward(obs).mean[0].cpu().numpy()

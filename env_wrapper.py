@@ -99,6 +99,11 @@ class DR_Env:
     return self._env.action_space
 
   def env_step(self, action):
+      if self.real_world:
+          x = action[0]
+          action[0] = action[1]
+          action[1] = x
+
       obs, reward, done, info = self._env.step(action)
       if len(obs.shape) == 3:
           state = np.array([0])
