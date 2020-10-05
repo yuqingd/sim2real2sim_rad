@@ -85,8 +85,8 @@ def parse_args():
 
     #S2R2S params
     parser.add_argument('--mean_only', default=True, action='store_true')
-    parser.add_argument('--use_state', default=False, type=bool)
-    parser.add_argument('--use_img', default=True, type=bool)
+    parser.add_argument('--use_state', default=False, action='store_true')
+    parser.add_argument('--use_img', default=False, action='store_true')
     parser.add_argument('--grayscale', default=False, action='store_true')
     parser.add_argument('--dr', action='store_true')
     parser.add_argument('--dr_option', default=None, type=str)
