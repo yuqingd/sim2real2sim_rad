@@ -86,7 +86,7 @@ def parse_args():
     #S2R2S params
     parser.add_argument('--mean_only', default=True, action='store_true')
     parser.add_argument('--use_state', default=False, action='store_true')
-    parser.add_argument('--use_img', default=True, action='store_true')
+    parser.add_argument('--use_img', default=False, action='store_true')
     parser.add_argument('--grayscale', default=False, action='store_true')
     parser.add_argument('--dr', action='store_true')
     parser.add_argument('--dr_option', default=None, type=str)
@@ -289,10 +289,13 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
             episode_reward = 0
             obs_traj = []
             while not done and len(obs_traj) < args.time_limit:
-                obs = obs_dict['image']
-                # center crop image
-                if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
-                    obs = utils.center_crop_image(obs, args.image_size)
+                if args.use_img:
+                    obs = obs_dict['image']
+                    # center crop image
+                    if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
+                        obs = utils.center_crop_image(obs, args.image_size)
+                else:
+                    obs = obs_dict['state']
                 with utils.eval_mode(agent):
                     if sample_stochastically:
                         action = agent.sample_action(obs)
@@ -352,11 +355,14 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
         done = False
         obs_traj_sim = []
         while not done and len(obs_traj_sim) < args.time_limit:
-            obs = obs_dict['image']
-            # center crop image
-            if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
-                args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
-                obs = utils.center_crop_image(obs, args.image_size)
+            if args.use_img:
+                obs = obs_dict['image']
+                # center crop image
+                if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
+                    args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
+                    obs = utils.center_crop_image(obs, args.image_size)
+            else:
+                obs = obs_dict['state']
             with utils.eval_mode(agent):
                 if sample_stochastically:
                     action = agent.sample_action(obs)
@@ -491,7 +497,7 @@ def main():
         mean_only=args.mean_only,
         real_world=True,
         use_state=args.use_state,
-        use_img=args.use_img,
+        use_img=True,
         grayscale=args.grayscale,
         delay_steps=args.delay_steps,
         range_scale=args.range_scale,
@@ -551,7 +557,7 @@ def main():
         obs_shape = (cpf * args.frame_stack, args.image_size, args.image_size)
         pre_aug_obs_shape = (cpf * args.frame_stack, args.pre_transform_image_size, args.pre_transform_image_size)
     else:
-        obs_shape = sim_env.observation_space.shape
+        obs_shape = sim_env.reset()['state'].shape
         pre_aug_obs_shape = obs_shape
 
     replay_buffer = utils.ReplayBuffer(
@@ -588,6 +594,8 @@ def main():
             sim_param_beta=args.sim_param_beta,
             dist=dist,
             traj_length=args.time_limit,
+            use_img=args.use_img,
+            state_dim=obs_shape,
         ).to(device)
     else:
         sim_param_model = None
@@ -660,10 +668,13 @@ def main():
 
 
             obs = sim_env.reset()
-            obs_img = obs['image']
-            if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
-                    args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
-                obs_img = utils.center_crop_image(obs_img, args.image_size)
+            if args.use_img:
+                obs_img = obs['image']
+                if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
+                        args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
+                    obs_img = utils.center_crop_image(obs_img, args.image_size)
+            else:
+                obs_img = obs['state']
             obs_traj = [obs_img]
             success = 0.0 if 'success' in obs.keys() else None
             episode_reward = 0
@@ -678,7 +689,7 @@ def main():
             action = sim_env.action_space.sample()
         else:
             with utils.eval_mode(agent):
-                action = agent.sample_action(obs['image'])
+                action = agent.sample_action(obs_img)
 
         # run training update
         if step >= args.init_steps:
@@ -700,7 +711,10 @@ def main():
             success = obs['success']
 
         obs = next_obs
-        obs_img = obs['image']
+        if args.use_img:
+            obs_img = obs['image']
+        else:
+            obs_img = obs['state']
 
         if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
                 args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):

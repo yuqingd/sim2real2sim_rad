@@ -15,7 +15,7 @@ class SimParamModel(nn.Module):
     def __init__(self, shape, layers, units, device, obs_shape, encoder_type,
         encoder_feature_dim, encoder_num_layers, encoder_num_filters, agent, sim_param_lr=1e-3, sim_param_beta=0.9,
                  dist='normal', act=nn.ELU, batch_size=32, traj_length=200, num_frames=10,
-                 embedding_multires=10,):
+                 embedding_multires=10, use_img=True, state_dim=0):
         super(SimParamModel, self).__init__()
         self._shape = shape
         self._layers = layers
@@ -28,12 +28,18 @@ class SimParamModel(nn.Module):
         self.traj_length = traj_length
         self.encoder_feature_dim = encoder_feature_dim
         self.num_frames = num_frames
+        self.use_img = use_img
+        self.state_dim = state_dim
         positional_encoding, embedding_dim = get_embedder(embedding_multires, shape, i=0)
         self.positional_encoding = positional_encoding
         additional = 0 if dist == 'normal' else embedding_dim
 
+        if self.use_img:
+            trunk_input_dim = encoder_feature_dim + additional
+        else:
+            trunk_input_dim = state_dim[-1] * self.num_frames + additional
         trunk = []
-        trunk.append(nn.Linear(encoder_feature_dim + additional, self._units))
+        trunk.append(nn.Linear(trunk_input_dim, self._units))
         trunk.append(self._act())
         for index in range(self._layers - 1):
             trunk.append(nn.Linear(self._units, self._units))
@@ -41,41 +47,55 @@ class SimParamModel(nn.Module):
         trunk.append(nn.Linear(self._units, np.prod(self._shape)))
         self.trunk = nn.Sequential(*trunk).to(self.device)
 
-        # change obs_shape to account for the trajectory length, since images are stacked channel-wise
-        c, h, w = obs_shape
-        obs_shape = (3 * self.num_frames, h, w)
-
-        self.encoder = make_encoder(
-            encoder_type, obs_shape, encoder_feature_dim, encoder_num_layers,
-            encoder_num_filters, output_logits=True
-        )
+        if self.use_img:
+            # change obs_shape to account for the trajectory length, since images are stacked channel-wise
+            c, h, w = obs_shape
+            obs_shape = (3 * self.num_frames, h, w)
+            self.encoder = make_encoder(
+                encoder_type, obs_shape, encoder_feature_dim, encoder_num_layers,
+                encoder_num_filters, output_logits=True
+            )
 
         self.apply(weight_init)
 
+        parameters = list(self.trunk.parameters())
+        if self.use_img:
+            parameters += list(self.encoder.parameters())
         self.sim_param_optimizer = torch.optim.Adam(
-            list(self.encoder.parameters()) + list(self.trunk.parameters()), lr=sim_param_lr, betas=(sim_param_beta, 0.999)
+            parameters, lr=sim_param_lr, betas=(sim_param_beta, 0.999)
         )
 
     def get_features(self, obs_traj):
         # detach_encoder allows to stop gradient propagation to encoder
 
         with torch.no_grad():
-            if type(obs_traj[0][0]) is np.ndarray:
-                input = torch.FloatTensor(obs_traj).to(self.device)
-                B, num_frames, C, H, W = input.shape
-                input = input.view(B, num_frames * C, H, W)
-            elif type(obs_traj[0][0]) is torch.Tensor:
-                input = torch.stack([torch.cat([o for o in traj], dim=0) for traj in obs_traj], dim=0)
-            else:
-                raise NotImplementedError(type(obs_traj[0][0]))
+            if self.use_img:
+                if type(obs_traj[0][0]) is np.ndarray:
+                    input = torch.FloatTensor(obs_traj).to(self.device)
+                    B, num_frames, C, H, W = input.shape
+                    input = input.view(B, num_frames * C, H, W)
+                elif type(obs_traj[0][0]) is torch.Tensor:
+                    input = torch.stack([torch.cat([o for o in traj], dim=0) for traj in obs_traj], dim=0)
+                else:
+                    raise NotImplementedError(type(obs_traj[0][0]))
 
-            features = self.encoder(input, detach=True)
-            features = features / torch.norm(features)
+                features = self.encoder(input, detach=True)
+                features = features / torch.norm(features)
+            else:
+                if type(obs_traj[0][0]) is torch.Tensor:
+                    features = torch.stack([torch.cat([o for o in traj], dim=0) for traj in obs_traj], dim=0)
+                elif type(obs_traj[0][0]) is np.ndarray:
+                    features = torch.FloatTensor([np.concatenate([o for o in traj], axis=0) for traj in obs_traj]).to(self.device)
+                else:
+                    raise NotImplementedError(type(obs_traj[0][0]))
 
         return features
 
     def forward(self, obs_traj):
-        features = self.get_features(obs_traj)
+        if self.use_img:
+            features = self.get_features(obs_traj)
+        else:
+            features = torch.stack(obs_traj) # TODO: actually do this right, possibly with diff if cases for ndarray vs torch like above
         x = features.view(1, -1)
         x = self.trunk(x)
         if self._dist == 'normal':
@@ -91,7 +111,11 @@ class SimParamModel(nn.Module):
             if len(traj) > self.num_frames:
                 start_index = np.random.randint(0, len(traj) - self.num_frames)
                 traj = traj[start_index:start_index + self.num_frames]
-            new_obs_traj.append([o[:3] for o in traj])
+            # If we're using images, only use the first of the stacked frames
+            if self.use_img:
+                new_obs_traj.append([o[:3] for o in traj])
+            else:
+                new_obs_traj.append(traj)
         obs_traj = new_obs_traj
 
         # normalize [-1, 1]
