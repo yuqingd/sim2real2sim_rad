@@ -103,7 +103,7 @@ class DR_Env:
           state = np.array([0])
       else:
           state = obs
-          obs = self.render()
+          obs = self.render(mode='rgb_array')
       return obs, state, reward, done, info
 
   def step(self, action):
@@ -111,8 +111,10 @@ class DR_Env:
     obs, state, reward, done, info = self.env_step(action)
     obs_dict = {}
 
-    obs_dict['image'] = obs
-    # obs_dict['state'] = state
+    if self.use_img:
+        obs_dict['image'] = obs
+    if self.use_state:
+        obs_dict['state'] = state
     obs_dict['real_world'] = 1.0 if self.real_world else 0.0
     obs_dict['sim_params'] = np.array(self.sim_params, dtype=np.float32)
     if not (self.dr is None) and not self.real_world:
@@ -127,17 +129,21 @@ class DR_Env:
   def get_dr(self):
     return np.array([], dtype=np.float32)
 
+  def env_reset(self):
+      state_obs = self._env.reset()
+      img_obs = self.render(mode='rgb_array')
+      return state_obs, img_obs
+
   def reset(self):
-    state_obs = self._env.reset()
     self.apply_dr()
-    img_obs = self.render(mode='rgb_array')
+    state_obs, img_obs = self.env_reset()
 
     obs_dict = {}
 
     if self.use_img:
       obs_dict['image'] = img_obs
-    else:
-      obs_dict['state'] = state_obs
+    if self.use_state:
+        obs_dict['state'] = state_obs
 
     obs_dict['real_world'] = 1.0 if self.real_world else 0.0
     if not (self.dr is None) and not self.real_world:
@@ -1050,7 +1056,7 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
             task_name=task_name,
             seed=seed,
             visualize_reward=visualize_reward,
-            from_pixels=from_pixels,
+            from_pixels=False,
             height=height,
             width=width,
             frame_skip=frame_skip
