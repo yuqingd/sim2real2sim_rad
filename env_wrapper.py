@@ -8,6 +8,7 @@ import random
 from dm_control.rl.control import PhysicsError
 from dm_control import suite
 from kitchen_env import Kitchen
+from environments.real_robot.xarm.gym_xarm.xarm_env import ArmEnv
 
 class DR_Env:
   def __init__(self, env, cameras, height=64, width=64, mean_only=False, dr_list=[], simple_randomization=False, dr_shape=None,
@@ -1080,25 +1081,28 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
                    range_scale=range_scale)
         return env
     elif 'kitchen' in domain_name:
-        env = Kitchen(dr=dr, mean_only=mean_only,
-                      early_termination=False,
-                      use_state=use_state,
-                      real_world=real_world,
-                      dr_list=dr_list,
-                      task=task_name,
-                      simple_randomization=False,
-                      step_repeat=50,
-                      control_version='mocap_ik',
-                      step_size=0.01,
-                      initial_randomization_steps=3,
-                      minimal=False,
-                      grayscale=grayscale,
-                      time_limit=200,
-                      delay_steps=delay_steps)
-        env = DR_Kitchen(env, cameras=cameras, height=height, width=width, mean_only=mean_only,
-                   dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape, name=task_name,
-                   real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
-                   range_scale=range_scale)
+        if real_world:
+            env = ArmEnv() #TODO: time limit
+        else:
+            env = Kitchen(dr=dr, mean_only=mean_only,
+                          early_termination=False,
+                          use_state=use_state,
+                          real_world=real_world,
+                          dr_list=dr_list,
+                          task=task_name,
+                          simple_randomization=False,
+                          step_repeat=50,
+                          control_version='mocap_ik',
+                          step_size=0.01,
+                          initial_randomization_steps=3,
+                          minimal=False,
+                          grayscale=grayscale,
+                          time_limit=200,
+                          delay_steps=delay_steps)
+            env = DR_Kitchen(env, cameras=cameras, height=height, width=width, mean_only=mean_only,
+                       dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape, name=task_name,
+                       real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
+                       range_scale=range_scale)
         return env
     else:
         raise KeyError("Domain name not found. " + str(domain_name))
