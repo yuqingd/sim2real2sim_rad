@@ -446,7 +446,10 @@ def main():
     args = parse_args()
     os.environ['EGL_DEVICE_ID'] = args.gpudevice
     if 'dmc' or 'kitchen' in args.domain_name:
-        os.environ['MUJOCO_GL'] = 'egl'
+        from mujoco_py import GlfwContext
+        import mujoco_py
+        GlfwContext(offscreen=True)
+        os.environ['MUJOCO_GL'] = 'glfw'
     else:
         os.environ['MUJOCO_GL'] = 'osmesa'
     import env_wrapper
