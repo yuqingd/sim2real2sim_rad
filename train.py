@@ -85,8 +85,8 @@ def parse_args():
 
     #S2R2S params
     parser.add_argument('--mean_only', default=True, action='store_true')
-    parser.add_argument('--use_state', default=False, action='store_true')
-    parser.add_argument('--use_img', default=False, action='store_true')
+    parser.add_argument('--use_state', default=False, type=bool)
+    parser.add_argument('--use_img', default=True, type=bool)
     parser.add_argument('--grayscale', default=False, action='store_true')
     parser.add_argument('--dr', action='store_true')
     parser.add_argument('--dr_option', default=None, type=str)
@@ -100,6 +100,7 @@ def parse_args():
     parser.add_argument('--sim_param_beta', default=0.9, type=float)
     parser.add_argument('--sim_param_layers', default=2, type=float)
     parser.add_argument('--sim_param_units', default=400, type=float)
+    parser.add_argument('--separate_trunks', default=False, type=bool)
 
 
     # Outer loop options
@@ -596,6 +597,8 @@ def main():
             traj_length=args.time_limit,
             use_img=args.use_img,
             state_dim=obs_shape,
+            separate_trunks=args.separate_trunks,
+            param_names=args.real_dr_list,
         ).to(device)
     else:
         sim_param_model = None

@@ -15,7 +15,7 @@ class SimParamModel(nn.Module):
     def __init__(self, shape, layers, units, device, obs_shape, encoder_type,
         encoder_feature_dim, encoder_num_layers, encoder_num_filters, agent, sim_param_lr=1e-3, sim_param_beta=0.9,
                  dist='normal', act=nn.ELU, batch_size=32, traj_length=200, num_frames=10,
-                 embedding_multires=10, use_img=True, state_dim=0):
+                 embedding_multires=10, use_img=True, state_dim=0, separate_trunks=False, param_names=[]):
         super(SimParamModel, self).__init__()
         self._shape = shape
         self._layers = layers
@@ -30,22 +30,40 @@ class SimParamModel(nn.Module):
         self.num_frames = num_frames
         self.use_img = use_img
         self.state_dim = state_dim
+        self.separate_trunks = separate_trunks
         positional_encoding, embedding_dim = get_embedder(embedding_multires, shape, i=0)
         self.positional_encoding = positional_encoding
         additional = 0 if dist == 'normal' else embedding_dim
+        self.param_names = param_names
 
         if self.use_img:
             trunk_input_dim = encoder_feature_dim + additional
         else:
             trunk_input_dim = state_dim[-1] * self.num_frames + additional
-        trunk = []
-        trunk.append(nn.Linear(trunk_input_dim, self._units))
-        trunk.append(self._act())
-        for index in range(self._layers - 1):
-            trunk.append(nn.Linear(self._units, self._units))
+
+        # If each sim param has its own trunk, create a separate trunk for each
+        num_sim_params = shape
+        if separate_trunks:
+            trunk_list = []
+            for _ in range(num_sim_params):
+                trunk = []
+                trunk.append(nn.Linear(trunk_input_dim, self._units))
+                trunk.append(self._act())
+                for index in range(self._layers - 1):
+                    trunk.append(nn.Linear(self._units, self._units))
+                    trunk.append(self._act())
+                trunk.append(nn.Linear(self._units, 1))
+                trunk_list.append(nn.Sequential(*trunk).to(self.device))
+            self.trunk = torch.nn.ModuleList(trunk_list)
+        else:
+            trunk = []
+            trunk.append(nn.Linear(trunk_input_dim, self._units))
             trunk.append(self._act())
-        trunk.append(nn.Linear(self._units, np.prod(self._shape)))
-        self.trunk = nn.Sequential(*trunk).to(self.device)
+            for index in range(self._layers - 1):
+                trunk.append(nn.Linear(self._units, self._units))
+                trunk.append(self._act())
+            trunk.append(nn.Linear(self._units, num_sim_params))
+            self.trunk = nn.Sequential(*trunk).to(self.device)
 
         if self.use_img:
             # change obs_shape to account for the trajectory length, since images are stacked channel-wise
@@ -97,7 +115,10 @@ class SimParamModel(nn.Module):
         else:
             features = torch.stack(obs_traj) # TODO: actually do this right, possibly with diff if cases for ndarray vs torch like above
         x = features.view(1, -1)
-        x = self.trunk(x)
+        if self.separate_trunks:
+            x = torch.cat([trunk(x) for trunk in self.trunk], dim=-1)
+        else:
+            x = self.trunk(x)
         if self._dist == 'normal':
             return torch.distributions.normal.Normal(x, 1)
         if self._dist == 'binary':
@@ -129,7 +150,10 @@ class SimParamModel(nn.Module):
         B_traj = len(obs_traj)
         fake_pred = torch.cat([encoded_pred_labels.repeat(B_traj, 1), feat.repeat(B_label, 1)], dim=-1)
 
-        x = self.trunk(fake_pred)
+        if self.separate_trunks:
+            x = torch.cat([trunk(fake_pred) for trunk in self.trunk], dim=-1)
+        else:
+            x = self.trunk(fake_pred)
         pred_class = torch.distributions.bernoulli.Bernoulli(logits=x)
         pred_class = pred_class.mean
         return pred_class
@@ -155,12 +179,17 @@ class SimParamModel(nn.Module):
         fake_pred = torch.gather(fake_pred, 0, shuffled_indices)
 
         pred_class = self.forward_classifier([obs_traj], fake_pred)
-        pred_class = pred_class.flatten().unsqueeze(0).float()
-        labels = labels.flatten().unsqueeze(0).float()
-        loss = nn.BCELoss()(pred_class, labels)
+        pred_class_flat = pred_class.flatten().unsqueeze(0).float()
+        labels_flat = labels.flatten().unsqueeze(0).float()
+        loss = nn.BCELoss()(pred_class_flat, labels_flat)
+        individual_loss = nn.BCELoss(reduction='none')(pred_class.float(), labels.float()).detach().cpu().numpy()
+        individual_loss = np.mean(individual_loss, axis=0)
 
         if should_log:
             L.log('train_sim_params/loss', loss, step)
+            for i, param in enumerate(self.param_names):
+                L.log(f'train_sim_params/{param}/loss', individual_loss[i], step)
+
 
         # Optimize the critic
         self.sim_param_optimizer.zero_grad()
