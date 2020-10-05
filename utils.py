@@ -116,18 +116,22 @@ class ReplayBuffer(Dataset):
         self.idx = (self.idx + 1) % self.capacity
         self.full = self.full or self.idx == 0
 
-    def sample_proprio(self):
+    def sample_proprio(self, use_img=False):
         
         idxs = np.random.randint(
             0, self.capacity if self.full else self.done_idx, size=self.batch_size
         )
 
-        return self._sample_proprio(idxs, image_only=True)
+        return self._sample_proprio(idxs, image_only=True, use_image=use_img)
 
-    def _sample_proprio(self, idxs, image_only=True):
+    def _sample_proprio(self, idxs, image_only=True, use_image=True):
         if image_only:
-            obses = self.obses['image'][idxs]
-            next_obses = self.next_obses['image'][idxs]
+            if use_image:
+                obses = self.obses['image'][idxs]
+                next_obses = self.next_obses['image'][idxs]
+            else:
+                obses = self.obses['state'][idxs]
+                next_obses = self.next_obses['state'][idxs]
             obses = torch.as_tensor(obses, device=self.device).float()
             next_obses = torch.as_tensor(
                 next_obses, device=self.device
@@ -151,8 +155,8 @@ class ReplayBuffer(Dataset):
                 obses_dict[k] = torch.as_tensor(v[idxs], device=self.device).float()
             for k, v in self.next_obses.items():
                 next_obses_dict[k] = torch.as_tensor(v[idxs], device=self.device).float()
-            obses_dict['image'] = obses
-            next_obses_dict['image'] = next_obses
+            # obses_dict['image'] = obses
+            # next_obses_dict['image'] = next_obses
             obses = obses_dict
             next_obses = next_obses_dict
 
@@ -191,7 +195,7 @@ class ReplayBuffer(Dataset):
         )
         return self._sample_cpc(idxs, image_only=True)
 
-    def _sample_cpc(self, idxs, image_only=True):
+    def _sample_cpc(self, idxs, image_only=True, use_img=False):
 
         obses = self.obses['image'][idxs]
         next_obses = self.next_obses['image'][idxs]

@@ -513,7 +513,11 @@ class Kitchen:
     return np.concatenate(state_list)
 
   def reset(self):
-    state_obs = self._env.reset()
+    self._env.reset()
+    state_obs = self.goal
+    if self.use_state is not "None":
+      robot_state = self.get_state()
+      state_obs = np.concatenate([state_obs, robot_state])
     self.setup_task()
 
     if 'open_microwave' in self.task or 'open_cabinet' in self.task:

@@ -494,9 +494,10 @@ class CurlSacAgent(object):
         )
 
     def save_curl(self, model_dir, step):
-        torch.save(
-            self.CURL.state_dict(), '%s/curl_%s.pt' % (model_dir, step)
-        )
+        if self.encoder_type == 'pixel':
+            torch.save(
+                self.CURL.state_dict(), '%s/curl_%s.pt' % (model_dir, step)
+            )
 
     def load(self, model_dir, step):
         self.actor.load_state_dict(
@@ -507,9 +508,10 @@ class CurlSacAgent(object):
         )
 
     def load_curl(self, model_dir, step):
-        self.CURL.load_state_dict(
-            torch.load('%s/curl_%s.pt' % (model_dir, step))
-        )
+        if self.encoder_type == 'pixel':
+            self.CURL.load_state_dict(
+                torch.load('%s/curl_%s.pt' % (model_dir, step))
+            )
 
 
 class RadSacAgent(CurlSacAgent):
