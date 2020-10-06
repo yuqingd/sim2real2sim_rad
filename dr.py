@@ -162,7 +162,7 @@ def config_dr_dmc(config):
     range_scale = config.range_scale
     config.dr = {}  # (mean, range)
     for key in config.real_dr_list:
-        cur_scale = mean_scale.copy()
+        cur_scale = mean_scale
         if config.scale_large_and_small:
             if bool(np.random.choice(a=[False, True], size=(1,))):
                 cur_scale = 1/cur_scale
@@ -373,7 +373,7 @@ def config_dr_kitchen(config):
         config.dr = {}  # (mean, range)
         for key in config.real_dr_list:
             real_val = config.real_dr_params[key]
-            cur_scale = mean_scale.copy()
+            cur_scale = mean_scale
             if config.scale_large_and_small:
                 if bool(np.random.choice(a=[False, True], size=(1,))):
                     cur_scale = 1 / cur_scale
@@ -466,7 +466,7 @@ def config_dr_metaworld(config):
 
       for key in config.real_dr_list:
         real_val = config.real_dr_params[key]
-        cur_scale = mean_scale.copy()
+        cur_scale = mean_scale
         if config.scale_large_and_small:
             if bool(np.random.choice(a=[False, True], size=(1,))):
                 cur_scale = 1/cur_scale
