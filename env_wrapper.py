@@ -114,7 +114,7 @@ class DR_Env:
     if self.use_img:
         obs_dict['image'] = obs
     if self.use_state:
-        obs_dict['state'] = state
+        obs_dict['state'] = np.concatenate([state, self.get_dr()])
     obs_dict['real_world'] = 1.0 if self.real_world else 0.0
     obs_dict['sim_params'] = np.array(self.sim_params, dtype=np.float32)
     if not (self.dr is None) and not self.real_world:
@@ -143,7 +143,7 @@ class DR_Env:
     if self.use_img:
       obs_dict['image'] = img_obs
     if self.use_state:
-        obs_dict['state'] = state_obs
+        obs_dict['state'] = np.concatenate([state_obs, self.get_dr()])
 
     obs_dict['real_world'] = 1.0 if self.real_world else 0.0
     if not (self.dr is None) and not self.real_world:
