@@ -15,7 +15,8 @@ class SimParamModel(nn.Module):
     def __init__(self, shape, layers, units, device, obs_shape, encoder_type,
         encoder_feature_dim, encoder_num_layers, encoder_num_filters, agent, sim_param_lr=1e-3, sim_param_beta=0.9,
                  dist='normal', act=nn.ELU, batch_size=32, traj_length=200, num_frames=10,
-                 embedding_multires=10, use_img=True, state_dim=0, separate_trunks=False, param_names=[]):
+                 embedding_multires=10, use_img=True, state_dim=0, separate_trunks=False, param_names=[],
+                 train_range_scale=1):
         super(SimParamModel, self).__init__()
         self._shape = shape
         self._layers = layers
@@ -35,6 +36,7 @@ class SimParamModel(nn.Module):
         self.positional_encoding = positional_encoding
         additional = 0 if dist == 'normal' else embedding_dim
         self.param_names = param_names
+        self.train_range_scale = train_range_scale
 
         if self.use_img:
             trunk_input_dim = encoder_feature_dim + additional
@@ -160,7 +162,7 @@ class SimParamModel(nn.Module):
 
 
     def train_classifier(self, obs_traj, sim_params, distribution_mean,  L, step, should_log):
-        dist_range = 10 * torch.FloatTensor(distribution_mean)
+        dist_range = self.train_range_scale * torch.FloatTensor(distribution_mean)
         sim_params = torch.FloatTensor(sim_params) # 1 - dimensional
         eps = 1e-3
         low = torch.FloatTensor(

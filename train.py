@@ -101,6 +101,7 @@ def parse_args():
     parser.add_argument('--sim_param_layers', default=2, type=int)
     parser.add_argument('--sim_param_units', default=400, type=int)
     parser.add_argument('--separate_trunks', default=False, type=bool)
+    parser.add_argument('--train_range_scale', default=1, type=float)
 
 
     # Outer loop options
@@ -599,6 +600,7 @@ def main():
             state_dim=obs_shape,
             separate_trunks=args.separate_trunks,
             param_names=args.real_dr_list,
+            train_range_scale=args.train_range_scale,
         ).to(device)
     else:
         sim_param_model = None
