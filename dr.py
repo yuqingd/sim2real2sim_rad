@@ -86,6 +86,10 @@ def config_dr_dmc(config):
             config.real_dr_list = [
                 "ground_r", "ground_g", "ground_b", "body_r", "body_g", "body_b"
             ]
+        elif dr_option == 'mixed_visual_dr':
+            config.real_dr_list = [
+                "ground_r", "ground_g", "ground_b", "body_r", "body_g", "body_b"
+            ]
         elif dr_option == 'mass_dr':
             config.real_dr_list = [
                 'torso_mass'
@@ -165,6 +169,9 @@ def config_dr_dmc(config):
             config.dr[key] = real_val * mean_scale
         else:
             config.dr[key] = (real_val * mean_scale, real_val * range_scale)
+    if dr_option == 'mixed_visual_dr':
+        config.dr['ground_g'] = config.real_dr_params['ground_g'] * 2.0
+        config.dr['body_r'] = config.real_dr_params['body_r'] * 2.0
     config.sim_params_size = len(config.real_dr_list)
     return config
 
