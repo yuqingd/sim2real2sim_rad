@@ -98,8 +98,8 @@ def parse_args():
     parser.add_argument('--range_only', default=False, type=bool)
     parser.add_argument('--sim_param_lr', default=1e-3, type=float)
     parser.add_argument('--sim_param_beta', default=0.9, type=float)
-    parser.add_argument('--sim_param_layers', default=2, type=float)
-    parser.add_argument('--sim_param_units', default=400, type=float)
+    parser.add_argument('--sim_param_layers', default=2, type=int)
+    parser.add_argument('--sim_param_units', default=400, type=int)
     parser.add_argument('--separate_trunks', default=False, type=bool)
 
 
