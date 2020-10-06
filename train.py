@@ -102,6 +102,7 @@ def parse_args():
     parser.add_argument('--sim_param_units', default=400, type=int)
     parser.add_argument('--separate_trunks', default=False, type=bool)
     parser.add_argument('--train_range_scale', default=1, type=float)
+    parser.add_argument('--scale_large_and_small', default=False, action='store_true')
 
 
     # Outer loop options
