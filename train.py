@@ -103,6 +103,7 @@ def parse_args():
     parser.add_argument('--separate_trunks', default=False, type=bool)
     parser.add_argument('--train_range_scale', default=1, type=float)
     parser.add_argument('--scale_large_and_small', default=False, action='store_true')
+    parser.add_argument('--num_sim_param_updates', default=1, type=int)
 
 
     # Outer loop options
@@ -644,8 +645,9 @@ def main():
         if done:
             if step > 0:
                 if args.outer_loop_version != 0 and obs_traj is not None:
-                    sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True)
-                   # sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True, replay_buffer)
+                    for _ in range(args.num_sim_param_updates):
+                        sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True)
+                       # sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True, replay_buffer)
 
 
                 if step % args.log_interval == 0:
