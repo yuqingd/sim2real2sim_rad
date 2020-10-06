@@ -143,7 +143,6 @@ class SimParamModel(nn.Module):
         pred_labels = pred_labels.to(self.device)
 
         encoded_pred_labels = self.positional_encoding(pred_labels)
-        encoded_pred_labels = encoded_pred_labels / torch.norm(encoded_pred_labels)
 
         feat = self.get_features(obs_traj)
         B_label = len(pred_labels)
