@@ -108,6 +108,7 @@ def parse_args():
     parser.add_argument('--prop_range_scale', default=False, action='store_true')
     parser.add_argument('--prop_train_range_scale', default=False, action='store_true')
     parser.add_argument('--prop_alpha', default=False, action='store_true')
+    parser.add_argument('--clip_positive', default=False, action='store_true')
     parser.add_argument('--update_sim_param_from', choices=['latest', 'buffer', 'both'], type=str.lower)
 
 
@@ -616,6 +617,7 @@ def main():
             param_names=args.real_dr_list,
             train_range_scale=args.train_range_scale,
             prop_train_range_scale=args.prop_train_range_scale,
+            clip_positive=args.clip_positive,
         ).to(device)
     else:
         sim_param_model = None
