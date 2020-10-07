@@ -11,4 +11,4 @@ CUDA_VISIBLE_DEVICES=6 python train.py --domain_name kitchen --action_repeat 1 -
 --gpudevice 6 --delay_steps 2 --log_interval 5  --save_model --save_buffer
 
 #Tuning
-  python train.py --domain_name kitchen --action_repeat 1 --task_name rope --seed 0 --batch_size 128 --id debug_real --save_tb --save_video --eval_freq 1000 --num_train_steps 1000000 --num_eval_episodes 3 --gpudevice 0 --delay_steps 2 --dr_option all_dr --mean_scale 1 --dr --outer_loop_version 3  --save_model --save_buffer  --sim_param_lr 1e-3 --alpha 0.01 --log_interval 5 --train_sim_param_every 1 --separate_trunks True
+  python train.py --domain_name kitchen --action_repeat 1 --task_name rope --seed 0 --batch_size 128 --id debug_real --save_tb --save_video --eval_freq 2000 --num_train_steps 1000000 --num_eval_episodes 3 --gpudevice 0 --delay_steps 2 --dr_option all_dr --mean_scale 1 --dr --outer_loop_version 3  --save_model --save_buffer  --sim_param_lr 1e-3 --alpha 0.1 --log_interval 5 --train_sim_param_every 1 --separate_trunks True --use_img --train_range_scale 1
