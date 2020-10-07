@@ -168,8 +168,10 @@ class SimParamModel(nn.Module):
             dist_range = self.train_range_scale
         sim_params = torch.FloatTensor(sim_params) # 1 - dimensional
         eps = 1e-3
+        low_val = torch.clamp(sim_params - dist_range, eps, float('inf'))
+        low_val = sim_params - dist_range
         low = torch.FloatTensor(
-            np.random.uniform(size=(self.batch * 2, len(sim_params)), low=torch.clamp(sim_params - dist_range, eps, float('inf')),
+            np.random.uniform(size=(self.batch * 2, len(sim_params)), low=low_val,
                               high=sim_params)).to(self.device)
 
         high = torch.FloatTensor(
