@@ -90,6 +90,10 @@ def config_dr_dmc(config):
             config.real_dr_list = [
                 "ground_r", "ground_g", "ground_b", "body_r", "body_g", "body_b"
             ]
+        elif dr_option == 'minimass_dr':
+            config.real_dr_list = [
+                "left_hip"
+            ]
         elif dr_option == 'mass_dr':
             config.real_dr_list = [
                 'torso_mass'
