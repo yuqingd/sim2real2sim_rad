@@ -85,8 +85,8 @@ def parse_args():
 
     #S2R2S params
     parser.add_argument('--mean_only', default=True, action='store_true')
-    parser.add_argument('--use_state', default=False, type=bool)
-    parser.add_argument('--use_img', default=True, type=bool)
+    parser.add_argument('--use_state', default=False, action='store_true')
+    parser.add_argument('--use_img', default=False, action='store_true')
     parser.add_argument('--grayscale', default=False, action='store_true')
     parser.add_argument('--dr', action='store_true')
     parser.add_argument('--dr_option', default=None, type=str)
@@ -98,9 +98,12 @@ def parse_args():
     parser.add_argument('--range_only', default=False, type=bool)
     parser.add_argument('--sim_param_lr', default=1e-3, type=float)
     parser.add_argument('--sim_param_beta', default=0.9, type=float)
-    parser.add_argument('--sim_param_layers', default=2, type=float)
-    parser.add_argument('--sim_param_units', default=400, type=float)
+    parser.add_argument('--sim_param_layers', default=2, type=int)
+    parser.add_argument('--sim_param_units', default=400, type=int)
     parser.add_argument('--separate_trunks', default=False, type=bool)
+    parser.add_argument('--train_range_scale', default=1, type=float)
+    parser.add_argument('--scale_large_and_small', default=False, action='store_true')
+    parser.add_argument('--num_sim_param_updates', default=1, type=int)
 
 
     # Outer loop options
@@ -605,6 +608,7 @@ def main():
             state_dim=obs_shape,
             separate_trunks=args.separate_trunks,
             param_names=args.real_dr_list,
+            train_range_scale=args.train_range_scale,
         ).to(device)
     else:
         sim_param_model = None
@@ -647,8 +651,9 @@ def main():
         if done:
             if step > 0:
                 if args.outer_loop_version != 0 and obs_traj is not None:
-                    sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True)
-                   # sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True, replay_buffer)
+                    for _ in range(args.num_sim_param_updates):
+                        sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True)
+                       # sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True, replay_buffer)
 
 
                 if step % args.log_interval == 0:
