@@ -239,8 +239,12 @@ class SimParamModel(nn.Module):
                                       L, step, should_log)
             else:
                 for traj in obs_list:
-                    self.train_classifier(traj['image'], traj['sim_params'][-1].to('cpu'),
+                    if self.encoder_type == 'pixel':
+                        self.train_classifier(traj['image'], traj['sim_params'][-1].to('cpu'),
                                           traj['distribution_mean'][-1].to('cpu'), L, step, should_log)
+                    else:
+                        self.train_classifier(traj['state'], traj['sim_params'][-1].to('cpu'),
+                                              traj['distribution_mean'][-1].to('cpu'), L, step, should_log)
 
 
     def save(self, model_dir, step):
