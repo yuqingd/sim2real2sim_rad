@@ -114,6 +114,7 @@ def parse_args():
     parser.add_argument('--predict_val', default=True, type=bool)
     parser.add_argument('--outer_loop_version', default=0, type=int, choices=[0, 1, 3])
     parser.add_argument('--alpha', default=.1, type=float)
+    parser.add_argument('--proportional_alpha', default=False, action='store_true')
     parser.add_argument('--sim_params_size', default=0, type=int)
     parser.add_argument('--ol1_episodes', default=10, type=int)
     parser.add_argument('--binary_prediction', default=False, type=bool)
@@ -238,7 +239,10 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
             pred_mean = pred_sim_params[i]
         except:
             pred_mean = pred_sim_params
-        alpha = args.alpha
+        if args.proportional_alpha:
+            alpha = max(prev_mean, args.alpha)
+        else:
+            alpha = args.alpha
 
         if args.outer_loop_version == 1:
             new_mean = prev_mean * (1 - alpha) + alpha * pred_mean
