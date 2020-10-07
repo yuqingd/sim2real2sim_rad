@@ -162,13 +162,18 @@ def config_dr_dmc(config):
     range_scale = config.range_scale
     config.dr = {}  # (mean, range)
     for key in config.real_dr_list:
+        cur_scale = mean_scale
+        if config.scale_large_and_small:
+            if bool(np.random.choice(a=[False, True], size=(1,))):
+                cur_scale = 1/cur_scale
+
         real_val = config.real_dr_params[key]
         if real_val == 0:
             real_val = 5e-2
         if config.mean_only:
-            config.dr[key] = real_val * mean_scale
+            config.dr[key] = real_val * cur_scale
         else:
-            config.dr[key] = (real_val * mean_scale, real_val * range_scale)
+            config.dr[key] = (real_val * cur_scale, real_val * range_scale)
     if dr_option == 'mixed_visual_dr':
         config.dr['ground_g'] = config.real_dr_params['ground_g'] * 2.0
         config.dr['body_r'] = config.real_dr_params['body_r'] * 2.0
@@ -368,9 +373,13 @@ def config_dr_kitchen(config):
         config.dr = {}  # (mean, range)
         for key in config.real_dr_list:
             real_val = config.real_dr_params[key]
+            cur_scale = mean_scale
+            if config.scale_large_and_small:
+                if bool(np.random.choice(a=[False, True], size=(1,))):
+                    cur_scale = 1 / cur_scale
             if real_val == 0:
                 real_val = 5e-2
-            config.dr[key] = (real_val * mean_scale, real_val * range_scale)
+            config.dr[key] = (real_val * cur_scale, real_val * range_scale)
 
             # Keep mean only
     if config.mean_only and config.dr is not None:
@@ -454,12 +463,17 @@ def config_dr_metaworld(config):
       mean_scale = config.mean_scale
       range_scale = config.range_scale
       config.dr = {}  # (mean, range)
+
       for key in config.real_dr_list:
         real_val = config.real_dr_params[key]
+        cur_scale = mean_scale
+        if config.scale_large_and_small:
+            if bool(np.random.choice(a=[False, True], size=(1,))):
+                cur_scale = 1/cur_scale
         if real_val == 0:
           real_val = 5e-2
         if config.mean_only:
-          config.dr[key] = real_val * mean_scale
+          config.dr[key] = real_val * cur_scale
         else:
-          config.dr[key] = (real_val * mean_scale, real_val * range_scale)
+          config.dr[key] = (real_val * cur_scale, real_val * range_scale)
   return config

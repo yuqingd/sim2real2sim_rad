@@ -102,7 +102,12 @@ def parse_args():
     parser.add_argument('--sim_param_units', default=400, type=int)
     parser.add_argument('--separate_trunks', default=False, type=bool)
     parser.add_argument('--train_range_scale', default=1, type=float)
+    parser.add_argument('--scale_large_and_small', default=False, action='store_true')
     parser.add_argument('--num_sim_param_updates', default=1, type=int)
+    parser.add_argument('--state_concat', default=False, action='store_true')
+    parser.add_argument('--prop_range_scale', default=False, action='store_true')
+    parser.add_argument('--prop_train_range_scale', default=False, action='store_true')
+    parser.add_argument('--prop_alpha', default=False, action='store_true')
 
 
     # Outer loop options
@@ -241,8 +246,11 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
         if args.outer_loop_version == 1:
             new_mean = prev_mean * (1 - alpha) + alpha * pred_mean
         elif args.outer_loop_version == 3:
-            scale_factor = max(prev_mean, .1)
-            new_mean = prev_mean - alpha * (np.mean(pred_mean) - 0.5) #* scale_factor
+            if args.prop_alpha:
+                scale_factor = max(prev_mean, .1)
+                new_mean = prev_mean - alpha * (np.mean(pred_mean) - 0.5) * scale_factor
+            else:
+                new_mean = prev_mean - alpha * (np.mean(pred_mean) - 0.5)
         new_mean = max(new_mean, 1e-3)
         sim_env.dr[param] = new_mean
 
@@ -484,6 +492,8 @@ def main():
         grayscale=args.grayscale,
         delay_steps=args.delay_steps,
         range_scale=args.range_scale,
+        prop_range_scale=args.prop_range_scale,
+        state_concat=args.state_concat,
     )
 
     real_env = env_wrapper.make(
@@ -504,6 +514,8 @@ def main():
         grayscale=args.grayscale,
         delay_steps=args.delay_steps,
         range_scale=args.range_scale,
+        prop_range_scale=args.prop_range_scale,
+        state_concat=args.state_concat,
     )
 
 
@@ -602,6 +614,7 @@ def main():
             separate_trunks=args.separate_trunks,
             param_names=args.real_dr_list,
             train_range_scale=args.train_range_scale,
+            prop_train_range_scale=args.prop_train_range_scale,
         ).to(device)
     else:
         sim_param_model = None
