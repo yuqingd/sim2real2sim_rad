@@ -185,11 +185,16 @@ class SimParamModel(nn.Module):
         loss = nn.BCELoss()(pred_class_flat, labels_flat)
         individual_loss = nn.BCELoss(reduction='none')(pred_class.float(), labels.float()).detach().cpu().numpy()
         individual_loss = np.mean(individual_loss, axis=0)
+        accuracy = torch.round(pred_class) == labels
+        indvidual_accuracy = torch.mean(accuracy.float(), dim=0).detach().cpu().numpy()
+        accuracy_mean = torch.mean(accuracy.float()).detach().cpu().numpy()
 
         if should_log:
             L.log('train_sim_params/loss', loss, step)
+            L.log('train_sim_params/accuracy', accuracy_mean, step)
             for i, param in enumerate(self.param_names):
                 L.log(f'train_sim_params/{param}/loss', individual_loss[i], step)
+                L.log(f'train_sim_params/{param}/accuracy', indvidual_accuracy[i], step)
 
 
         # Optimize the critic
