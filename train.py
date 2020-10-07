@@ -197,9 +197,15 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
                     import IPython
                     IPython.embed()
                 error = np.mean(pred_mean - real_dr_param)
+            accuracy = np.round(pred_mean) == real_dr_param
+            loss = torch.nn.BCELoss()(torch.FloatTensor([pred_mean]), torch.FloatTensor([real_dr_param]))
 
             L.log(f'eval/{prefix}/{param}/error', error, step)
+            L.log(f'eval/{prefix}/{param}/accuracy', accuracy, step)
+            L.log(f'eval/{prefix}/{param}/loss', loss, step)
             log_data[key][step]['error'] = error
+            log_data[key][step]['accuracy'] = accuracy
+            log_data[key][step]['loss'] = loss
             np.save(filename, log_data)
 
 def predict_sim_params(sim_param_model, traj, current_sim_params, step=5, confidence_level=.3):
@@ -388,7 +394,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
         if sim_param_model is not None:
             dist_mean = obs_dict['distribution_mean']
             current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
-            evaluate_sim_params(sim_param_model, args, [obs_traj_sim], step, L, "train", sim_params, current_sim_params)
+            evaluate_sim_params(sim_param_model, args, [obs_traj_sim], step, L, "val", sim_params, current_sim_params)
             if args.outer_loop_version == 3:
                 sim_param_model.train_classifier(obs_traj_sim, sim_params, dist_mean, L, step, True)
         video.save('sim_%d.mp4' % step)
