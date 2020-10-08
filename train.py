@@ -124,6 +124,7 @@ def parse_args():
     parser.add_argument('--binary_prediction', default=False, type=bool)
     parser.add_argument('--start_outer_loop', default=0, type=int)
     parser.add_argument('--train_sim_param_every', default=50, type=int)
+    parser.add_argument('--momentum', default=0, type=float)
 
 
     # MISC
@@ -138,6 +139,7 @@ def parse_args():
     else:
         args.real_dr_list = []
         args.dr = None
+    args.update = [0] * len(args.real_dr_list)
 
     return args
 
@@ -242,6 +244,7 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
                 pred_sim_params.append(predict_sim_params(sim_param_model, obs[0], current_sim_params))
             pred_sim_params = np.mean(pred_sim_params, axis=0)
 
+    updates = []
     for i, param in enumerate(args.real_dr_list):
         prev_mean = sim_env.dr[param]
 
@@ -256,9 +259,13 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
         elif args.outer_loop_version == 3:
             if args.prop_alpha:
                 scale_factor = max(prev_mean, args.alpha)
-                new_mean = prev_mean - alpha * (np.mean(pred_mean) - 0.5) * scale_factor
+                new_update = - alpha * (np.mean(pred_mean) - 0.5) * scale_factor
             else:
-                new_mean = prev_mean - alpha * (np.mean(pred_mean) - 0.5)
+                new_update = - alpha * (np.mean(pred_mean) - 0.5)
+            curr_update = args.momentum * args.update[i] + (1 - args.momentum) * new_update
+            new_mean = prev_mean + curr_update
+            updates.append(curr_update)
+
         new_mean = max(new_mean, 1e-3)
         sim_env.dr[param] = new_mean
 
@@ -291,6 +298,7 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
         L.log(f'eval/agent-sim_param/{param}/sim_param_error', sim_param_error, step)
         log_data[key][step]['sim_param_error'] = sim_param_error
         np.save(filename, log_data)
+    args.updates = updates
 
 
 def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, step, args):
