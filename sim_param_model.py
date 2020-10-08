@@ -16,7 +16,7 @@ class SimParamModel(nn.Module):
         encoder_feature_dim, encoder_num_layers, encoder_num_filters, agent, sim_param_lr=1e-3, sim_param_beta=0.9,
                  dist='normal', act=nn.ELU, batch_size=32, traj_length=200, num_frames=10,
                  embedding_multires=10, use_img=True, state_dim=0, separate_trunks=False, param_names=[],
-                 train_range_scale=1, prop_train_range_scale=False, clip_positive=False):
+                 train_range_scale=1, prop_train_range_scale=False, clip_positive=False, dropout=0.5):
         super(SimParamModel, self).__init__()
         self._shape = shape
         self._layers = layers
@@ -56,6 +56,7 @@ class SimParamModel(nn.Module):
                 for index in range(self._layers - 1):
                     trunk.append(nn.Linear(self._units, self._units))
                     trunk.append(self._act())
+                    trunk.append(nn.Dropout(p=dropout))
                 trunk.append(nn.Linear(self._units, 1))
                 trunk_list.append(nn.Sequential(*trunk).to(self.device))
             self.trunk = torch.nn.ModuleList(trunk_list)
@@ -66,6 +67,7 @@ class SimParamModel(nn.Module):
             for index in range(self._layers - 1):
                 trunk.append(nn.Linear(self._units, self._units))
                 trunk.append(self._act())
+                trunk.append(nn.Dropout(p=dropout))
             trunk.append(nn.Linear(self._units, num_sim_params))
             self.trunk = nn.Sequential(*trunk).to(self.device)
 
