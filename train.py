@@ -111,6 +111,7 @@ def parse_args():
     parser.add_argument('--clip_positive', default=False, action='store_true')
     parser.add_argument('--update_sim_param_from', choices=['latest', 'buffer', 'both'], type=str.lower,
                         default='latest')
+    parser.add_argument('--scale_params', default=False, action='store_true')
 
 
     # Outer loop options
@@ -247,7 +248,7 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
 
     updates = []
     for i, param in enumerate(args.real_dr_list):
-        prev_mean = sim_env.dr[param]
+        prev_mean = sim_env.get_dr_element(param)
 
         try:
             pred_mean = pred_sim_params[i]
@@ -268,7 +269,7 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
             updates.append(curr_update)
 
         new_mean = max(new_mean, 1e-3)
-        sim_env.dr[param] = new_mean
+        sim_env.set_dr_element(param, new_mean)
 
         filename = args.work_dir + f'/agent-sim-params_{param}.npy'
         key = args.domain_name + '-' + str(args.task_name) + '-' + args.data_augs
@@ -511,6 +512,7 @@ def main():
         range_scale=args.range_scale,
         prop_range_scale=args.prop_range_scale,
         state_concat=args.state_concat,
+        scale_params=args.scale_params,
     )
 
     real_env = env_wrapper.make(
@@ -533,8 +535,30 @@ def main():
         range_scale=args.range_scale,
         prop_range_scale=args.prop_range_scale,
         state_concat=args.state_concat,
+        scale_params=args.scale_params,
     )
-
+    # real_vec = real_env.division_vector  # Expect varying, 10.3 first
+    # real_dr = real_env.get_dr()  # Expect varying, 10.3 first
+    # real_obs = real_env.reset()['state']  # Expect all 10
+    # # real_torso = real_env.get_dr_element("torso_mass")
+    # # real_env.set_dr_element("torso_mass", 100)
+    # # real_torso2 = real_env.get_dr_element("torso_mass")
+    # real_distribution_mean = real_env.distribution_mean  # Expect all 10
+    # real_range = real_env.distribution_range  # Expect all 0
+    # real_sim_params = real_env.sim_params  # Expect all 10
+    # temp = 3
+    #
+    # sim_vec = sim_env.division_vector  # Expect varying, 10.3 first
+    # sim_dr = sim_env.get_dr()  # Expect varying, 5.15 first
+    # sim_obs = sim_env.reset()['state']  # Expect 5, with some variation
+    # sim_torso = sim_env.get_dr_element("right_thigh_mass")  # Expect 5, with some variation
+    # sim_env.set_dr_element("right_thigh_mass", 100)
+    # sim_torso2 = sim_env.get_dr_element("right_thigh_mass")  # Expect 100  # TODO: 250ish
+    # sim_env.apply_dr()
+    # sim_distribution_mean = sim_env.distribution_mean # Expect 5 with one 100
+    # sim_range = sim_env.distribution_range  # expect same as the last range
+    # sim_sim_params = sim_env.sim_params  # expect 5 with some variation
+    # temp = 3
 
     # stack several consecutive frames together
     if args.encoder_type == 'pixel':

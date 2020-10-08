@@ -12,7 +12,8 @@ from kitchen_env import Kitchen
 class DR_Env:
   def __init__(self, env, cameras, height=64, width=64, mean_only=False, dr_list=[], simple_randomization=False, dr_shape=None,
                real_world=False, dr=None, use_state="None", use_img=True, name="task_name",
-               grayscale=False, dataset_step=None, range_scale=.1, prop_range_scale=False, state_concat=False):
+               grayscale=False, dataset_step=None, range_scale=.1, prop_range_scale=False, state_concat=False,
+               scale_params=False):
 
     self._env = env
 
@@ -32,32 +33,9 @@ class DR_Env:
     self.range_scale = range_scale
     self.prop_range_scale = prop_range_scale
     self.state_concat = state_concat
+    self.scale_params = scale_params
 
-    model = self._env.physics.model
-    dr_update_dict = {
-        "torso_mass": model.body_mass[1:2],
-        "right_thigh_mass": model.body_mass[2:3],
-        "right_leg_mass": model.body_mass[3:4],
-        "right_foot_mass": model.body_mass[4:5],
-        "left_thigh_mass": model.body_mass[5:6],
-        "left_leg_mass": model.body_mass[6:7],
-        "left_foot_mass": model.body_mass[7:8],
-        "right_hip": model.dof_damping[3:4],
-        "right_knee": model.dof_damping[4:5],
-        "right_ankle": model.dof_damping[5:6],
-        "left_hip": model.dof_damping[6:7],
-        "left_knee": model.dof_damping[7:8],
-        "left_ankle": model.dof_damping[8:9],
-        "ground_r": model.geom_rgba[0:1, 0],
-        "ground_g": model.geom_rgba[0:1, 1],
-        "ground_b": model.geom_rgba[0:1, 2],
-        "body_r": model.geom_rgba[1:8, 0],
-        "body_g": model.geom_rgba[1:8, 1],
-        "body_b": model.geom_rgba[1:8, 2],
-    }
-    for k,v in dr_update_dict.items():
-        v[:] = 10
-    temp = self.get_dr()
+    self.division_vector = self.get_dr()  # TODO: make this from the self.dr instead.  May need to pass it in.
 
     self.apply_dr()
 
@@ -83,6 +61,17 @@ class DR_Env:
   def seed(self, seed=None):
       self._env.seed(seed)
 
+  def set_dr_element(self, param, value):
+      if self.scale_params:
+          self.dr[param] = value * self.division_vector[self.dr_list.index(param)] / 10
+      else:
+        self.dr[param] = value
+
+  def get_dr_element(self, param):
+      if self.scale_params:
+          return self.dr[param] / self.division_vector[self.dr_list.index(param)] * 10
+      return self.dr[param]
+
   def update_dr_param(self, param, param_name, eps=1e-3, indices=None):
     if param_name in self.dr:
       if self.mean_only:
@@ -94,6 +83,8 @@ class DR_Env:
       else:
         mean, range = self.dr[param_name]
         range = max(range, eps)  # TODO: consider re-adding anneal_range_scale
+      if self.scale_params:
+          range = range * self.division_vector[self.dr_list.index(param_name)] / 10
       new_value = np.random.uniform(low=max(mean - range, eps), high=max(mean + range, 2 * eps))
       if indices is None:
         param[:] = new_value
@@ -104,9 +95,14 @@ class DR_Env:
         except:
           param[indices:indices+1] = new_value
 
-      self.sim_params += [new_value]
-      self.distribution_mean += [mean]
-      self.distribution_range += [range]
+      if self.scale_params:
+          self.sim_params += [new_value / self.division_vector[self.dr_list.index(param_name)] * 10]
+          self.distribution_mean += [mean / self.division_vector[self.dr_list.index(param_name)] * 10]
+          self.distribution_range += [range / self.division_vector[self.dr_list.index(param_name)] * 10]
+      else:
+          self.sim_params += [new_value]
+          self.distribution_mean += [mean]
+          self.distribution_range += [range]  # TODO: consider also
 
   def apply_dr(self):
     self.sim_params = []
@@ -146,7 +142,10 @@ class DR_Env:
         obs_dict['image'] = obs
     if self.use_state:
         if self.state_concat:
-            obs_dict['state'] = np.concatenate([state, self.get_dr()])
+            dr = self.get_dr()
+            if self.scale_params:
+                dr = dr / self.division_vector * 10
+            obs_dict['state'] = np.concatenate([dr])
         else:
             obs_dict['state'] = state
     obs_dict['real_world'] = 1.0 if self.real_world else 0.0
@@ -178,7 +177,10 @@ class DR_Env:
       obs_dict['image'] = img_obs
     if self.use_state:
         if self.state_concat:
-            obs_dict['state'] = np.concatenate([state_obs, self.get_dr()])
+            dr = self.get_dr()
+            if self.scale_params:
+                dr = dr / self.division_vector * 10
+            obs_dict['state'] = np.concatenate([dr])
         else:
             obs_dict['state'] = state_obs
 
@@ -253,9 +255,15 @@ class DR_MetaWorldEnv(DR_Env):  # TODO: consider passing through as kwargs
         self.distribution_mean = []
         self.distribution_range = []
         if self.dr is None or self.real_world:
-            self.sim_params = self.get_dr()
-            self.distribution_mean = self.get_dr()
-            self.distribution_range = np.zeros(self.dr_shape, dtype=np.float32)
+            if self.division_vector:
+                self.sim_params = self.get_dr() / self.division_vector * 10
+                self.distribution_mean = self.get_dr() / self.division_vector * 10
+                self.distribution_range = np.zeros(self.dr_shape, dtype=np.float32) / self.division_vector
+            else:
+                self.sim_params = self.get_dr()
+                self.distribution_mean = self.get_dr()
+                self.distribution_range = np.zeros(self.dr_shape, dtype=np.float32)
+
             return
 
         model = self._env._env.sim.model
@@ -906,9 +914,14 @@ class DR_DMCEnv(DR_Env):
         self.distribution_mean = []
         self.distribution_range = []
         if self.dr is None or self.real_world:
-            self.sim_params = self.get_dr()
-            self.distribution_mean = self.get_dr()
-            self.distribution_range = np.zeros(self.dr_shape, dtype=np.float32)
+            if self.scale_params:
+                self.sim_params = self.get_dr() / self.division_vector * 10
+                self.distribution_mean = self.get_dr() / self.division_vector * 10
+                self.distribution_range = np.zeros(self.dr_shape, dtype=np.float32) / self.division_vector
+            else:
+                self.sim_params = self.get_dr()
+                self.distribution_mean = self.get_dr()
+                self.distribution_range = np.zeros(self.dr_shape, dtype=np.float32)
             return
 
         model = self._env.physics.model
@@ -1084,7 +1097,8 @@ class DR_DMCEnv(DR_Env):
 def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range(1),
          visualize_reward=False, frame_skip=None, mean_only=False,  dr_list=[], simple_randomization=False, dr_shape=None,
                real_world=False, dr=None, use_state="None", use_img=True,
-                grayscale=False, delay_steps=0, range_scale=.1, prop_range_scale=False, state_concat=False):
+                grayscale=False, delay_steps=0, range_scale=.1, prop_range_scale=False, state_concat=False,
+                scale_params=False):
     # DMC
     if 'dmc' in domain_name:
         domain_name_root = domain_name[4:]  # Task name is formatted as dmc_walker.  Now just walker
@@ -1104,7 +1118,8 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
                               dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape,
                               name=task_name, domain_name=domain_name_root,
                               real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
-                              range_scale=range_scale, prop_range_scale=prop_range_scale, state_concat=state_concat)
+                              range_scale=range_scale, prop_range_scale=prop_range_scale, state_concat=state_concat,
+                              scale_params=scale_params)
         return env
     elif 'metaworld' in domain_name:
         if task_name + '-v1' in ed.ALL_V1_ENVIRONMENTS.keys():
