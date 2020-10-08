@@ -101,6 +101,16 @@ def parse_args():
     parser.add_argument('--sim_param_layers', default=2, type=int)
     parser.add_argument('--sim_param_units', default=400, type=int)
     parser.add_argument('--separate_trunks', default=False, type=bool)
+    parser.add_argument('--train_range_scale', default=1, type=float)
+    parser.add_argument('--scale_large_and_small', default=False, action='store_true')
+    parser.add_argument('--num_sim_param_updates', default=1, type=int)
+    parser.add_argument('--state_concat', default=False, action='store_true')
+    parser.add_argument('--prop_range_scale', default=False, action='store_true')
+    parser.add_argument('--prop_train_range_scale', default=False, action='store_true')
+    parser.add_argument('--prop_alpha', default=False, action='store_true')
+    parser.add_argument('--clip_positive', default=False, action='store_true')
+    parser.add_argument('--update_sim_param_from', choices=['latest', 'buffer', 'both'], type=str.lower,
+                        default='latest')
 
 
     # Outer loop options
@@ -115,6 +125,7 @@ def parse_args():
     parser.add_argument('--binary_prediction', default=False, type=bool)
     parser.add_argument('--start_outer_loop', default=0, type=int)
     parser.add_argument('--train_sim_param_every', default=50, type=int)
+    parser.add_argument('--momentum', default=0, type=float)
 
 
     # MISC
@@ -129,6 +140,7 @@ def parse_args():
     else:
         args.real_dr_list = []
         args.dr = None
+    args.update = [0] * len(args.real_dr_list)
 
     return args
 
@@ -188,9 +200,15 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
                     import IPython
                     IPython.embed()
                 error = np.mean(pred_mean - real_dr_param)
+            accuracy = np.round(pred_mean) == real_dr_param
+            loss = torch.nn.BCELoss()(torch.FloatTensor([pred_mean]), torch.FloatTensor([real_dr_param]))
 
             L.log(f'eval/{prefix}/{param}/error', error, step)
+            L.log(f'eval/{prefix}/{param}/accuracy', accuracy, step)
+            L.log(f'eval/{prefix}/{param}/loss', loss, step)
             log_data[key][step]['error'] = error
+            log_data[key][step]['accuracy'] = accuracy
+            log_data[key][step]['loss'] = loss
             np.save(filename, log_data)
 
 def predict_sim_params(sim_param_model, traj, current_sim_params, step=5, confidence_level=.3):
@@ -227,6 +245,7 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
                 pred_sim_params.append(predict_sim_params(sim_param_model, obs[0], current_sim_params))
             pred_sim_params = np.mean(pred_sim_params, axis=0)
 
+    updates = []
     for i, param in enumerate(args.real_dr_list):
         prev_mean = sim_env.dr[param]
 
@@ -239,8 +258,15 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
         if args.outer_loop_version == 1:
             new_mean = prev_mean * (1 - alpha) + alpha * pred_mean
         elif args.outer_loop_version == 3:
-            scale_factor = max(prev_mean, .1)
-            new_mean = prev_mean - alpha * (np.mean(pred_mean) - 0.5) #* scale_factor
+            if args.prop_alpha:
+                scale_factor = max(prev_mean, args.alpha)
+                new_update = - alpha * (np.mean(pred_mean) - 0.5) * scale_factor
+            else:
+                new_update = - alpha * (np.mean(pred_mean) - 0.5)
+            curr_update = args.momentum * args.update[i] + (1 - args.momentum) * new_update
+            new_mean = prev_mean + curr_update
+            updates.append(curr_update)
+
         new_mean = max(new_mean, 1e-3)
         sim_env.dr[param] = new_mean
 
@@ -273,6 +299,7 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
         L.log(f'eval/agent-sim_param/{param}/sim_param_error', sim_param_error, step)
         log_data[key][step]['sim_param_error'] = sim_param_error
         np.save(filename, log_data)
+    args.updates = updates
 
 
 def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, step, args):
@@ -376,7 +403,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
         if sim_param_model is not None:
             dist_mean = obs_dict['distribution_mean']
             current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
-            evaluate_sim_params(sim_param_model, args, [obs_traj_sim], step, L, "train", sim_params, current_sim_params)
+            evaluate_sim_params(sim_param_model, args, [obs_traj_sim], step, L, "val", sim_params, current_sim_params)
             if args.outer_loop_version == 3:
                 sim_param_model.train_classifier(obs_traj_sim, sim_params, dist_mean, L, step, True)
         video.save('sim_%d.mp4' % step)
@@ -482,6 +509,8 @@ def main():
         grayscale=args.grayscale,
         delay_steps=args.delay_steps,
         range_scale=args.range_scale,
+        prop_range_scale=args.prop_range_scale,
+        state_concat=args.state_concat,
     )
 
     real_env = env_wrapper.make(
@@ -502,6 +531,8 @@ def main():
         grayscale=args.grayscale,
         delay_steps=args.delay_steps,
         range_scale=args.range_scale,
+        prop_range_scale=args.prop_range_scale,
+        state_concat=args.state_concat,
     )
 
 
@@ -599,6 +630,9 @@ def main():
             state_dim=obs_shape,
             separate_trunks=args.separate_trunks,
             param_names=args.real_dr_list,
+            train_range_scale=args.train_range_scale,
+            prop_train_range_scale=args.prop_train_range_scale,
+            clip_positive=args.clip_positive,
         ).to(device)
     else:
         sim_param_model = None
@@ -641,9 +675,11 @@ def main():
         if done:
             if step > 0:
                 if args.outer_loop_version != 0 and obs_traj is not None:
-                    for _ in range(10):
-                        sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True)
-                        #sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True, replay_buffer)
+                    for _ in range(args.num_sim_param_updates):
+                        if args.update_sim_param_from in ['latest', 'both']:
+                            sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True)
+                        if args.update_sim_param_from in ['buffer', 'both']:
+                            sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True, replay_buffer)
 
 
                 if step % args.log_interval == 0:

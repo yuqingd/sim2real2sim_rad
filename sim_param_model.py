@@ -15,7 +15,8 @@ class SimParamModel(nn.Module):
     def __init__(self, shape, layers, units, device, obs_shape, encoder_type,
         encoder_feature_dim, encoder_num_layers, encoder_num_filters, agent, sim_param_lr=1e-3, sim_param_beta=0.9,
                  dist='normal', act=nn.ELU, batch_size=32, traj_length=200, num_frames=10,
-                 embedding_multires=10, use_img=True, state_dim=0, separate_trunks=False, param_names=[]):
+                 embedding_multires=10, use_img=True, state_dim=0, separate_trunks=False, param_names=[],
+                 train_range_scale=1, prop_train_range_scale=False, clip_positive=False):
         super(SimParamModel, self).__init__()
         self._shape = shape
         self._layers = layers
@@ -35,6 +36,9 @@ class SimParamModel(nn.Module):
         self.positional_encoding = positional_encoding
         additional = 0 if dist == 'normal' else embedding_dim
         self.param_names = param_names
+        self.train_range_scale = train_range_scale
+        self.prop_train_range_scale = prop_train_range_scale
+        self.clip_positive = clip_positive
 
         if self.use_img:
             trunk_input_dim = encoder_feature_dim + additional
@@ -159,18 +163,26 @@ class SimParamModel(nn.Module):
 
 
     def train_classifier(self, obs_traj, sim_params, distribution_mean,  L, step, should_log):
-        dist_range = 10 * torch.FloatTensor(distribution_mean)
+        if self.prop_train_range_scale:
+            dist_range = self.train_range_scale * torch.FloatTensor(distribution_mean)
+        else:
+            dist_range = self.train_range_scale
         sim_params = torch.FloatTensor(sim_params) # 1 - dimensional
         eps = 1e-3
+        if self.clip_positive:
+            low_val = torch.clamp(sim_params - dist_range, eps, float('inf'))
+        else:
+            low_val = sim_params - dist_range
         low = torch.FloatTensor(
-            np.random.uniform(size=(self.batch * 2, len(sim_params)), low=torch.clamp(sim_params - dist_range, eps, float('inf')),
+            np.random.uniform(size=(self.batch * 2, len(sim_params)), low=low_val,
                               high=sim_params)).to(self.device)
 
         high = torch.FloatTensor(
             np.random.uniform(size=(self.batch * 2, len(sim_params)),
                               low=sim_params,
                               high=sim_params + dist_range)).to(self.device)
-        fake_pred = torch.cat([low, high], dim=0)
+        dist_mean = torch.FloatTensor(distribution_mean).unsqueeze(0).to(self.device)
+        fake_pred = torch.cat([low, high, dist_mean], dim=0)
         labels = (fake_pred > sim_params.unsqueeze(0).to(self.device)).long()
 
         shuffled_indices = torch.stack([torch.randperm(len(fake_pred)) for _ in range(len(sim_params))], dim=1).to(self.device)
@@ -181,14 +193,38 @@ class SimParamModel(nn.Module):
         pred_class_flat = pred_class.flatten().unsqueeze(0).float()
         labels_flat = labels.flatten().unsqueeze(0).float()
         loss = nn.BCELoss()(pred_class_flat, labels_flat)
-        individual_loss = nn.BCELoss(reduction='none')(pred_class.float(), labels.float()).detach().cpu().numpy()
-        individual_loss = np.mean(individual_loss, axis=0)
+        full_loss = nn.BCELoss(reduction='none')(pred_class.float(), labels.float()).detach().cpu().numpy()
+        individual_loss = np.mean(full_loss, axis=0)
+        accuracy = torch.round(pred_class) == labels
+        individual_accuracy = torch.mean(accuracy.float(), dim=0).detach().cpu().numpy()
+        accuracy_mean = torch.mean(accuracy.float()).detach().cpu().numpy()
+        error = pred_class - labels
+        individual_error = torch.mean(error.float(), dim=0).detach().cpu().numpy()
+        error_mean = torch.mean(error.float()).detach().cpu().numpy()
+
+        dist_error_mean = torch.mean(error[-1].float()).detach().cpu().numpy()
+        dist_error_individual = error[-1].detach().cpu().numpy()
+        dist_accuracy_mean = torch.mean(accuracy[-1].float()).detach().cpu().numpy()
+        dist_accuracy_individual = accuracy[-1].float().detach().cpu().numpy()
+        dist_loss_mean = np.mean(full_loss[-1])
+        dist_loss_individual = full_loss[-1]
+
+
 
         if should_log:
             L.log('train_sim_params/loss', loss, step)
+            L.log('train_sim_params/accuracy', accuracy_mean, step)
+            L.log('train_sim_params/error', error_mean, step)
+            L.log('train_sim_params/dist_mean_loss', dist_loss_mean, step)
+            L.log('train_sim_params/dist_mean_accuracy', dist_accuracy_mean, step)
+            L.log('train_sim_params/dist_mean_error', dist_error_mean, step)
             for i, param in enumerate(self.param_names):
                 L.log(f'train_sim_params/{param}/loss', individual_loss[i], step)
-
+                L.log(f'train_sim_params/{param}/accuracy', individual_accuracy[i], step)
+                L.log(f'train_sim_params/{param}/error', individual_error[i], step)
+                L.log(f'train_sim_params/{param}/dist_mean_loss', dist_loss_individual[i], step)
+                L.log(f'train_sim_params/{param}/dist_mean_accuracy', dist_accuracy_individual[i], step)
+                L.log(f'train_sim_params/{param}/dist_mean_error', dist_error_individual[i], step)
 
         # Optimize the critic
         self.sim_param_optimizer.zero_grad()
@@ -224,8 +260,12 @@ class SimParamModel(nn.Module):
                                       L, step, should_log)
             else:
                 for traj in obs_list:
-                    self.train_classifier(traj['image'], traj['sim_params'][-1].to('cpu'),
+                    if self.encoder_type == 'pixel':
+                        self.train_classifier(traj['image'], traj['sim_params'][-1].to('cpu'),
                                           traj['distribution_mean'][-1].to('cpu'), L, step, should_log)
+                    else:
+                        self.train_classifier(traj['state'], traj['sim_params'][-1].to('cpu'),
+                                              traj['distribution_mean'][-1].to('cpu'), L, step, should_log)
 
 
     def save(self, model_dir, step):
