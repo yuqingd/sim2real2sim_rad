@@ -129,13 +129,17 @@ class SimParamModel(nn.Module):
             return torch.distributions.bernoulli.Bernoulli(x)
         raise NotImplementedError(self._dist)
 
-    def forward_classifier(self, obs_traj, pred_labels):
+    def forward_classifier(self, obs_traj, pred_labels, step=5):
         """ obs traj list of lists, pred labels is array [B, num_sim_params] """
         new_obs_traj = []
         for traj in obs_traj:
-            if len(traj) > self.num_frames:
-                start_index = np.random.randint(0, len(traj) - self.num_frames)
-                traj = traj[start_index:start_index + self.num_frames]
+            index = 0
+            while index < len(traj) - self.num_frames:
+                traj = traj[index: index + self.num_frames]
+                index += step
+            #if len(traj) > self.num_frames:
+                #start_index = np.random.randint(0, len(traj) - self.num_frames)
+            #    traj = traj[start_index:start_index + self.num_frames]
             # If we're using images, only use the first of the stacked frames
             if self.use_img:
                 new_obs_traj.append([o[:3] for o in traj])
