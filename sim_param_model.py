@@ -177,12 +177,14 @@ class SimParamModel(nn.Module):
             low_val = torch.clamp(sim_params - dist_range, eps, float('inf'))
         else:
             low_val = sim_params - dist_range
+
+        num_low = np.random.randint(0, self.batch * 4)
         low = torch.FloatTensor(
-            np.random.uniform(size=(self.batch * 2, len(sim_params)), low=low_val,
+            np.random.uniform(size=(num_low, len(sim_params)), low=low_val,
                               high=sim_params)).to(self.device)
 
         high = torch.FloatTensor(
-            np.random.uniform(size=(self.batch * 2, len(sim_params)),
+            np.random.uniform(size=(self.batch * 4 - num_low, len(sim_params)),
                               low=sim_params,
                               high=sim_params + dist_range)).to(self.device)
         fake_pred = torch.cat([low, high], dim=0)
