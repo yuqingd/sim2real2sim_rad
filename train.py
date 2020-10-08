@@ -613,6 +613,7 @@ def main():
             encoder_num_layers=args.num_layers,
             encoder_num_filters=args.num_filters,
             agent=agent,
+            batch_size=args.batch_size,
             sim_param_lr=args.sim_param_lr,
             sim_param_beta=args.sim_param_beta,
             dist=dist,
