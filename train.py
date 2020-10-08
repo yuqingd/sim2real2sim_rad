@@ -109,7 +109,8 @@ def parse_args():
     parser.add_argument('--prop_train_range_scale', default=False, action='store_true')
     parser.add_argument('--prop_alpha', default=False, action='store_true')
     parser.add_argument('--clip_positive', default=False, action='store_true')
-    parser.add_argument('--update_sim_param_from', choices=['latest', 'buffer', 'both'], type=str.lower)
+    parser.add_argument('--update_sim_param_from', choices=['latest', 'buffer', 'both'], type=str.lower,
+                        default='latest')
 
 
     # Outer loop options
