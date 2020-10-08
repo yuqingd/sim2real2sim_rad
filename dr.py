@@ -175,13 +175,9 @@ def config_dr_dmc(config):
         if real_val == 0:
             real_val = 5e-2
         if config.mean_only:
-            config.dr[key] = real_val * cur_scale
+            config.dr[key] = 10 * cur_scale #real_val * cur_scale
         else:
-<<<<<<< HEAD
-            config.dr[key] = (real_val * mean_scale, real_val * range_scale)
-=======
             config.dr[key] = (real_val * cur_scale, real_val * range_scale)
->>>>>>> master
     if dr_option == 'mixed_visual_dr':
         config.dr['ground_g'] = config.real_dr_params['ground_g'] * 2.0
         config.dr['body_r'] = config.real_dr_params['body_r'] * 2.0

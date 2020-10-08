@@ -33,6 +33,32 @@ class DR_Env:
     self.prop_range_scale = prop_range_scale
     self.state_concat = state_concat
 
+    model = self._env.physics.model
+    dr_update_dict = {
+        "torso_mass": model.body_mass[1:2],
+        "right_thigh_mass": model.body_mass[2:3],
+        "right_leg_mass": model.body_mass[3:4],
+        "right_foot_mass": model.body_mass[4:5],
+        "left_thigh_mass": model.body_mass[5:6],
+        "left_leg_mass": model.body_mass[6:7],
+        "left_foot_mass": model.body_mass[7:8],
+        "right_hip": model.dof_damping[3:4],
+        "right_knee": model.dof_damping[4:5],
+        "right_ankle": model.dof_damping[5:6],
+        "left_hip": model.dof_damping[6:7],
+        "left_knee": model.dof_damping[7:8],
+        "left_ankle": model.dof_damping[8:9],
+        "ground_r": model.geom_rgba[0:1, 0],
+        "ground_g": model.geom_rgba[0:1, 1],
+        "ground_b": model.geom_rgba[0:1, 2],
+        "body_r": model.geom_rgba[1:8, 0],
+        "body_g": model.geom_rgba[1:8, 1],
+        "body_b": model.geom_rgba[1:8, 2],
+    }
+    for k,v in dr_update_dict.items():
+        v[:] = 10
+    temp = self.get_dr()
+
     self.apply_dr()
 
 
