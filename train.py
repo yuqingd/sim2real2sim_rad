@@ -332,7 +332,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
                         action = agent.sample_action(obs)
                     else:
                         action = agent.select_action(obs)
-                obs_traj.append(obs)
+                obs_traj.append((obs, action))
                 obs_dict, reward, done, _ = real_env.step(action)
                 video.record(real_env)
                 episode_reward += reward
@@ -399,7 +399,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
                     action = agent.sample_action(obs)
                 else:
                     action = agent.select_action(obs)
-            obs_traj_sim.append(obs)
+            obs_traj_sim.append((obs, action))
             obs_dict, reward, done, _ = sim_env.step(action)
             video.record(sim_env)
             sim_params = obs_dict['sim_params']
@@ -637,6 +637,7 @@ def main():
             train_range_scale=args.train_range_scale,
             prop_train_range_scale=args.prop_train_range_scale,
             clip_positive=args.clip_positive,
+            action_space=sim_env.action_space,
         ).to(device)
     else:
         sim_param_model = None
@@ -719,7 +720,7 @@ def main():
                     obs_img = utils.center_crop_image(obs_img, args.image_size)
             else:
                 obs_img = obs['state']
-            obs_traj = [obs_img]
+            obs_traj = []
             success = 0.0 if 'success' in obs.keys() else None
             episode_reward = 0
             episode_step = 0
@@ -750,6 +751,7 @@ def main():
         done_bool = float(done)
         episode_reward += reward
         replay_buffer.add(obs, action, reward, next_obs, done_bool)
+        obs_traj.append((obs_img, action))
 
         if 'success' in obs.keys():
             success = obs['success']
@@ -764,7 +766,6 @@ def main():
                 args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
             obs_img = utils.center_crop_image(obs_img, args.image_size)
 
-        obs_traj.append(obs_img)
         episode_step += 1
 
 
