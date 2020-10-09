@@ -133,6 +133,10 @@ def parse_args():
     parser.add_argument('--gpudevice', type=str, required=True, help='cuda visible devices')
     parser.add_argument('--time_limit', default=200, type=float)
     parser.add_argument('--delay_steps', default=0, type=int)
+    parser.add_argument('--sim_params_only', default=False, action='store_true',
+                        help='Only trains the SP model; assumes buffer already exists')
+    parser.add_argument('--collect_only', default=False, action='store_true',
+                        help='Only collects data, no training')
 
     args = parser.parse_args()
     if args.dr:
@@ -660,21 +664,34 @@ def main():
     success = None
     obs_traj = None
 
+    if args.sim_params_only:
+        for step in range(start_step, args.num_train_steps):
+            if step % args.eval_freq == 0:
+                L.log('eval/episode', episode, step)
+                evaluate(real_env, sim_env, agent, sim_param_model, video, args.num_eval_episodes, L, step, args)
+                if args.save_model and sim_param_model is not None:
+                    sim_param_model.save(model_dir, step)
+            sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True,
+                                   replay_buffer)
+        print("ALL DONE!")
+        return
+
     for step in range(start_step, args.num_train_steps):
         # evaluate agent periodically
 
         if step % args.eval_freq == 0:
             L.log('eval/episode', episode, step)
-            evaluate(real_env, sim_env, agent, sim_param_model, video, args.num_eval_episodes, L, step, args)
-            if args.save_model:
-                agent.save_curl(model_dir, step)
-                if sim_param_model is not None:
-                    sim_param_model.save(model_dir, step)
+            if not args.collect_only:
+                evaluate(real_env, sim_env, agent, sim_param_model, video, args.num_eval_episodes, L, step, args)
+                if args.save_model:
+                    agent.save_curl(model_dir, step)
+                    if sim_param_model is not None:
+                        sim_param_model.save(model_dir, step)
             if args.save_buffer:
                 replay_buffer.save(buffer_dir)
 
         if done:
-            if step > 0:
+            if (not args.collect_only) and step > 0:
                 if args.outer_loop_version != 0 and obs_traj is not None:
                     for _ in range(args.num_sim_param_updates):
                         if args.update_sim_param_from in ['latest', 'both']:
@@ -687,7 +704,7 @@ def main():
                     L.log('train/duration', time.time() - start_time, step)
                     L.dump(step)
                 start_time = time.time()
-            if step % args.log_interval == 0:
+            if (not args.collect_only) and step % args.log_interval == 0:
                 filename = args.work_dir + f'/train_reward.npy'
                 key = args.domain_name + '-' + str(args.task_name) + '-' + args.data_augs
                 try:
@@ -721,24 +738,22 @@ def main():
             episode_reward = 0
             episode_step = 0
             episode += 1
-            if step % args.log_interval == 0:
+            if (not args.collect_only) and step % args.log_interval == 0:
                 L.log('train/episode', episode, step)
 
 
         # sample action for data collection
-        if step < args.init_steps:
+        if step < args.init_steps or args.collect_only:
             action = sim_env.action_space.sample()
         else:
             with utils.eval_mode(agent):
                 action = agent.sample_action(obs_img)
 
         # run training update
-        if step >= args.init_steps:
+        if (not args.collect_only) and step >= args.init_steps:
             num_updates = 1
             for _ in range(num_updates):
                 agent.update(replay_buffer, L, step)
-
-
 
         next_obs, reward, done, _ = sim_env.step(action)
 
