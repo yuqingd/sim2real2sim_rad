@@ -126,7 +126,7 @@ def parse_args():
     parser.add_argument('--start_outer_loop', default=0, type=int)
     parser.add_argument('--train_sim_param_every', default=50, type=int)
     parser.add_argument('--momentum', default=0, type=float)
-    parser.add_argument('--round_predictions', default=True, type=bool)
+    parser.add_argument('--round_predictions', default=True,  action='store_true')
 
 
     # MISC
