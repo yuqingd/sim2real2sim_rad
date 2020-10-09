@@ -655,7 +655,10 @@ def main():
                 sim_param_step = max(sim_param_step,[int(x) for x in re.findall('\d+', checkpoint)][-1])
             sim_param_model.load(model_dir, sim_param_step)
             start_step = min(start_step, sim_param_step)
+    try:
         replay_buffer.load(buffer_dir)  # TODO: do we have to save optimizer?
+    except:
+        print("no buffer to load")
 
     L = Logger(args.work_dir, use_tb=args.save_tb)
 
