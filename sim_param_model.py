@@ -15,7 +15,8 @@ class SimParamModel(nn.Module):
     def __init__(self, shape, layers, units, device, obs_shape, encoder_type,
         encoder_feature_dim, encoder_num_layers, encoder_num_filters, agent, sim_param_lr=1e-3, sim_param_beta=0.9,
                  dist='normal', act=nn.ELU, batch_size=32, traj_length=200, num_frames=10,
-                 embedding_multires=10,):
+                 embedding_multires=10, use_img=True, state_dim=0, separate_trunks=False, param_names=[],
+                 train_range_scale=1, prop_train_range_scale=False, clip_positive=False):
         super(SimParamModel, self).__init__()
         self._shape = shape
         self._layers = layers
@@ -28,56 +29,100 @@ class SimParamModel(nn.Module):
         self.traj_length = traj_length
         self.encoder_feature_dim = encoder_feature_dim
         self.num_frames = num_frames
+        self.use_img = use_img
+        self.state_dim = state_dim
+        self.separate_trunks = separate_trunks
         positional_encoding, embedding_dim = get_embedder(embedding_multires, shape, i=0)
         self.positional_encoding = positional_encoding
         additional = 0 if dist == 'normal' else embedding_dim
+        self.param_names = param_names
+        self.train_range_scale = train_range_scale
+        self.prop_train_range_scale = prop_train_range_scale
+        self.clip_positive = clip_positive
 
-        trunk = []
-        trunk.append(nn.Linear(encoder_feature_dim + additional, self._units))
-        trunk.append(self._act())
-        for index in range(self._layers - 1):
-            trunk.append(nn.Linear(self._units, self._units))
+        if self.use_img:
+            trunk_input_dim = encoder_feature_dim + additional
+        else:
+            trunk_input_dim = state_dim[-1] * self.num_frames + additional
+
+        # If each sim param has its own trunk, create a separate trunk for each
+        num_sim_params = shape
+        if separate_trunks:
+            trunk_list = []
+            for _ in range(num_sim_params):
+                trunk = []
+                trunk.append(nn.Linear(trunk_input_dim, self._units))
+                trunk.append(self._act())
+                for index in range(self._layers - 1):
+                    trunk.append(nn.Linear(self._units, self._units))
+                    trunk.append(self._act())
+                trunk.append(nn.Linear(self._units, 1))
+                trunk_list.append(nn.Sequential(*trunk).to(self.device))
+            self.trunk = torch.nn.ModuleList(trunk_list)
+        else:
+            trunk = []
+            trunk.append(nn.Linear(trunk_input_dim, self._units))
             trunk.append(self._act())
-        trunk.append(nn.Linear(self._units, np.prod(self._shape)))
-        self.trunk = nn.Sequential(*trunk).to(self.device)
+            for index in range(self._layers - 1):
+                trunk.append(nn.Linear(self._units, self._units))
+                trunk.append(self._act())
+            trunk.append(nn.Linear(self._units, num_sim_params))
+            self.trunk = nn.Sequential(*trunk).to(self.device)
 
-        # change obs_shape to account for the trajectory length, since images are stacked channel-wise
-        c, h, w = obs_shape
-        obs_shape = (3 * self.num_frames, h, w)
-
-        self.encoder = make_encoder(
-            encoder_type, obs_shape, encoder_feature_dim, encoder_num_layers,
-            encoder_num_filters, output_logits=True
-        )
+        if self.use_img:
+            # change obs_shape to account for the trajectory length, since images are stacked channel-wise
+            c, h, w = obs_shape
+            obs_shape = (3 * self.num_frames, h, w)
+            self.encoder = make_encoder(
+                encoder_type, obs_shape, encoder_feature_dim, encoder_num_layers,
+                encoder_num_filters, output_logits=True
+            )
 
         self.apply(weight_init)
 
+        parameters = list(self.trunk.parameters())
+        if self.use_img:
+            parameters += list(self.encoder.parameters())
         self.sim_param_optimizer = torch.optim.Adam(
-            list(self.encoder.parameters()) + list(self.trunk.parameters()), lr=sim_param_lr, betas=(sim_param_beta, 0.999)
+            parameters, lr=sim_param_lr, betas=(sim_param_beta, 0.999)
         )
 
     def get_features(self, obs_traj):
         # detach_encoder allows to stop gradient propagation to encoder
 
         with torch.no_grad():
-            if type(obs_traj[0][0]) is np.ndarray:
-                input = torch.FloatTensor(obs_traj).to(self.device)
-                B, num_frames, C, H, W = input.shape
-                input = input.view(B, num_frames * C, H, W)
-            elif type(obs_traj[0][0]) is torch.Tensor:
-                input = torch.stack([torch.cat([o for o in traj], dim=0) for traj in obs_traj], dim=0)
-            else:
-                raise NotImplementedError(type(obs_traj[0][0]))
+            if self.use_img:
+                if type(obs_traj[0][0]) is np.ndarray:
+                    input = torch.FloatTensor(obs_traj).to(self.device)
+                    B, num_frames, C, H, W = input.shape
+                    input = input.view(B, num_frames * C, H, W)
+                elif type(obs_traj[0][0]) is torch.Tensor:
+                    input = torch.stack([torch.cat([o for o in traj], dim=0) for traj in obs_traj], dim=0)
+                else:
+                    raise NotImplementedError(type(obs_traj[0][0]))
 
-            features = self.encoder(input, detach=True)
-            features = features / torch.norm(features)
+                features = self.encoder(input, detach=True)
+                features = features / torch.norm(features)
+            else:
+                if type(obs_traj[0][0]) is torch.Tensor:
+                    features = torch.stack([torch.cat([o for o in traj], dim=0) for traj in obs_traj], dim=0)
+                elif type(obs_traj[0][0]) is np.ndarray:
+                    features = torch.FloatTensor([np.concatenate([o for o in traj], axis=0) for traj in obs_traj]).to(self.device)
+                else:
+                    raise NotImplementedError(type(obs_traj[0][0]))
 
         return features
 
     def forward(self, obs_traj):
-        features = self.get_features(obs_traj)
+        if self.use_img:
+            features = self.get_features(obs_traj)
+        else:
+            features = torch.stack(obs_traj) # TODO: actually do this right, possibly with diff if cases for ndarray vs torch like above
         x = features.view(1, -1)
-        x = self.trunk(x)
+        if self.separate_trunks:
+            x = torch.cat([trunk(x) for trunk in self.trunk], dim=-1)
+        else:
+            x = self.trunk(x)
         if self._dist == 'normal':
             return torch.distributions.normal.Normal(x, 1)
         if self._dist == 'binary':
@@ -91,7 +136,11 @@ class SimParamModel(nn.Module):
             if len(traj) > self.num_frames:
                 start_index = np.random.randint(0, len(traj) - self.num_frames)
                 traj = traj[start_index:start_index + self.num_frames]
-            new_obs_traj.append([o[:3] for o in traj])
+            # If we're using images, only use the first of the stacked frames
+            if self.use_img:
+                new_obs_traj.append([o[:3] for o in traj])
+            else:
+                new_obs_traj.append(traj)
         obs_traj = new_obs_traj
 
         # normalize [-1, 1]
@@ -104,25 +153,36 @@ class SimParamModel(nn.Module):
         B_traj = len(obs_traj)
         fake_pred = torch.cat([encoded_pred_labels.repeat(B_traj, 1), feat.repeat(B_label, 1)], dim=-1)
 
-        x = self.trunk(fake_pred)
+        if self.separate_trunks:
+            x = torch.cat([trunk(fake_pred) for trunk in self.trunk], dim=-1)
+        else:
+            x = self.trunk(fake_pred)
         pred_class = torch.distributions.bernoulli.Bernoulli(logits=x)
         pred_class = pred_class.mean
         return pred_class
 
 
     def train_classifier(self, obs_traj, sim_params, distribution_mean,  L, step, should_log):
-        dist_range = 1 * torch.FloatTensor(distribution_mean)  # TODO: change back to 10x
+        if self.prop_train_range_scale:
+            dist_range = self.train_range_scale * torch.FloatTensor(distribution_mean)
+        else:
+            dist_range = self.train_range_scale
         sim_params = torch.FloatTensor(sim_params) # 1 - dimensional
         eps = 1e-3
+        if self.clip_positive:
+            low_val = torch.clamp(sim_params - dist_range, eps, float('inf'))
+        else:
+            low_val = sim_params - dist_range
         low = torch.FloatTensor(
-            np.random.uniform(size=(self.batch * 2, len(sim_params)), low=torch.clamp(sim_params - dist_range, eps, float('inf')),
+            np.random.uniform(size=(self.batch * 2, len(sim_params)), low=low_val,
                               high=sim_params)).to(self.device)
 
         high = torch.FloatTensor(
             np.random.uniform(size=(self.batch * 2, len(sim_params)),
                               low=sim_params,
                               high=sim_params + dist_range)).to(self.device)
-        fake_pred = torch.cat([low, high], dim=0)
+        dist_mean = torch.FloatTensor(distribution_mean).unsqueeze(0).to(self.device)
+        fake_pred = torch.cat([low, high, dist_mean], dim=0)
         labels = (fake_pred > sim_params.unsqueeze(0).to(self.device)).long()
 
         shuffled_indices = torch.stack([torch.randperm(len(fake_pred)) for _ in range(len(sim_params))], dim=1).to(self.device)
@@ -133,9 +193,38 @@ class SimParamModel(nn.Module):
         pred_class_flat = pred_class.flatten().unsqueeze(0).float()
         labels_flat = labels.flatten().unsqueeze(0).float()
         loss = nn.BCELoss()(pred_class_flat, labels_flat)
+        full_loss = nn.BCELoss(reduction='none')(pred_class.float(), labels.float()).detach().cpu().numpy()
+        individual_loss = np.mean(full_loss, axis=0)
+        accuracy = torch.round(pred_class) == labels
+        individual_accuracy = torch.mean(accuracy.float(), dim=0).detach().cpu().numpy()
+        accuracy_mean = torch.mean(accuracy.float()).detach().cpu().numpy()
+        error = pred_class - labels
+        individual_error = torch.mean(error.float(), dim=0).detach().cpu().numpy()
+        error_mean = torch.mean(error.float()).detach().cpu().numpy()
+
+        dist_error_mean = torch.mean(error[-1].float()).detach().cpu().numpy()
+        dist_error_individual = error[-1].detach().cpu().numpy()
+        dist_accuracy_mean = torch.mean(accuracy[-1].float()).detach().cpu().numpy()
+        dist_accuracy_individual = accuracy[-1].float().detach().cpu().numpy()
+        dist_loss_mean = np.mean(full_loss[-1])
+        dist_loss_individual = full_loss[-1]
+
+
 
         if should_log:
             L.log('train_sim_params/loss', loss, step)
+            L.log('train_sim_params/accuracy', accuracy_mean, step)
+            L.log('train_sim_params/error', error_mean, step)
+            L.log('train_sim_params/dist_mean_loss', dist_loss_mean, step)
+            L.log('train_sim_params/dist_mean_accuracy', dist_accuracy_mean, step)
+            L.log('train_sim_params/dist_mean_error', dist_error_mean, step)
+            for i, param in enumerate(self.param_names):
+                L.log(f'train_sim_params/{param}/loss', individual_loss[i], step)
+                L.log(f'train_sim_params/{param}/accuracy', individual_accuracy[i], step)
+                L.log(f'train_sim_params/{param}/error', individual_error[i], step)
+                L.log(f'train_sim_params/{param}/dist_mean_loss', dist_loss_individual[i], step)
+                L.log(f'train_sim_params/{param}/dist_mean_accuracy', dist_accuracy_individual[i], step)
+                L.log(f'train_sim_params/{param}/dist_mean_error', dist_error_individual[i], step)
 
             error = torch.mean(pred_class - labels, dim=0).detach().cpu().numpy()
 
@@ -213,8 +302,12 @@ class SimParamModel(nn.Module):
                                       L, step, should_log)
             else:
                 for traj in obs_list:
-                    self.train_classifier(traj['image'], traj['sim_params'][-1].to('cpu'),
+                    if self.encoder_type == 'pixel':
+                        self.train_classifier(traj['image'], traj['sim_params'][-1].to('cpu'),
                                           traj['distribution_mean'][-1].to('cpu'), L, step, should_log)
+                    else:
+                        self.train_classifier(traj['state'], traj['sim_params'][-1].to('cpu'),
+                                              traj['distribution_mean'][-1].to('cpu'), L, step, should_log)
 
 
     def save(self, model_dir, step):

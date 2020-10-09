@@ -86,7 +86,7 @@ def parse_args():
     #S2R2S params
     parser.add_argument('--mean_only', default=True, action='store_true')
     parser.add_argument('--use_state', default=False, action='store_true')
-    parser.add_argument('--use_img', default=True, action='store_true')
+    parser.add_argument('--use_img', default=False, action='store_true')
     parser.add_argument('--grayscale', default=False, action='store_true')
     parser.add_argument('--dr', action='store_true')
     parser.add_argument('--dr_option', default=None, type=str)
@@ -98,8 +98,19 @@ def parse_args():
     parser.add_argument('--range_only', default=False, type=bool)
     parser.add_argument('--sim_param_lr', default=1e-3, type=float)
     parser.add_argument('--sim_param_beta', default=0.9, type=float)
-    parser.add_argument('--sim_param_layers', default=2, type=float)
-    parser.add_argument('--sim_param_units', default=400, type=float)
+    parser.add_argument('--sim_param_layers', default=2, type=int)
+    parser.add_argument('--sim_param_units', default=400, type=int)
+    parser.add_argument('--separate_trunks', default=False, type=bool)
+    parser.add_argument('--train_range_scale', default=1, type=float)
+    parser.add_argument('--scale_large_and_small', default=False, action='store_true')
+    parser.add_argument('--num_sim_param_updates', default=1, type=int)
+    parser.add_argument('--state_concat', default=False, action='store_true')
+    parser.add_argument('--prop_range_scale', default=False, action='store_true')
+    parser.add_argument('--prop_train_range_scale', default=False, action='store_true')
+    parser.add_argument('--prop_alpha', default=False, action='store_true')
+    parser.add_argument('--clip_positive', default=False, action='store_true')
+    parser.add_argument('--update_sim_param_from', choices=['latest', 'buffer', 'both'], type=str.lower,
+                        default='latest')
 
 
     # Outer loop options
@@ -114,6 +125,7 @@ def parse_args():
     parser.add_argument('--binary_prediction', default=False, type=bool)
     parser.add_argument('--start_outer_loop', default=0, type=int)
     parser.add_argument('--train_sim_param_every', default=50, type=int)
+    parser.add_argument('--momentum', default=0, type=float)
 
 
     # MISC
@@ -128,6 +140,7 @@ def parse_args():
     else:
         args.real_dr_list = []
         args.dr = None
+    args.update = [0] * len(args.real_dr_list)
 
     return args
 
@@ -190,9 +203,15 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
                     import IPython
                     IPython.embed()
                 error = np.mean(pred_mean - real_dr_param)
+            accuracy = np.round(pred_mean) == real_dr_param
+            loss = torch.nn.BCELoss()(torch.FloatTensor([pred_mean]), torch.FloatTensor([real_dr_param]))
 
             L.log(f'eval/{prefix}/{param}/error', error, step)
+            L.log(f'eval/{prefix}/{param}/accuracy', accuracy, step)
+            L.log(f'eval/{prefix}/{param}/loss', loss, step)
             log_data[key][step]['error'] = error
+            log_data[key][step]['accuracy'] = accuracy
+            log_data[key][step]['loss'] = loss
             np.save(filename, log_data)
             preds.append(error)
         return preds
@@ -412,6 +431,7 @@ def update_sim_params_step(sim_param_model, sim_env, args, obs, step, L):
                 pred_sim_params.append(predict_sim_params(sim_param_model, obs[0], current_sim_params))
             pred_sim_params = np.mean(pred_sim_params, axis=0)
 
+    updates = []
     for i, param in enumerate(args.real_dr_list):
         prev_mean = sim_env.dr[param]
 
@@ -424,8 +444,15 @@ def update_sim_params_step(sim_param_model, sim_env, args, obs, step, L):
         if args.outer_loop_version == 1:
             new_mean = prev_mean * (1 - alpha) + alpha * pred_mean
         elif args.outer_loop_version == 3:
-            scale_factor = max(prev_mean, .1)
-            new_mean = prev_mean - alpha * (np.mean(pred_mean) - 0.5) #* scale_factor
+            if args.prop_alpha:
+                scale_factor = max(prev_mean, args.alpha)
+                new_update = - alpha * (np.mean(pred_mean) - 0.5) * scale_factor
+            else:
+                new_update = - alpha * (np.mean(pred_mean) - 0.5)
+            curr_update = args.momentum * args.update[i] + (1 - args.momentum) * new_update
+            new_mean = prev_mean + curr_update
+            updates.append(curr_update)
+
         new_mean = max(new_mean, 1e-3)
         sim_env.dr[param] = new_mean
 
@@ -458,6 +485,7 @@ def update_sim_params_step(sim_param_model, sim_env, args, obs, step, L):
         L.log(f'eval/agent-sim_param/{param}/sim_param_error', sim_param_error, step)
         log_data[key][step]['sim_param_error'] = sim_param_error
         np.save(filename, log_data)
+    args.updates = updates
 
 
 def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, num_episodes, L, step, args, real_env_2):  # TODO: remove real_env_2
@@ -475,10 +503,13 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
             episode_reward = 0
             obs_traj = []
             while not done and len(obs_traj) < args.time_limit:
-                obs = obs_dict['image']
-                # center crop image
-                if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
-                    obs = utils.center_crop_image(obs, args.image_size)
+                if args.use_img:
+                    obs = obs_dict['image']
+                    # center crop image
+                    if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
+                        obs = utils.center_crop_image(obs, args.image_size)
+                else:
+                    obs = obs_dict['state']
                 with utils.eval_mode(agent):
                     if sample_stochastically:
                         action = agent.sample_action(obs)
@@ -537,11 +568,14 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
         obs_traj_sim = []
         video_sim.init(enabled=True)
         while not done and len(obs_traj_sim) < args.time_limit:
-            obs = obs_dict['image']
-            # center crop image
-            if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
-                args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
-                obs = utils.center_crop_image(obs, args.image_size)
+            if args.use_img:
+                obs = obs_dict['image']
+                # center crop image
+                if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
+                    args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
+                    obs = utils.center_crop_image(obs, args.image_size)
+            else:
+                obs = obs_dict['state']
             with utils.eval_mode(agent):
                 if sample_stochastically:
                     action = agent.sample_action(obs)
@@ -554,7 +588,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
         if sim_param_model is not None:
             dist_mean = obs_dict['distribution_mean']
             current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
-            train_preds_before = evaluate_sim_params(sim_param_model, args, [obs_traj_sim], step, L, "train", sim_params, current_sim_params)
+            train_preds_before = evaluate_sim_params(sim_param_model, args, [obs_traj_sim], step, L, "val", sim_params, current_sim_params)
             if args.outer_loop_version == 3:
                 sim_param_model.train_classifier(obs_traj_sim, sim_params, dist_mean, L, step, True)
         video_sim.save('sim_%d.mp4' % step)
@@ -571,50 +605,50 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
                 L.log(f'eval/test/{param}/test_diff', test_preds_after[i] - test_preds_before[i], step)
                 L.log(f'eval/train/{param}/train_test_diff', train_preds_before[i] - test_preds_before[i], step)
 
-            obs_dict = sim_env.reset()
-            done = False
-            obs_traj_sim = []
-            while not done and len(obs_traj_sim) < args.time_limit:
-                obs = obs_dict['image']
-                # center crop image
-                if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
-                    args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
-                    obs = utils.center_crop_image(obs, args.image_size)
-                with utils.eval_mode(agent):
-                    if sample_stochastically:
-                        action = agent.sample_action(obs)
-                    else:
-                        action = agent.select_action(obs)
-                obs_traj_sim.append(obs)
-                obs_dict, reward, done, _ = sim_env.step(action)
-                sim_params = obs_dict['sim_params']
-            if sim_param_model is not None:
-                current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
-                train_preds_before = evaluate_sim_params(sim_param_model, args, [obs_traj_sim], step, L, "train_final",
-                                                         sim_params, current_sim_params)
-
-            # COLLECT DATA FROM THE SECOND TEST ENV
-            obs_dict = real_env_2.reset()
-            done = False
-            obs_traj_r2 = []
-            while not done and len(obs_traj_r2) < args.time_limit:
-                obs = obs_dict['image']
-                # center crop image
-                if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
-                    args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
-                    obs = utils.center_crop_image(obs, args.image_size)
-                with utils.eval_mode(agent):
-                    if sample_stochastically:
-                        action = agent.sample_action(obs)
-                    else:
-                        action = agent.select_action(obs)
-                obs_traj_r2.append(obs)
-                obs_dict, reward, done, _ = real_env_2.step(action)
-                sim_params = obs_dict['sim_params']
-            with torch.no_grad():
-                predict_sim_params_range(sim_param_model, [obs_traj_r2],
-                                     current_sim_params, L, step, "test_modified", sim_params, args.alpha)
-            temp = 3
+            # obs_dict = sim_env.reset()
+            # done = False
+            # obs_traj_sim = []
+            # while not done and len(obs_traj_sim) < args.time_limit:
+            #     obs = obs_dict['image']
+            #     # center crop image
+            #     if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
+            #         args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
+            #         obs = utils.center_crop_image(obs, args.image_size)
+            #     with utils.eval_mode(agent):
+            #         if sample_stochastically:
+            #             action = agent.sample_action(obs)
+            #         else:
+            #             action = agent.select_action(obs)
+            #     obs_traj_sim.append(obs)
+            #     obs_dict, reward, done, _ = sim_env.step(action)
+            #     sim_params = obs_dict['sim_params']
+            # if sim_param_model is not None:
+            #     current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
+            #     train_preds_before = evaluate_sim_params(sim_param_model, args, [obs_traj_sim], step, L, "train_final",
+            #                                              sim_params, current_sim_params)
+            #
+            # # COLLECT DATA FROM THE SECOND TEST ENV
+            # obs_dict = real_env_2.reset()
+            # done = False
+            # obs_traj_r2 = []
+            # while not done and len(obs_traj_r2) < args.time_limit:
+            #     obs = obs_dict['image']
+            #     # center crop image
+            #     if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
+            #         args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
+            #         obs = utils.center_crop_image(obs, args.image_size)
+            #     with utils.eval_mode(agent):
+            #         if sample_stochastically:
+            #             action = agent.sample_action(obs)
+            #         else:
+            #             action = agent.select_action(obs)
+            #     obs_traj_r2.append(obs)
+            #     obs_dict, reward, done, _ = real_env_2.step(action)
+            #     sim_params = obs_dict['sim_params']
+            # with torch.no_grad():
+            #     predict_sim_params_range(sim_param_model, [obs_traj_r2],
+            #                          current_sim_params, L, step, "test_modified", sim_params, args.alpha)
+            # temp = 3
 
         else:
             print("skipping outer loop on", step)
@@ -720,6 +754,8 @@ def main():
         grayscale=args.grayscale,
         delay_steps=args.delay_steps,
         range_scale=args.range_scale,
+        prop_range_scale=args.prop_range_scale,
+        state_concat=args.state_concat,
     )
 
     real_env = env_wrapper.make(
@@ -736,10 +772,12 @@ def main():
         mean_only=args.mean_only,
         real_world=True,
         use_state=args.use_state,
-        use_img=args.use_img,
+        use_img=True,
         grayscale=args.grayscale,
         delay_steps=args.delay_steps,
         range_scale=args.range_scale,
+        prop_range_scale=args.prop_range_scale,
+        state_concat=args.state_concat,
     )
 
     real_env_2 = env_wrapper.make(
@@ -820,7 +858,7 @@ def main():
         obs_shape = (cpf * args.frame_stack, args.image_size, args.image_size)
         pre_aug_obs_shape = (cpf * args.frame_stack, args.pre_transform_image_size, args.pre_transform_image_size)
     else:
-        obs_shape = sim_env.observation_space.shape
+        obs_shape = sim_env.reset()['state'].shape
         pre_aug_obs_shape = obs_shape
 
     replay_buffer = utils.ReplayBuffer(
@@ -857,6 +895,13 @@ def main():
             sim_param_beta=args.sim_param_beta,
             dist=dist,
             traj_length=args.time_limit,
+            use_img=args.use_img,
+            state_dim=obs_shape,
+            separate_trunks=args.separate_trunks,
+            param_names=args.real_dr_list,
+            train_range_scale=args.train_range_scale,
+            prop_train_range_scale=args.prop_train_range_scale,
+            clip_positive=args.clip_positive,
         ).to(device)
     else:
         sim_param_model = None
@@ -899,8 +944,11 @@ def main():
         if done:
             if step > 0:
                 if args.outer_loop_version != 0 and obs_traj is not None:
-                    sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True)
-                   # sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True, replay_buffer)
+                    for _ in range(args.num_sim_param_updates):
+                        if args.update_sim_param_from in ['latest', 'both']:
+                            sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True)
+                        if args.update_sim_param_from in ['buffer', 'both']:
+                            sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True, replay_buffer)
 
 
                 if step % args.log_interval == 0:
@@ -929,10 +977,13 @@ def main():
 
 
             obs = sim_env.reset()
-            obs_img = obs['image']
-            if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
-                    args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
-                obs_img = utils.center_crop_image(obs_img, args.image_size)
+            if args.use_img:
+                obs_img = obs['image']
+                if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
+                        args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
+                    obs_img = utils.center_crop_image(obs_img, args.image_size)
+            else:
+                obs_img = obs['state']
             obs_traj = [obs_img]
             success = 0.0 if 'success' in obs.keys() else None
             episode_reward = 0
@@ -947,7 +998,7 @@ def main():
             action = sim_env.action_space.sample()
         else:
             with utils.eval_mode(agent):
-                action = agent.sample_action(obs['image'])
+                action = agent.sample_action(obs_img)
 
         # run training update
         if step >= args.init_steps:
@@ -969,7 +1020,10 @@ def main():
             success = obs['success']
 
         obs = next_obs
-        obs_img = obs['image']
+        if args.use_img:
+            obs_img = obs['image']
+        else:
+            obs_img = obs['state']
 
         if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
                 args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
