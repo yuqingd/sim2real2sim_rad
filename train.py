@@ -124,6 +124,7 @@ def parse_args():
     parser.add_argument('--binary_prediction', default=False, type=bool)
     parser.add_argument('--start_outer_loop', default=0, type=int)
     parser.add_argument('--train_sim_param_every', default=50, type=int)
+    parser.add_argument('--round_predictions', default=True, type=bool)
 
 
     # MISC
@@ -150,9 +151,9 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
             pred_sim_params = []
             if len(obs) > 1:
                 for ob in obs:
-                    pred_sim_params.append(predict_sim_params(sim_param_model, ob, current_sim_params))
+                    pred_sim_params.append(predict_sim_params(sim_param_model, ob, current_sim_params, args))
             else:
-                pred_sim_params.append(predict_sim_params(sim_param_model, obs[0], current_sim_params))
+                pred_sim_params.append(predict_sim_params(sim_param_model, obs[0], current_sim_params, args))
             pred_sim_params = np.mean(pred_sim_params, axis=0)
 
             real_dr_params = (current_sim_params[0].cpu().numpy() > real_dr_params).astype(np.int32)
@@ -208,17 +209,19 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
             log_data[key][step]['loss'] = loss
             np.save(filename, log_data)
 
-def predict_sim_params(sim_param_model, traj, current_sim_params, step=5, confidence_level=.3):
+def predict_sim_params(sim_param_model, traj, current_sim_params, args, step=5, confidence_level=.3):
     segment_length = sim_param_model.num_frames
     windows = []
     index = 0
     while index < len(traj) - segment_length:
         windows.append(traj[index: index + segment_length])
         index += step
-    preds = sim_param_model.forward_classifier(windows, current_sim_params).cpu().numpy()
-    mask = (preds > confidence_level) & (preds < 1 - confidence_level)
-    preds = np.round(preds)
-    preds[mask] = 0.5
+
+    if args.round_predictions:
+        preds = sim_param_model.forward_classifier(windows, current_sim_params).cpu().numpy()
+        mask = (preds > confidence_level) & (preds < 1 - confidence_level)
+        preds = np.round(preds)
+        preds[mask] = 0.5
 
     # Round to the nearest integer so each prediction is voting up or down
     # Alternatively, we could just take a mean of their probabilities
@@ -237,9 +240,9 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
             pred_sim_params = []
             if len(obs) > 1:
                 for ob in obs:
-                    pred_sim_params.append(predict_sim_params(sim_param_model, ob, current_sim_params))
+                    pred_sim_params.append(predict_sim_params(sim_param_model, ob, current_sim_params, args))
             else:
-                pred_sim_params.append(predict_sim_params(sim_param_model, obs[0], current_sim_params))
+                pred_sim_params.append(predict_sim_params(sim_param_model, obs[0], current_sim_params, args))
             pred_sim_params = np.mean(pred_sim_params, axis=0)
 
     for i, param in enumerate(args.real_dr_list):
