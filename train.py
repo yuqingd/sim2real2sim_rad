@@ -219,9 +219,9 @@ def predict_sim_params(sim_param_model, traj, current_sim_params, step=5, confid
         windows.append(traj[index: index + segment_length])
         index += step
     preds = sim_param_model.forward_classifier(windows, current_sim_params).cpu().numpy()
-    mask = (preds > confidence_level) & (preds < 1 - confidence_level)
-    preds = np.round(preds)
-    preds[mask] = 0.5
+    #mask = (preds > confidence_level) & (preds < 1 - confidence_level)
+    #preds = np.round(preds)
+    #preds[mask] = 0.5
 
     # Round to the nearest integer so each prediction is voting up or down
     # Alternatively, we could just take a mean of their probabilities
@@ -622,6 +622,7 @@ def main():
             encoder_num_layers=args.num_layers,
             encoder_num_filters=args.num_filters,
             agent=agent,
+            batch_size=args.batch_size,
             sim_param_lr=args.sim_param_lr,
             sim_param_beta=args.sim_param_beta,
             dist=dist,

@@ -16,7 +16,7 @@ class SimParamModel(nn.Module):
         encoder_feature_dim, encoder_num_layers, encoder_num_filters, agent, sim_param_lr=1e-3, sim_param_beta=0.9,
                  dist='normal', act=nn.ELU, batch_size=32, traj_length=200, num_frames=10,
                  embedding_multires=10, use_img=True, state_dim=0, separate_trunks=False, param_names=[],
-                 train_range_scale=1, prop_train_range_scale=False, clip_positive=False):
+                 train_range_scale=1, prop_train_range_scale=False, clip_positive=False, dropout=0.5):
         super(SimParamModel, self).__init__()
         self._shape = shape
         self._layers = layers
@@ -56,6 +56,7 @@ class SimParamModel(nn.Module):
                 for index in range(self._layers - 1):
                     trunk.append(nn.Linear(self._units, self._units))
                     trunk.append(self._act())
+                    trunk.append(nn.Dropout(p=dropout))
                 trunk.append(nn.Linear(self._units, 1))
                 trunk_list.append(nn.Sequential(*trunk).to(self.device))
             self.trunk = torch.nn.ModuleList(trunk_list)
@@ -66,6 +67,7 @@ class SimParamModel(nn.Module):
             for index in range(self._layers - 1):
                 trunk.append(nn.Linear(self._units, self._units))
                 trunk.append(self._act())
+                trunk.append(nn.Dropout(p=dropout))
             trunk.append(nn.Linear(self._units, num_sim_params))
             self.trunk = nn.Sequential(*trunk).to(self.device)
 
@@ -129,13 +131,17 @@ class SimParamModel(nn.Module):
             return torch.distributions.bernoulli.Bernoulli(x)
         raise NotImplementedError(self._dist)
 
-    def forward_classifier(self, obs_traj, pred_labels):
+    def forward_classifier(self, obs_traj, pred_labels, step=5):
         """ obs traj list of lists, pred labels is array [B, num_sim_params] """
         new_obs_traj = []
         for traj in obs_traj:
-            if len(traj) > self.num_frames:
-                start_index = np.random.randint(0, len(traj) - self.num_frames)
-                traj = traj[start_index:start_index + self.num_frames]
+            index = 0
+            while index < len(traj) - self.num_frames:
+                traj = traj[index: index + self.num_frames]
+                index += step
+            #if len(traj) > self.num_frames:
+                #start_index = np.random.randint(0, len(traj) - self.num_frames)
+            #    traj = traj[start_index:start_index + self.num_frames]
             # If we're using images, only use the first of the stacked frames
             if self.use_img:
                 new_obs_traj.append([o[:3] for o in traj])
@@ -173,12 +179,14 @@ class SimParamModel(nn.Module):
             low_val = torch.clamp(sim_params - dist_range, eps, float('inf'))
         else:
             low_val = sim_params - dist_range
+
+        num_low = np.random.randint(0, self.batch * 4)
         low = torch.FloatTensor(
-            np.random.uniform(size=(self.batch * 2, len(sim_params)), low=low_val,
+            np.random.uniform(size=(num_low, len(sim_params)), low=low_val,
                               high=sim_params)).to(self.device)
 
         high = torch.FloatTensor(
-            np.random.uniform(size=(self.batch * 2, len(sim_params)),
+            np.random.uniform(size=(self.batch * 4 - num_low, len(sim_params)),
                               low=sim_params,
                               high=sim_params + dist_range)).to(self.device)
         dist_mean = torch.FloatTensor(distribution_mean).unsqueeze(0).to(self.device)
