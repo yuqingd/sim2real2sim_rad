@@ -475,6 +475,9 @@ def config_dr_metaworld(config):
       range_scale = config.range_scale
       config.dr = {}  # (mean, range)
 
+      rng_state = np.random.get_state()
+      np.random.seed(0)
+
       for key in config.real_dr_list:
         real_val = config.real_dr_params[key]
         cur_scale = mean_scale
@@ -487,4 +490,6 @@ def config_dr_metaworld(config):
           config.dr[key] = real_val * cur_scale
         else:
           config.dr[key] = (real_val * cur_scale, real_val * range_scale)
+
+      np.random.set_state(rng_state)
   return config
