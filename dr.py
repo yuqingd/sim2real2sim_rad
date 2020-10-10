@@ -150,7 +150,7 @@ def config_dr_dmc(config):
             "body_g": .5,
             "body_b": .5,
         }
-        config.real_dr_list = list(config.real_dr_params.keys())
+        config.real_dr_list = list(real_dr_values.keys())
     config.real_dr_params = real_dr_values
 
     if config.simple_randomization:
@@ -165,11 +165,17 @@ def config_dr_dmc(config):
     mean_scale = config.mean_scale
     range_scale = config.range_scale
     config.dr = {}  # (mean, range)
+    # We store the random state and re-set it later so that the randomization is consistent, but other than that we
+    # use the random seed passed into the model.
+    temp = []
+    rng_state = np.random.get_state()
+    np.random.seed(0)
     for key in config.real_dr_list:
         cur_scale = mean_scale
         if config.scale_large_and_small:
             if bool(np.random.choice(a=[False, True], size=(1,))):
                 cur_scale = 1/cur_scale
+                temp.append(key)
 
         real_val = config.real_dr_params[key]
         if real_val == 0:
@@ -178,6 +184,7 @@ def config_dr_dmc(config):
             config.dr[key] = real_val * cur_scale
         else:
             config.dr[key] = (real_val * cur_scale, real_val * range_scale)
+    np.random.set_state(rng_state)
     if dr_option == 'mixed_visual_dr':
         config.dr['ground_g'] = config.real_dr_params['ground_g'] * 2.0
         config.dr['body_r'] = config.real_dr_params['body_r'] * 2.0
@@ -375,6 +382,10 @@ def config_dr_kitchen(config):
         mean_scale = config.mean_scale
         range_scale = config.range_scale
         config.dr = {}  # (mean, range)
+
+        rng_state = np.random.get_state()
+        np.random.seed(0)
+
         for key in config.real_dr_list:
             real_val = config.real_dr_params[key]
             cur_scale = mean_scale
@@ -384,6 +395,8 @@ def config_dr_kitchen(config):
             if real_val == 0:
                 real_val = 5e-2
             config.dr[key] = (real_val * cur_scale, real_val * range_scale)
+
+        np.random.set_state(rng_state)
 
             # Keep mean only
     if config.mean_only and config.dr is not None:
@@ -468,6 +481,9 @@ def config_dr_metaworld(config):
       range_scale = config.range_scale
       config.dr = {}  # (mean, range)
 
+      rng_state = np.random.get_state()
+      np.random.seed(0)
+
       for key in config.real_dr_list:
         real_val = config.real_dr_params[key]
         cur_scale = mean_scale
@@ -480,4 +496,6 @@ def config_dr_metaworld(config):
           config.dr[key] = real_val * cur_scale
         else:
           config.dr[key] = (real_val * cur_scale, real_val * range_scale)
+
+      np.random.set_state(rng_state)
   return config

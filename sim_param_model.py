@@ -12,7 +12,7 @@ from curl_sac import weight_init
 from positional_encoding import get_embedder
 
 class SimParamModel(nn.Module):
-    def __init__(self, shape, layers, units, device, obs_shape, encoder_type,
+    def __init__(self, shape, action_space, layers, units, device, obs_shape, encoder_type,
         encoder_feature_dim, encoder_num_layers, encoder_num_filters, agent, sim_param_lr=1e-3, sim_param_beta=0.9,
                  dist='normal', act=nn.ELU, batch_size=32, traj_length=200, num_frames=10,
                  embedding_multires=10, use_img=True, state_dim=0, separate_trunks=False, param_names=[],
@@ -39,11 +39,12 @@ class SimParamModel(nn.Module):
         self.train_range_scale = train_range_scale
         self.prop_train_range_scale = prop_train_range_scale
         self.clip_positive = clip_positive
+        action_space_dim = np.prod(action_space.shape)
 
         if self.use_img:
-            trunk_input_dim = encoder_feature_dim + additional
+            trunk_input_dim = encoder_feature_dim + additional + action_space_dim * num_frames
         else:
-            trunk_input_dim = state_dim[-1] * self.num_frames + additional
+            trunk_input_dim = state_dim[-1] * self.num_frames + additional + action_space_dim * num_frames
 
         # If each sim param has its own trunk, create a separate trunk for each
         num_sim_params = shape
@@ -131,33 +132,39 @@ class SimParamModel(nn.Module):
             return torch.distributions.bernoulli.Bernoulli(x)
         raise NotImplementedError(self._dist)
 
-    def forward_classifier(self, obs_traj, pred_labels, step=5):
+    def forward_classifier(self, full_traj, pred_labels, step=5):
         """ obs traj list of lists, pred labels is array [B, num_sim_params] """
-        new_obs_traj = []
-        for traj in obs_traj:
+        full_obs_traj = []
+        full_action_traj = []
+        for traj in full_traj:
             index = 0
             while index < len(traj) - self.num_frames:
                 traj = traj[index: index + self.num_frames]
                 index += step
-            #if len(traj) > self.num_frames:
-                #start_index = np.random.randint(0, len(traj) - self.num_frames)
-            #    traj = traj[start_index:start_index + self.num_frames]
+            obs_traj, action_traj = zip(*traj)
+            if type(action_traj[0]) is np.ndarray:
+                full_action_traj.append(torch.FloatTensor(np.concatenate(action_traj)).to(self.device))
+            elif type(action_traj[0]) is torch.Tensor:
+                full_action_traj.append(torch.cat(action_traj))
+            else:
+                raise NotImplementedError
             # If we're using images, only use the first of the stacked frames
             if self.use_img:
-                new_obs_traj.append([o[:3] for o in traj])
+                full_obs_traj.append([o[:3] for o in obs_traj])
             else:
-                new_obs_traj.append(traj)
-        obs_traj = new_obs_traj
+                full_obs_traj.append(obs_traj)
+
 
         # normalize [-1, 1]
         pred_labels = pred_labels.to(self.device)
 
         encoded_pred_labels = self.positional_encoding(pred_labels)
+        full_action_traj = torch.stack(full_action_traj)
 
-        feat = self.get_features(obs_traj)
+        feat = self.get_features(full_obs_traj)
         B_label = len(pred_labels)
-        B_traj = len(obs_traj)
-        fake_pred = torch.cat([encoded_pred_labels.repeat(B_traj, 1), feat.repeat(B_label, 1)], dim=-1)
+        B_traj = len(full_traj)
+        fake_pred = torch.cat([encoded_pred_labels.repeat(B_traj, 1), feat.repeat(B_label, 1), full_action_traj.repeat(B_label, 1)], dim=-1)
 
         if self.separate_trunks:
             x = torch.cat([trunk(fake_pred) for trunk in self.trunk], dim=-1)
@@ -240,6 +247,7 @@ class SimParamModel(nn.Module):
         self.sim_param_optimizer.step()
 
     def update(self, obs_list, sim_params, dist_mean, L, step, should_log, replay_buffer=None):
+        obs_list_og = obs_list
         if replay_buffer is not None:
             if self.encoder_type == 'pixel':
                 obs_list, actions_list, rewards_list, next_obses_list, not_dones_list, cpc_kwargs_list = replay_buffer.sample_cpc_traj(1)
@@ -264,16 +272,17 @@ class SimParamModel(nn.Module):
             self.sim_param_optimizer.step()
         else:
             if replay_buffer is None:
-                self.train_classifier(obs_list, sim_params, dist_mean, # traj['sim_params'][-1].to('cpu'), traj['distribution_mean'][-1].to('cpu'),
+                self.train_classifier(obs_list, sim_params, dist_mean,
                                       L, step, should_log)
             else:
-                for traj in obs_list:
+                for obs_traj, action_traj in zip(obs_list, actions_list):
                     if self.encoder_type == 'pixel':
-                        self.train_classifier(traj['image'], traj['sim_params'][-1].to('cpu'),
-                                          traj['distribution_mean'][-1].to('cpu'), L, step, should_log)
+                        self.train_classifier(list(zip(obs_traj['image'], action_traj)),
+                                              obs_traj['sim_params'][-1].to('cpu'),
+                                              obs_traj['distribution_mean'][-1].to('cpu'), L, step, should_log)
                     else:
-                        self.train_classifier(traj['state'], traj['sim_params'][-1].to('cpu'),
-                                              traj['distribution_mean'][-1].to('cpu'), L, step, should_log)
+                        self.train_classifier(list(zip(obs_traj['state'], action_traj)), obs_traj['sim_params'][-1].to('cpu'),
+                                              obs_traj['distribution_mean'][-1].to('cpu'), L, step, should_log)
 
 
     def save(self, model_dir, step):
