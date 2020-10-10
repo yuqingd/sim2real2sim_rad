@@ -683,11 +683,15 @@ def main():
         if done:
             if step > 0:
                 if args.outer_loop_version != 0 and obs_traj is not None:
-                    for _ in range(args.num_sim_param_updates):
+                    should_log = step % args.eval_freq == 0
+                    for i in range(args.num_sim_param_updates):
+                        should_log_i = should_log and i == 0
                         if args.update_sim_param_from in ['latest', 'both']:
-                            sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True)
+                            sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean,
+                                                   L, step, should_log_i)
                         if args.update_sim_param_from in ['buffer', 'both']:
-                            sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True, replay_buffer)
+                            sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean,
+                                                   L, step, should_log_i, replay_buffer)
 
 
                 if step % args.log_interval == 0:
