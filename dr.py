@@ -150,7 +150,7 @@ def config_dr_dmc(config):
             "body_g": .5,
             "body_b": .5,
         }
-        config.real_dr_list = list(config.real_dr_params.keys())
+        config.real_dr_list = list(real_dr_values.keys())
     config.real_dr_params = real_dr_values
 
     if config.simple_randomization:
