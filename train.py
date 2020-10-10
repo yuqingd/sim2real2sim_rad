@@ -677,7 +677,7 @@ def main():
         for step in range(start_step, args.num_train_steps):
             if step % args.eval_freq == 0:
                 L.log('eval/episode', episode, step)
-                evaluate(real_env, sim_env, agent, sim_param_model, video, args.num_eval_episodes, L, step, args)
+                evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, args.num_eval_episodes, L, step, args)
                 if args.save_model and sim_param_model is not None:
                     sim_param_model.save(model_dir, step)
             sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean, L, step, True,
@@ -691,8 +691,7 @@ def main():
         if step % args.eval_freq == 0:
             L.log('eval/episode', episode, step)
             if not args.collect_only:
-            if not args.collect_only:
-                evaluate(real_env, sim_env, agent, sim_param_model, video, args.num_eval_episodes, L, step, args)
+                evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, args.num_eval_episodes, L, step, args)
                 if args.save_model:
                     agent.save_curl(model_dir, step)
                     if sim_param_model is not None:

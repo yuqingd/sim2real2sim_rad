@@ -846,6 +846,8 @@ class DR_DMCEnv(DR_Env):
                  dr_shape=None, real_world=False, dr=None, use_state="None", use_img=True, name="task_name",
                  grayscale=False, domain_name="", range_scale=.1, **kwargs):
         self.domain_name = domain_name
+        model = env.physics.model
+        model.geom_rgba[0:1, 0:3] = 1
         super().__init__(env, cameras,
                          height=height, width=width,
                          mean_only=mean_only,

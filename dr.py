@@ -143,12 +143,12 @@ def config_dr_dmc(config):
             "fthigh_damping": 4.5,
             "fshin_damping": 3.,
             "ffoot_damping": 1.5,
-            "ground_r": .5,
-            "ground_g": .5,
-            "ground_b": .5,
-            "body_r": .5,
-            "body_g": .5,
-            "body_b": .5,
+            "ground_r": 1,
+            "ground_g": 1,
+            "ground_b": 1,
+            "body_r": 1,
+            "body_g": 1,
+            "body_b": 1,
         }
         config.real_dr_list = list(real_dr_values.keys())
     config.real_dr_params = real_dr_values
