@@ -305,7 +305,7 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
     args.updates = updates
 
 
-def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, step, args):
+def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, num_episodes, L, step, args):
     all_ep_rewards = []
     all_ep_success = []
     def run_eval_loop(sample_stochastically=True):
@@ -315,7 +315,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
         real_sim_params = real_env.reset()['sim_params']
         for i in range(num_episodes):
             obs_dict = real_env.reset()
-            video.init(enabled=(i == 0))
+            video_real.init(enabled=(i == 0))
             done = False
             episode_reward = 0
             obs_traj = []
@@ -334,10 +334,10 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
                         action = agent.select_action(obs)
                 obs_traj.append((obs, action))
                 obs_dict, reward, done, _ = real_env.step(action)
-                video.record(real_env)
+                video_real.record(real_env)
                 episode_reward += reward
 
-            video.save('real_%d.mp4' % step)
+            video_real.save('real_%d.mp4' % step)
             L.log('eval/' + prefix + 'episode_reward', episode_reward, step)
             if 'success' in obs_dict.keys():
                 L.log('eval/' + prefix + 'episode_success', obs_dict['success'], step)
@@ -385,6 +385,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
         obs_dict = sim_env.reset()
         done = False
         obs_traj_sim = []
+        video_sim.init(enabled=True)
         while not done and len(obs_traj_sim) < args.time_limit:
             if args.use_img:
                 obs = obs_dict['image']
@@ -401,7 +402,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
                     action = agent.select_action(obs)
             obs_traj_sim.append((obs, action))
             obs_dict, reward, done, _ = sim_env.step(action)
-            video.record(sim_env)
+            video_sim.record(sim_env)
             sim_params = obs_dict['sim_params']
         if sim_param_model is not None:
             dist_mean = obs_dict['distribution_mean']
@@ -409,7 +410,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video, num_episodes, L, 
             evaluate_sim_params(sim_param_model, args, [obs_traj_sim], step, L, "val", sim_params, current_sim_params)
             if args.outer_loop_version == 3:
                 sim_param_model.train_classifier(obs_traj_sim, sim_params, dist_mean, L, step, True)
-        video.save('sim_%d.mp4' % step)
+        video_sim.save('sim_%d.mp4' % step)
 
     run_eval_loop(sample_stochastically=False)
     L.dump(step)
@@ -578,7 +579,8 @@ def main():
     model_dir = utils.make_dir(os.path.join(args.work_dir, 'model'))
     buffer_dir = utils.make_dir(os.path.join(args.work_dir, 'buffer'))
 
-    video = VideoRecorder(sim_video_dir if args.save_video else None, camera_id=args.cameras[0])
+    video_real = VideoRecorder(real_video_dir if args.save_video else None, camera_id=args.cameras[0])
+    video_sim = VideoRecorder(sim_video_dir if args.save_video else None, camera_id=args.cameras[0])
 
     # with open(os.path.join(args.work_dir, 'args.json'), 'w') as f:
     #     json.dump(vars(args), f, sort_keys=True, indent=4)
@@ -669,7 +671,8 @@ def main():
 
         if step % args.eval_freq == 0:
             L.log('eval/episode', episode, step)
-            evaluate(real_env, sim_env, agent, sim_param_model, video, args.num_eval_episodes, L, step, args)
+            evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim,
+                     args.num_eval_episodes, L, step, args)
             if args.save_model:
                 agent.save_curl(model_dir, step)
                 if sim_param_model is not None:
