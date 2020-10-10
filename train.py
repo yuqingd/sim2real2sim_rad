@@ -666,13 +666,26 @@ def main():
     success = None
     obs_traj = None
 
+    train_policy_time = 0
+    train_sim_model_time = 0
+    eval_time = 0
+    collect_data_time = 0
     for step in range(start_step, args.num_train_steps):
         # evaluate agent periodically
 
         if step % args.eval_freq == 0:
+            total_time = train_policy_time + train_sim_model_time + eval_time + collect_data_time
+            if total_time > 0:
+                L.log('eval_time/train_policy', train_policy_time / total_time, step)
+                L.log('eval_time/train_sim_model', train_sim_model_time / total_time, step)
+                L.log('eval_time/eval', eval_time / total_time, step)
+                L.log('eval_time/collect_data', collect_data_time / total_time, step)
+
             L.log('eval/episode', episode, step)
+            start_eval = time.time()
             evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim,
                      args.num_eval_episodes, L, step, args)
+            eval_time += time.time() - start_eval
             if args.save_model:
                 agent.save_curl(model_dir, step)
                 if sim_param_model is not None:
@@ -684,6 +697,7 @@ def main():
             if step > 0:
                 if args.outer_loop_version != 0 and obs_traj is not None:
                     should_log = step % args.eval_freq == 0
+                    start_sim_model = time.time()
                     for i in range(args.num_sim_param_updates):
                         should_log_i = should_log and i == 0
                         if args.update_sim_param_from in ['latest', 'both']:
@@ -692,7 +706,7 @@ def main():
                         if args.update_sim_param_from in ['buffer', 'both']:
                             sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean,
                                                    L, step, should_log_i, replay_buffer)
-
+                    train_sim_model_time += time.time() - start_sim_model
 
                 if step % args.log_interval == 0:
                     L.log('train/duration', time.time() - start_time, step)
@@ -718,7 +732,7 @@ def main():
 
                 np.save(filename, log_data)
 
-
+            collect_data_start = time.time()
             obs = sim_env.reset()
             if args.use_img:
                 obs_img = obs['image']
@@ -734,9 +748,10 @@ def main():
             episode += 1
             if step % args.log_interval == 0:
                 L.log('train/episode', episode, step)
-
+            collect_data_time += time.time() - collect_data_start
 
         # sample action for data collection
+        train_policy_start = time.time()
         if step < args.init_steps:
             action = sim_env.action_space.sample()
         else:
@@ -748,9 +763,9 @@ def main():
             num_updates = 1
             for _ in range(num_updates):
                 agent.update(replay_buffer, L, step)
+        train_policy_time += time.time() - train_policy_start
 
-
-
+        collect_data_start = time.time()
         next_obs, reward, done, _ = sim_env.step(action)
 
         # allow infinite bootstrap
@@ -774,7 +789,7 @@ def main():
             obs_img = utils.center_crop_image(obs_img, args.image_size)
 
         episode_step += 1
-
+        collect_data_time += time.time() - collect_data_start
 
 
 if __name__ == '__main__':
