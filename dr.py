@@ -382,6 +382,10 @@ def config_dr_kitchen(config):
         mean_scale = config.mean_scale
         range_scale = config.range_scale
         config.dr = {}  # (mean, range)
+
+        rng_state = np.random.get_state()
+        np.random.seed(0)
+
         for key in config.real_dr_list:
             real_val = config.real_dr_params[key]
             cur_scale = mean_scale
@@ -391,6 +395,8 @@ def config_dr_kitchen(config):
             if real_val == 0:
                 real_val = 5e-2
             config.dr[key] = (real_val * cur_scale, real_val * range_scale)
+
+        np.random.set_state(rng_state)
 
             # Keep mean only
     if config.mean_only and config.dr is not None:
