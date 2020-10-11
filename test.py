@@ -9,22 +9,31 @@ from train import parse_args, make_agent
 import torch
 import re
 # ENV = 'FetchPickAndPlace-v1'
-ENV = 'FetchReach-v1'
 
+args = parse_args()
 
-def show(i):
-    img = env.render(mode='rgb_array', camera_id=i)
-    plt.imshow(img.transpose(1, 2, 0))
-    plt.title(ENV)
-    plt.show()
-
-
-def save(i):
-    img = env.render(mode='rgb_array', camera_id=i)
-    plt.imsave(ENV + '.png', img.transpose(1, 2, 0))
-
-
-env = make(ENV, None, np.random.randint(100000), False, 100, 100, [1], change_model=True)
+env = make('kitchen', real_world=True,
+        task_name='rope',
+        seed=args.seed,
+        visualize_reward=False,
+        from_pixels=True,
+        height=args.pre_transform_image_size,
+        width=args.pre_transform_image_size,
+        frame_skip=1,
+        mean_only=args.mean_only,
+        dr_list=args.real_dr_list,
+        simple_randomization=args.dr_option == 'simple',
+        dr_shape=args.sim_params_size,
+        dr=args.dr,
+        use_state=args.use_state,
+        use_img=args.use_img,
+        grayscale=args.grayscale,
+        delay_steps=args.delay_steps,
+        range_scale=args.range_scale,
+        prop_range_scale=args.prop_range_scale,
+        state_concat=args.state_concat,
+        real_dr_params=None,
+    )
 # env.set_special_reset('grip')
 env.reset()
 num_episodes = 10
@@ -34,7 +43,6 @@ real_video_dir = utils.make_dir(os.path.join('./logdir', 'real_video'))
 
 video = VideoRecorder(real_video_dir, camera_id=0)
 
-args = parse_args()
 cpf = 3 * len(args.cameras)
 obs_shape = (cpf * args.frame_stack, image_size, image_size)
 action_shape = env.action_space.shape
