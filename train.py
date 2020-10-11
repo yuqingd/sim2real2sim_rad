@@ -140,6 +140,7 @@ def parse_args():
         args = config_dr(args)
     else:
         args.real_dr_list = []
+        args.real_dr_params = {}
         args.dr = None
     args.update = [0] * len(args.real_dr_list)
 
