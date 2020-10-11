@@ -34,14 +34,13 @@ env = make('kitchen', real_world=True,
         state_concat=args.state_concat,
         real_dr_params=None,
     )
+env = utils.FrameStack(env, k=args.frame_stack)
 # env.set_special_reset('grip')
 env.reset()
 num_episodes = 10
 time_limit = 200
 image_size = 84
-real_video_dir = utils.make_dir(os.path.join('./logdir', 'real_video'))
 
-video = VideoRecorder(real_video_dir, camera_id=0)
 
 cpf = 3 * len(args.cameras)
 obs_shape = (cpf * args.frame_stack, image_size, image_size)
@@ -54,32 +53,27 @@ agent = make_agent(
     args=args,
     device=device
 )
-agent_checkpoint = -1
+load_dir = '/home/philip/Desktop/logdir/baseline'
+real_video_dir = utils.make_dir(os.path.join(load_dir, 'real_robot_video'))
+video = VideoRecorder(real_video_dir, camera_id=0)
 
-model_dir = utils.make_dir(os.path.join(args.work_dir, 'model'))
-if os.path.exists(os.path.join(args.work_dir, 'model')):
+agent_checkpoint = -1
+model_dir = utils.make_dir(os.path.join(load_dir, 'model'))
+if os.path.exists(os.path.join(load_dir, 'model')):
     print("Loading checkpoint...")
     load_model = True
-    checkpoints = os.listdir(os.path.join(args.work_dir, 'model'))
-    buffer = os.listdir(os.path.join(args.work_dir, 'buffer'))
-    if len(checkpoints) == 0 or len(buffer) == 0:
+    checkpoints = os.listdir(os.path.join(load_dir, 'model'))
+
+    if len(checkpoints) == 0:
         print("No checkpoints found")
         load_model = False
-    else:
+    elif agent_checkpoint < 0:
         agent_checkpoint = [f for f in checkpoints if 'curl' in f]
-        if args.outer_loop_version in [1, 3]:
-            sim_param_checkpoint = [f for f in checkpoints if 'sim_param' in f]
-
-agent_step = 0
-if agent_checkpoint < 0:
-    if args.outer_loop_version in [1, 3]:
-        sim_param_checkpoint = [f for f in checkpoints if 'sim_param' in f]
-    for checkpoint in agent_checkpoint:
-        agent_step = max(agent_step, [int(x) for x in re.findall('\d+', checkpoint)][-1])
-        if args.outer_loop_version in [1, 3]:
-            sim_param_checkpoint = [f for f in checkpoints if 'sim_param' in f]
-else:
-    agent_step = agent_checkpoint
+        agent_step = 0
+        for checkpoint in agent_checkpoint:
+            agent_step = max(agent_step, [int(x) for x in re.findall('\d+', checkpoint)][-1])
+    else:
+        agent_step = agent_checkpoint
 
 agent.load_curl(model_dir, agent_step)
 
@@ -87,7 +81,7 @@ agent.load_curl(model_dir, agent_step)
 def run_eval_loop(sample_stochastically=True):
     for i in range(num_episodes):
         obs_dict = env.reset()
-        video.init(enabled=(i == 0))
+        video.init()
         done = False
         episode_reward = 0
         obs_traj = []
@@ -97,16 +91,12 @@ def run_eval_loop(sample_stochastically=True):
             obs = utils.center_crop_image(obs, image_size)
 
             with utils.eval_mode(agent):
-                if sample_stochastically:
-                    action = agent.sample_action(obs)
-                else:
-                    action = agent.select_action(obs)
+                action = agent.select_action(obs)
             obs_traj.append(obs)
             obs_dict, reward, done, _ = env.step(action)
             video.record(env)
             episode_reward += reward
-
-        video.save('real_%d.mp4')
+        video.save('real_episode_{}.mp4'.format(i))
 
 
 run_eval_loop()
