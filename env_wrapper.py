@@ -1124,13 +1124,7 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
                    range_scale=range_scale)
         return env
     elif 'kitchen' in domain_name:
-        if real_world:
-            import gym_xarm
-            env = gym.make('RealArmRope-v0', num_cameras=1)
-            env = RealEnvWrapper(env, from_pixels=from_pixels, cameras=[0], height=height, width=width)
-            env = DR_Env(env, use_state=use_state, cameras=cameras, height=height, width=width, real_world=True, dr_shape=dr_shape)
-        else:
-            env = Kitchen(dr=dr, mean_only=mean_only,
+        env = Kitchen(dr=dr, mean_only=mean_only,
                           early_termination=False,
                           use_state=use_state,
                           real_world=real_world,
@@ -1145,7 +1139,7 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
                           grayscale=grayscale,
                           time_limit=200,
                           delay_steps=delay_steps)
-            env = DR_Kitchen(env, cameras=cameras, height=height, width=width, mean_only=mean_only,
+        env = DR_Kitchen(env, cameras=cameras, height=height, width=width, mean_only=mean_only,
                        dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape, name=task_name,
                        real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
                        range_scale=range_scale)
