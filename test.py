@@ -46,6 +46,7 @@ agent = make_agent(
     args=args,
     device=device
 )
+agent_checkpoint = -1
 
 model_dir = utils.make_dir(os.path.join(args.work_dir, 'model'))
 if os.path.exists(os.path.join(args.work_dir, 'model')):
@@ -61,12 +62,16 @@ if os.path.exists(os.path.join(args.work_dir, 'model')):
         if args.outer_loop_version in [1, 3]:
             sim_param_checkpoint = [f for f in checkpoints if 'sim_param' in f]
 
-if args.outer_loop_version in [1, 3]:
-    sim_param_checkpoint = [f for f in checkpoints if 'sim_param' in f]
-for checkpoint in agent_checkpoint:
-    agent_step = max(agent_step, [int(x) for x in re.findall('\d+', checkpoint)][-1])
+agent_step = 0
+if agent_checkpoint < 0:
     if args.outer_loop_version in [1, 3]:
         sim_param_checkpoint = [f for f in checkpoints if 'sim_param' in f]
+    for checkpoint in agent_checkpoint:
+        agent_step = max(agent_step, [int(x) for x in re.findall('\d+', checkpoint)][-1])
+        if args.outer_loop_version in [1, 3]:
+            sim_param_checkpoint = [f for f in checkpoints if 'sim_param' in f]
+else:
+    agent_step = agent_checkpoint
 
 agent.load_curl(model_dir, agent_step)
 
