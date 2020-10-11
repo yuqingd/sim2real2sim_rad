@@ -515,6 +515,7 @@ def main():
         range_scale=args.range_scale,
         prop_range_scale=args.prop_range_scale,
         state_concat=args.state_concat,
+        real_dr_params=None,
     )
 
     real_env = env_wrapper.make(
@@ -537,8 +538,8 @@ def main():
         range_scale=args.range_scale,
         prop_range_scale=args.prop_range_scale,
         state_concat=args.state_concat,
+        real_dr_params=args.real_dr_params,
     )
-
 
     # stack several consecutive frames together
     if args.encoder_type == 'pixel':
