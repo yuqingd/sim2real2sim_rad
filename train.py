@@ -491,7 +491,7 @@ def main():
     args = parse_args()
     os.environ['EGL_DEVICE_ID'] = args.gpudevice
     if 'dmc' or 'kitchen' in args.domain_name:
-        os.environ['MUJOCO_GL'] = 'glfw'
+        os.environ['MUJOCO_GL'] = 'egl'
     else:
         os.environ['MUJOCO_GL'] = 'osmesa'
     import env_wrapper
