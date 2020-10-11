@@ -24,6 +24,24 @@ def config_dr(config):
     return config
 
 def config_dr_dmc(config):
+    # Define constants from the dmc textures:
+    # https://github.com/deepmind/dm_control/blob/33cea512329bdea46db177dd6c2f8ccb7b68ae73/dm_control/suite/common/materials.xml
+    # I'm least certain about this one.  I'm not sure why we have one set of rgb colors for the whole ground,
+    # but it seems to work.
+    ground_r = 1.
+    ground_g = 1.
+    ground_b = 1.
+
+    # "self" texture, used for dmc agents
+    self_r = .7
+    self_g = .5
+    self_b = .3
+
+    # "effector" texture, used for end-effectors
+    effector_r = .7
+    effector_g = .4
+    effector_b = .2
+
     dr_option = config.dr_option
     if "ball_in_cup" in config.domain_name:
         real_dr_values = {
@@ -32,12 +50,15 @@ def config_dr_dmc(config):
             "cup_damping": 3.,
             "ball_damping": 3.,
             "actuator_gain": 1.,
-            "cup_r": .5,
-            "cup_g": .5,
-            "cup_b": .5,
-            "ball_r": .5,
-            "ball_g": .5,
-            "ball_b": .5,
+            "cup_r": self_r,
+            "cup_g": self_g,
+            "cup_b": self_b,
+            "ball_r": effector_r,
+            "ball_g": effector_g,
+            "ball_b": effector_b,
+            "ground_r": ground_r,
+            "ground_g": ground_g,
+            "ground_b": ground_b,
         }
         if dr_option == 'all_dr':
             config.real_dr_list = list(real_dr_values.keys())
@@ -55,25 +76,25 @@ def config_dr_dmc(config):
             ]
     elif "walker" in config.domain_name:
         real_dr_values = {
-            "torso_mass": 10.3,
-            "right_thigh_mass": 3.93,
-            "right_leg_mass": 2.71,
-            "right_foot_mass": 1.96,
-            "left_thigh_mass": 3.93,
-            "left_leg_mass": 2.71,
-            "left_foot_mass": 1.96,
+            "torso_mass": 10.3138485,
+            "right_thigh_mass": 3.9269907,
+            "right_leg_mass": 2.7143362,
+            "right_foot_mass": 1.9634954,
+            "left_thigh_mass": 3.9269907,
+            "left_leg_mass": 2.7143362,
+            "left_foot_mass": 1.9634954,
             "right_hip": .1,
             "right_knee": .1,
             "right_ankle": .1,
             "left_hip": .1,
             "left_knee": .1,
             "left_ankle": .1,
-            "ground_r": .5,
-            "ground_g": .5,
-            "ground_b": .5,
-            "body_r": .5,
-            "body_g": .5,
-            "body_b": .5,
+            "ground_r": ground_r,
+            "ground_g": ground_g,
+            "ground_b": ground_b,
+            "body_r": self_r,
+            "body_g": self_g,
+            "body_b": self_b,
         }
         if dr_option == 'all_dr':
             config.real_dr_list = list(real_dr_values.keys())
@@ -89,6 +110,10 @@ def config_dr_dmc(config):
         elif dr_option == 'mixed_visual_dr':
             config.real_dr_list = [
                 "ground_r", "ground_g", "ground_b", "body_r", "body_g", "body_b"
+            ]
+        elif dr_option == 'minimass_dr':
+            config.real_dr_list = [
+                "left_hip"
             ]
         elif dr_option == 'mass_dr':
             config.real_dr_list = [
@@ -106,15 +131,15 @@ def config_dr_dmc(config):
             "proximal_damping": 2.5,
             "distal_damping": 2.5,
             "hinge_damping": .5,
-            "ground_r": .5,
-            "ground_g": .5,
-            "ground_b": .5,
-            "finger_r": .5,
-            "finger_g": .5,
-            "finger_b": .5,
-            "hotdog_r": .5,
-            "hotdog_g": .5,
-            "hotdog_b": .5,
+            "ground_r": ground_r,
+            "ground_g": ground_g,
+            "ground_b": ground_b,
+            "finger_r": self_r,
+            "finger_g": self_g,
+            "finger_b": self_b,
+            "hotdog_r": self_r,
+            "hotdog_g": self_g,
+            "hotdog_b": self_b,
         }
         if dr_option == 'all_dr':
             config.real_dr_list = list(real_dr_values.keys())
@@ -126,27 +151,27 @@ def config_dr_dmc(config):
             ]
     elif "cheetah" in config.domain_name:
         real_dr_values = {
-            "torso_mass": 6.36,
-            "bthigh_mass": 1.54,
-            "bshin_mass": 1.58,
-            "bfoot_mass": 1.07,
-            "fthigh_mass": 1.43,
-            "fshin_mass": 1.18,
-            "ffoot_mass": .85,
-            "bthigh_damping": 6,
+            "torso_mass": 6.3603134,
+            "bthigh_mass": 1.535248,
+            "bshin_mass": 1.5809399,
+            "bfoot_mass": 1.0691906,
+            "fthigh_mass": 1.4255874,
+            "fshin_mass": 1.1788511,
+            "ffoot_mass": 0.84986943,
+            "bthigh_damping": 6.,
             "bshin_damping": 4.5,
             "bfoot_damping": 3.,
             "fthigh_damping": 4.5,
             "fshin_damping": 3.,
             "ffoot_damping": 1.5,
-            "ground_r": .5,
-            "ground_g": .5,
-            "ground_b": .5,
-            "body_r": .5,
-            "body_g": .5,
-            "body_b": .5,
+            "ground_r": ground_r,
+            "ground_g": ground_g,
+            "ground_b": ground_b,
+            "body_r": self_r,
+            "body_g": self_g,
+            "body_b": self_b,
         }
-        config.real_dr_list = list(config.real_dr_params.keys())
+        config.real_dr_list = list(real_dr_values.keys())
     config.real_dr_params = real_dr_values
 
     if config.simple_randomization:
@@ -161,11 +186,17 @@ def config_dr_dmc(config):
     mean_scale = config.mean_scale
     range_scale = config.range_scale
     config.dr = {}  # (mean, range)
+    # We store the random state and re-set it later so that the randomization is consistent, but other than that we
+    # use the random seed passed into the model.
+    temp = []
+    rng_state = np.random.get_state()
+    np.random.seed(0)
     for key in config.real_dr_list:
         cur_scale = mean_scale
         if config.scale_large_and_small:
             if bool(np.random.choice(a=[False, True], size=(1,))):
                 cur_scale = 1/cur_scale
+                temp.append(key)
 
         real_val = config.real_dr_params[key]
         if real_val == 0:
@@ -174,6 +205,7 @@ def config_dr_dmc(config):
             config.dr[key] = real_val * cur_scale
         else:
             config.dr[key] = (real_val * cur_scale, real_val * range_scale)
+    np.random.set_state(rng_state)
     if dr_option == 'mixed_visual_dr':
         config.dr['ground_g'] = config.real_dr_params['ground_g'] * 2.0
         config.dr['body_r'] = config.real_dr_params['body_r'] * 2.0
@@ -371,6 +403,10 @@ def config_dr_kitchen(config):
         mean_scale = config.mean_scale
         range_scale = config.range_scale
         config.dr = {}  # (mean, range)
+
+        rng_state = np.random.get_state()
+        np.random.seed(0)
+
         for key in config.real_dr_list:
             real_val = config.real_dr_params[key]
             cur_scale = mean_scale
@@ -380,6 +416,8 @@ def config_dr_kitchen(config):
             if real_val == 0:
                 real_val = 5e-2
             config.dr[key] = (real_val * cur_scale, real_val * range_scale)
+
+        np.random.set_state(rng_state)
 
             # Keep mean only
     if config.mean_only and config.dr is not None:
@@ -464,6 +502,9 @@ def config_dr_metaworld(config):
       range_scale = config.range_scale
       config.dr = {}  # (mean, range)
 
+      rng_state = np.random.get_state()
+      np.random.seed(0)
+
       for key in config.real_dr_list:
         real_val = config.real_dr_params[key]
         cur_scale = mean_scale
@@ -476,4 +517,6 @@ def config_dr_metaworld(config):
           config.dr[key] = real_val * cur_scale
         else:
           config.dr[key] = (real_val * cur_scale, real_val * range_scale)
+
+      np.random.set_state(rng_state)
   return config

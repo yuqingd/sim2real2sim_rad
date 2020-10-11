@@ -12,7 +12,7 @@ from kitchen_env import Kitchen
 class DR_Env:
   def __init__(self, env, cameras, height=64, width=64, mean_only=False, dr_list=[], simple_randomization=False, dr_shape=None,
                real_world=False, dr=None, use_state="None", use_img=True, name="task_name",
-               grayscale=False, dataset_step=None, range_scale=.1):
+               grayscale=False, dataset_step=None, range_scale=.1, prop_range_scale=False, state_concat=False):
 
     self._env = env
 
@@ -30,6 +30,8 @@ class DR_Env:
     self.name = name
     self.dataset_step = dataset_step
     self.range_scale = range_scale
+    self.prop_range_scale = prop_range_scale
+    self.state_concat = state_concat
 
     self.apply_dr()
 
@@ -55,11 +57,18 @@ class DR_Env:
   def seed(self, seed=None):
       self._env.seed(seed)
 
+  def set_real(self, param, param_name):  # kangaroo
+      value = self.real_dr_params[param_name]
+      param[:] = value
+
   def update_dr_param(self, param, param_name, eps=1e-3, indices=None):
     if param_name in self.dr:
       if self.mean_only:
         mean = self.dr[param_name]
-        range = max(self.range_scale * mean, eps)
+        if self.prop_range_scale:
+            range = max(self.range_scale * mean, eps)
+        else:
+            range = self.range_scale
       else:
         mean, range = self.dr[param_name]
         range = max(range, eps)  # TODO: consider re-adding anneal_range_scale
@@ -120,7 +129,10 @@ class DR_Env:
     if self.use_img:
         obs_dict['image'] = obs
     if self.use_state:
-        obs_dict['state'] = state
+        if self.state_concat:
+            obs_dict['state'] = np.concatenate([state, self.get_dr()])
+        else:
+            obs_dict['state'] = state
     obs_dict['real_world'] = 1.0 if self.real_world else 0.0
     obs_dict['sim_params'] = np.array(self.sim_params, dtype=np.float32)
     if not (self.dr is None) and not self.real_world:
@@ -149,7 +161,10 @@ class DR_Env:
     if self.use_img:
       obs_dict['image'] = img_obs
     if self.use_state:
-        obs_dict['state'] = state_obs
+        if self.state_concat:
+            obs_dict['state'] = np.concatenate([state_obs, self.get_dr()])
+        else:
+            obs_dict['state'] = state_obs
 
     obs_dict['real_world'] = 1.0 if self.real_world else 0.0
     if not (self.dr is None) and not self.real_world:
@@ -174,7 +189,7 @@ class DR_Env:
 class DR_MetaWorldEnv(DR_Env):  # TODO: consider passing through as kwargs
     def __init__(self, env, cameras, height=64, width=64, mean_only=False, dr_list=[], simple_randomization=False,
                  dr_shape=None, real_world=False, dr=None, use_state="None", use_img=True, name="task_name",
-                 grayscale=False, delay_steps=0, range_scale=.1):
+                 grayscale=False, delay_steps=0, range_scale=.1, **kwargs):
         env = MetaWorldEnv(env, from_pixels=use_img, cameras=cameras, height=height, width=width)
         super().__init__(env, cameras,
                          height=height, width=width,
@@ -188,7 +203,8 @@ class DR_MetaWorldEnv(DR_Env):  # TODO: consider passing through as kwargs
                          use_img=use_img,
                          name=name,
                          grayscale=grayscale,
-                         range_scale=range_scale)
+                         range_scale=range_scale,
+                         **kwargs)
 
     def render(self, mode='rgb_array', camera_id=2, **kwargs):
         obs = super().render(mode, camera_id=camera_id, **kwargs)
@@ -469,7 +485,7 @@ class DR_MetaWorldEnv(DR_Env):  # TODO: consider passing through as kwargs
 class DR_Kitchen(DR_Env):
     def __init__(self, env, cameras, height=100, width=100, mean_only=False, dr_list=[], simple_randomization=False,
                  dr_shape=None, real_world=False, dr=None, use_state="None", use_img=True, name="task_name",
-                 grayscale=False, domain_name="", range_scale=.1):
+                 grayscale=False, domain_name="", range_scale=.1, **kwargs):
         super().__init__(env, cameras,
                          height=height, width=width,
                          mean_only=mean_only,
@@ -482,7 +498,8 @@ class DR_Kitchen(DR_Env):
                          use_img=use_img,
                          name=name,
                          grayscale=grayscale,
-                         range_scale=range_scale)
+                         range_scale=range_scale,
+                         **kwargs)
 
     def __getattr__(self, attr):
         orig_attr = self._env.__getattribute__(attr)
@@ -837,7 +854,7 @@ class DR_Kitchen(DR_Env):
 class DR_DMCEnv(DR_Env):
     def __init__(self, env, cameras, height=64, width=64, mean_only=False, dr_list=[], simple_randomization=False,
                  dr_shape=None, real_world=False, dr=None, use_state="None", use_img=True, name="task_name",
-                 grayscale=False, domain_name="", range_scale=.1):
+                 grayscale=False, domain_name="", range_scale=.1, real_dr_params=None, **kwargs):
         self.domain_name = domain_name
         super().__init__(env, cameras,
                          height=height, width=width,
@@ -851,7 +868,11 @@ class DR_DMCEnv(DR_Env):
                          use_img=use_img,
                          name=name,
                          grayscale=grayscale,
-                         range_scale=range_scale)
+                         range_scale=range_scale, **kwargs)
+        # Set sim params to the desired value.
+        if real_dr_params is not None:
+            self.real_dr_params = real_dr_params
+            self.apply_dr(set_real=True)
 
     def render(self, mode, **kwargs):
         obs = super().render(mode, **kwargs)
@@ -868,11 +889,11 @@ class DR_DMCEnv(DR_Env):
             0, 255, self._size + (3,), dtype=np.uint8)
         return gym.spaces.Dict(spaces)
 
-    def apply_dr(self):
+    def apply_dr(self, set_real=False):
         self.sim_params = []
         self.distribution_mean = []
         self.distribution_range = []
-        if self.dr is None or self.real_world:
+        if (not set_real) and (self.dr is None or self.real_world):
             self.sim_params = self.get_dr()
             self.distribution_mean = self.get_dr()
             self.distribution_range = np.zeros(self.dr_shape, dtype=np.float32)
@@ -886,12 +907,15 @@ class DR_DMCEnv(DR_Env):
                 "cup_damping": model.dof_damping[0:2],
                 "ball_damping": model.dof_damping[2:4],
                 "actuator_gain": model.actuator_gainprm[:, 0],
-                "cup_r": model.geom_rgba[0:6, 0],
-                "cup_g": model.geom_rgba[0:6, 1],
-                "cup_b": model.geom_rgba[0:6, 2],
+                "cup_r": model.geom_rgba[1:6, 0],
+                "cup_g": model.geom_rgba[1:6, 1],
+                "cup_b": model.geom_rgba[1:6, 2],
                 "ball_r": model.geom_rgba[6:7, 0],
                 "ball_g": model.geom_rgba[6:7, 1],
                 "ball_b": model.geom_rgba[6:7, 2],
+                "ground_r": model.geom_rgba[0:1, 0],
+                "ground_g": model.geom_rgba[0:1, 1],
+                "ground_b": model.geom_rgba[0:1, 2],
             }
         elif "walker" in self.domain_name:
             dr_update_dict = {
@@ -958,7 +982,10 @@ class DR_DMCEnv(DR_Env):
         # Actually Update
         for dr_param in self.dr_list:
             arr = dr_update_dict[dr_param]
-            self.update_dr_param(arr, dr_param)
+            if set_real:
+                self.set_real(arr, dr_param)
+            else:
+                self.update_dr_param(arr, dr_param)
 
     def get_dr(self):
         model = self._env.physics.model
@@ -969,12 +996,15 @@ class DR_DMCEnv(DR_Env):
                 "cup_damping": model.dof_damping[0],
                 "ball_damping": model.dof_damping[2],
                 "actuator_gain": model.actuator_gainprm[0, 0],
-                "cup_r": model.geom_rgba[0, 0],
-                "cup_g": model.geom_rgba[0, 1],
-                "cup_b": model.geom_rgba[0, 2],
+                "cup_r": model.geom_rgba[1, 0],
+                "cup_g": model.geom_rgba[1, 1],
+                "cup_b": model.geom_rgba[1, 2],
                 "ball_r": model.geom_rgba[6, 0],
                 "ball_g": model.geom_rgba[6, 1],
                 "ball_b": model.geom_rgba[6, 2],
+                "ground_r": model.geom_rgba[0, 0],
+                "ground_g": model.geom_rgba[0, 1],
+                "ground_b": model.geom_rgba[0, 2],
             }
         elif "walker" in self.domain_name:
             dr_update_dict = {
@@ -1051,7 +1081,8 @@ class DR_DMCEnv(DR_Env):
 def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range(1),
          visualize_reward=False, frame_skip=None, mean_only=False,  dr_list=[], simple_randomization=False, dr_shape=None,
                real_world=False, dr=None, use_state="None", use_img=True,
-                grayscale=False, delay_steps=0, range_scale=.1):
+                grayscale=False, delay_steps=0, range_scale=.1, prop_range_scale=False, state_concat=False,
+         real_dr_params=None):
     # DMC
     if 'dmc' in domain_name:
         domain_name_root = domain_name[4:]  # Task name is formatted as dmc_walker.  Now just walker
@@ -1071,7 +1102,8 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
                               dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape,
                               name=task_name, domain_name=domain_name_root,
                               real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
-                              range_scale=range_scale)
+                              range_scale=range_scale, prop_range_scale=prop_range_scale, state_concat=state_concat,
+                              real_dr_params=real_dr_params)
         return env
     elif 'metaworld' in domain_name:
         if task_name + '-v1' in ed.ALL_V1_ENVIRONMENTS.keys():
