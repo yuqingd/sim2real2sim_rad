@@ -38,18 +38,18 @@ def run_eval_loop(sample_stochastically=True):
             obs = obs_dict['image']
             # center crop image
             obs = utils.center_crop_image(obs, image_size)
-            if step < time_limit//4 * 3 :
-                action = [.5,-.05,.3]
+            if step < 20:
+                action = [0, .5, .6]
+            elif step < 40:
+                action = [-.1, .5, 0]
             else:
-                action = [0, 0.05, -.3]
+                action = [-.4, .5, -.3]
             step+=1
             obs_traj.append(obs)
             obs_dict, reward, done, info = env.step(action)
             video.record(env)
             episode_reward += reward
             print(reward)
-            print(info['success'])
-
         video.save('real.mp4')
 
 run_eval_loop()
