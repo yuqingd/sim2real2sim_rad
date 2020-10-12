@@ -134,7 +134,7 @@ def parse_args():
     # MISC
     parser.add_argument('--id', default='debug', type=str)
     parser.add_argument('--gpudevice', type=str, required=True, help='cuda visible devices')
-    parser.add_argument('--time_limit', default=200, type=float)
+    parser.add_argument('--time_limit', default=200, type=int)
     parser.add_argument('--delay_steps', default=0, type=int)
 
     args = parser.parse_args()
