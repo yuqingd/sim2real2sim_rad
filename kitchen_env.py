@@ -414,7 +414,6 @@ class Kitchen:
       self.end_effector_bound_low,
       self.end_effector_bound_high,
     )
-    print(new_mocap_pos, "cur pos")
 
     self._env.data.set_mocap_pos('mocap', new_mocap_pos)
     if 'open_microwave' in self.task or 'open_cabinet' in self.task:
