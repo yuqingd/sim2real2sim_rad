@@ -127,6 +127,7 @@ def parse_args():
     parser.add_argument('--train_sim_param_every', default=50, type=int)
     parser.add_argument('--momentum', default=0, type=float)
     parser.add_argument('--round_predictions', default=True,  action='store_true')
+    parser.add_argument('--single_window', default=False,  action='store_true')
 
 
     # MISC
@@ -223,6 +224,8 @@ def predict_sim_params(sim_param_model, traj, current_sim_params, args, step=5, 
     while index < len(traj) - segment_length:
         windows.append(traj[index: index + segment_length])
         index += step
+    if args.single_window:
+        windows = [windows[0]]
 
     if args.round_predictions:
         preds = sim_param_model.forward_classifier(windows, current_sim_params).cpu().numpy()
