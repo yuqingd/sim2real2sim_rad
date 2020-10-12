@@ -73,12 +73,12 @@
 <!--            <site name="box_with_hole" pos=".125 .125 .125" rgba="0.0 0.5 0.5 1" size="0.01" type="sphere"></site>-->
 <!--        </body>-->
 
-        <body name="table" pos="0.05 .403 .55" euler="0 0 0">
+        <body name="table" pos="0.05 .363 .55" euler="0 0 0">
             <geom name="table_col" class="xarm_col"  mass="0.023013"  size=".5 0.3 .1" type="box" pos="-0.1 0 0"/>
             <geom name="table_viz" class="xarm_viz" rgba="1 1 1 1"   size=".5 0.3 .1"  type="box" pos="-0.1 0 0"/>
         </body>
 
-        <body name="boxes_with_hole" pos="0 .403 .715" euler=".4 0 0">
+        <body name="boxes_with_hole" pos="0 .363 .715" euler=".4 0 0">
             <geom name="box_col_1" class="xarm_col"  mass="0.023013"  size="0.04 0.04 .05" type="box" pos="-0.09 0.01 0"/>
             <geom name="box_viz_1" class="xarm_viz" rgba=".75 .75 .75 1"   size="0.04 0.04 .05" type="box" pos="-0.09 0.01 0"/>
             <geom name="box_col_2" class="xarm_col"  mass="0.023013"  size="0.04 0.015 .05" type="box" pos="-0.015 -0.015 0"/>
@@ -103,7 +103,7 @@
 
 
       <tendon>
-        <spatial name="string" limited="true" range="0 0.2" width="0.003">
+        <spatial name="string" limited="true" range="0 0.18" width="0.003">
           <site site="cylinder"/>
             <site site="end_effector"/>
         </spatial>
