@@ -172,7 +172,7 @@ class Kitchen:
         self.goal[-1] = np.squeeze(init_xpos[XPOS_INDICES['kettle']])[-1] #set z pos to be same as kettle, since we only want to slide in x,y
 
     elif 'rope' in self.task:
-      self.set_workspace_bounds('no_restrictions')
+      self.set_workspace_bounds('rope_workspace')
       self.goal = self._env.sim.data.site_xpos[self.box_with_hole_index]
 
     elif 'open_microwave' in self.task:
@@ -357,6 +357,13 @@ class Kitchen:
     if bounds == 'no_restrictions':
       x_low = y_low = z_low = -float('inf')
       x_high = y_high = z_high = float('inf')
+    elif bounds == 'rope_workspace':
+      x_low = -.4  # Left of box
+      x_high = .1  # Right of Box
+      y_low = 0  # Right in front of the robot's pedestal
+      y_high = .3  # behind box
+      z_low = 0  # Tabletop
+      z_high = 2.1
     elif bounds == 'full_workspace':
       x_low = -1.5  # Around the microwave
       x_high = 1.  # Around the sink
@@ -398,7 +405,6 @@ class Kitchen:
 
 
   def set_xyz_action(self, action):
-
     pos_delta = action * self.step_size
     new_mocap_pos = self._env.data.mocap_pos + pos_delta[None]#self._env.sim.data.site_xpos[self.end_effector_index].copy() + pos_delta[None]
     # new_mocap_pos = self._env.data.mocap_pos + pos_delta[None]
@@ -408,7 +414,6 @@ class Kitchen:
       self.end_effector_bound_low,
       self.end_effector_bound_high,
     )
-
 
     self._env.data.set_mocap_pos('mocap', new_mocap_pos)
     if 'open_microwave' in self.task or 'open_cabinet' in self.task:
