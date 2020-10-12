@@ -16,7 +16,8 @@ class SimParamModel(nn.Module):
         encoder_feature_dim, encoder_num_layers, encoder_num_filters, agent, sim_param_lr=1e-3, sim_param_beta=0.9,
                  dist='normal', act=nn.ELU, batch_size=32, traj_length=200, num_frames=10,
                  embedding_multires=10, use_img=True, state_dim=0, separate_trunks=False, param_names=[],
-                 train_range_scale=1, prop_train_range_scale=False, clip_positive=False, dropout=0.5):
+                 train_range_scale=1, prop_train_range_scale=False, clip_positive=False, dropout=0.5,
+                 initial_range=None):
         super(SimParamModel, self).__init__()
         self._shape = shape
         self._layers = layers
@@ -39,6 +40,7 @@ class SimParamModel(nn.Module):
         self.train_range_scale = train_range_scale
         self.prop_train_range_scale = prop_train_range_scale
         self.clip_positive = clip_positive
+        self.initial_range = initial_range
         action_space_dim = np.prod(action_space.shape)
 
         if self.use_img:
@@ -176,7 +178,9 @@ class SimParamModel(nn.Module):
 
 
     def train_classifier(self, obs_traj, sim_params, distribution_mean,  L, step, should_log):
-        if self.prop_train_range_scale:
+        if self.initial_range is not None:
+            dist_range = self.initial_range
+        elif self.prop_train_range_scale:
             dist_range = self.train_range_scale * torch.FloatTensor(distribution_mean)
         else:
             dist_range = self.train_range_scale
