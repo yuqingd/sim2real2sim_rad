@@ -105,6 +105,7 @@ def parse_args():
     parser.add_argument('--scale_large_and_small', default=False, action='store_true')
     parser.add_argument('--num_sim_param_updates', default=1, type=int)
     parser.add_argument('--state_concat', default=False, action='store_true')
+    parser.add_argument('--prop_initial_range', default=False, action='store_true')
     parser.add_argument('--prop_range_scale', default=False, action='store_true')
     parser.add_argument('--prop_train_range_scale', default=False, action='store_true')
     parser.add_argument('--prop_alpha', default=False, action='store_true')
@@ -525,6 +526,7 @@ def main():
         delay_steps=args.delay_steps,
         range_scale=args.range_scale,
         prop_range_scale=args.prop_range_scale,
+        prop_initial_range=args.prop_initial_range,
         state_concat=args.state_concat,
         real_dr_params=None,
     )
@@ -626,9 +628,12 @@ def main():
         args=args,
         device=device
     )
-
     if args.outer_loop_version in [1, 3]:
         dist = 'binary' if args.outer_loop_version == 3 else 'normal'
+        if args.prop_initial_range:
+            initial_range = sim_env.get_dr() * args.train_range_scale
+        else:
+            initial_range = None
         sim_param_model = SimParamModel(
             shape=args.sim_params_size,
             layers=args.sim_param_layers,
@@ -651,6 +656,7 @@ def main():
             param_names=args.real_dr_list,
             train_range_scale=args.train_range_scale,
             prop_train_range_scale=args.prop_train_range_scale,
+            initial_range=initial_range,
             clip_positive=args.clip_positive,
             action_space=sim_env.action_space,
         ).to(device)

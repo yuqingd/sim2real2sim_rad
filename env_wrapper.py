@@ -12,7 +12,8 @@ from kitchen_env import Kitchen
 class DR_Env:
   def __init__(self, env, cameras, height=64, width=64, mean_only=False, dr_list=[], simple_randomization=False, dr_shape=None,
                real_world=False, dr=None, use_state="None", use_img=True, name="task_name",
-               grayscale=False, dataset_step=None, range_scale=.1, prop_range_scale=False, state_concat=False):
+               grayscale=False, dataset_step=None, range_scale=.1, prop_range_scale=False, state_concat=False,
+               prop_initial_range=False):
 
     self._env = env
 
@@ -33,6 +34,13 @@ class DR_Env:
     self.prop_range_scale = prop_range_scale
     self.state_concat = state_concat
 
+    if prop_initial_range:
+        self.initial_range = {}
+        for param in dr_list:
+            eps = 1e-3
+            self.initial_range[param] = max(dr[param] * range_scale, eps)
+    else:
+        self.initial_range = None
     self.apply_dr()
 
 
@@ -63,7 +71,10 @@ class DR_Env:
 
   def update_dr_param(self, param, param_name, eps=1e-3, indices=None):
     if param_name in self.dr:
-      if self.mean_only:
+      if self.initial_range is not None:
+          mean = self.dr[param_name]
+          range = self.initial_range[param_name]
+      elif self.mean_only:
         mean = self.dr[param_name]
         if self.prop_range_scale:
             range = max(self.range_scale * mean, eps)
@@ -1082,7 +1093,7 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
          visualize_reward=False, frame_skip=None, mean_only=False,  dr_list=[], simple_randomization=False, dr_shape=None,
                real_world=False, dr=None, use_state="None", use_img=True,
                 grayscale=False, delay_steps=0, range_scale=.1, prop_range_scale=False, state_concat=False,
-         real_dr_params=None):
+         real_dr_params=None, prop_initial_range=False):
     # DMC
     if 'dmc' in domain_name:
         domain_name_root = domain_name[4:]  # Task name is formatted as dmc_walker.  Now just walker
@@ -1103,7 +1114,7 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
                               name=task_name, domain_name=domain_name_root,
                               real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
                               range_scale=range_scale, prop_range_scale=prop_range_scale, state_concat=state_concat,
-                              real_dr_params=real_dr_params)
+                              real_dr_params=real_dr_params, prop_initial_range=prop_initial_range)
         return env
     elif 'metaworld' in domain_name:
         if task_name + '-v1' in ed.ALL_V1_ENVIRONMENTS.keys():
@@ -1121,7 +1132,7 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
         env = DR_MetaWorldEnv(env, cameras=cameras, height=height, width=width, mean_only=mean_only,
                    dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape, name=task_name,
                    real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
-                   range_scale=range_scale)
+                   range_scale=range_scale, prop_initial_range=prop_initial_range)
         return env
     elif 'kitchen' in domain_name:
         env = Kitchen(dr=dr, mean_only=mean_only,
@@ -1142,7 +1153,7 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
         env = DR_Kitchen(env, cameras=cameras, height=height, width=width, mean_only=mean_only,
                        dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape, name=task_name,
                        real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
-                       range_scale=range_scale)
+                       range_scale=range_scale, prop_initial_range=prop_initial_range)
         return env
     else:
         raise KeyError("Domain name not found. " + str(domain_name))
