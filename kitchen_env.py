@@ -289,7 +289,7 @@ class Kitchen:
     elif 'rope' in self.task:
       cylinder_loc = self._env.sim.data.site_xpos[self.cylinder_index]
       reward = -np.linalg.norm(cylinder_loc - self.goal)
-      done = np.abs(reward) < 0.1
+      done = np.abs(reward) < 0.05
 
     elif 'open_microwave' in self.task:
       end_effector = self._env.sim.data.site_xpos[self._env.sim.model._site_name2id['end_effector']]
