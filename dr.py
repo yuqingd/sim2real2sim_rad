@@ -45,10 +45,10 @@ def config_dr_dmc(config):
     dr_option = config.dr_option
     if "ball_in_cup" in config.domain_name:
         real_dr_values = {
-            "cup_mass": .0625,
-            "ball_mass": .0654,
+            "cup_mass": .06247,
+            "ball_mass": .06545,
             "cup_damping": 3.,
-            "ball_damping": 3.,
+            "ball_damping": 0.,
             "actuator_gain": 1.,
             "cup_r": self_r,
             "cup_g": self_g,
