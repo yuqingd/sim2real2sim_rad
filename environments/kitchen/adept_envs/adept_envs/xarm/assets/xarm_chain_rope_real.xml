@@ -46,7 +46,7 @@
                                     <joint name="cylinder_y" type="slide" range="-1 1" axis="0 1 1"/>
                                     <joint name="cylinder_z" type="slide" range="-1 1" axis="0 0 1"/>
                                     <geom name="cylinder_viz" class="xarm_viz" rgba="1 .8 0 1" type="cylinder" size="0.02 .02"/>
-                                    <geom name="cylinder_col" class="xarm_col" type="cylinder" size="0.02 .04" mass="0.5" />
+                                    <geom name="cylinder_col" class="xarm_col" type="cylinder" size="0.02 .02" mass="0.5" />
                                     <site name="cylinder" pos=".0 0.0 0." size=".01"/>
                                 </body>
 
