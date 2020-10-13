@@ -15,7 +15,7 @@ def copy_last_video(file_name, prefix):
     # Find the most recent video
     try:
         last_video = videos[0]
-        video_name = os.basename(last_video)
+        video_name = os.path.basename(last_video)
         print("downloading ", prefix, video_name)
         download_file = os.path.join('download_files', file_name + video_name)
         copyfile(last_video, download_file)
