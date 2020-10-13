@@ -1175,7 +1175,7 @@ class DR_Dummy(DR_Env):
         self.timestep = 1
         return state, obs
 
-    def render(self, mode, size=None, *args, **kwargs):
+    def render(self, mode='rgb_array', size=None, *args, **kwargs):
         if size is None:
             size = self._size
         rgb_array = np.zeros((64, 64, 3))
