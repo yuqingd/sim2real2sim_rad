@@ -16,7 +16,7 @@ FORMAT_CONFIG = {
             ('batch_reward', 'BR', 'float'), ('actor_loss', 'A_LOSS', 'float'),
             ('critic_loss', 'CR_LOSS', 'float'), ('curl_loss', 'CU_LOSS', 'float')
         ],
-        'eval': [('step', 'S', 'int'), ('episode_reward', 'ER', 'float')]
+        'eval': [('step', 'S', 'int'), ('stochastic_episode_reward', 'ER', 'float')]
     }
 }
 
