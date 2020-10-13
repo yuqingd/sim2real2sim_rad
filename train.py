@@ -722,10 +722,10 @@ def main():
                     for i in range(args.num_sim_param_updates):
                         should_log_i = should_log and i == 0
                         if args.update_sim_param_from in ['latest', 'both']:
-                            sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean,
+                            sim_param_model.update(obs_traj, sim_params, sim_env.distribution_mean,
                                                    L, step, should_log_i)
                         if args.update_sim_param_from in ['buffer', 'both']:
-                            sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean,
+                            sim_param_model.update(obs_traj, sim_params, sim_env.distribution_mean,
                                                    L, step, should_log_i, replay_buffer)
                     train_sim_model_time += time.time() - start_sim_model
 
@@ -755,6 +755,7 @@ def main():
 
             collect_data_start = time.time()
             obs = sim_env.reset()
+            sim_params = obs['sim_params']
             if args.use_img:
                 obs_img = obs['image']
                 if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
