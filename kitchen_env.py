@@ -174,6 +174,7 @@ class Kitchen:
     elif 'rope' in self.task:
       self.set_workspace_bounds('rope_workspace')
       self.goal = self._env.sim.data.site_xpos[self.box_with_hole_index]
+      self.z_goal = False #move up first
 
     elif 'open_microwave' in self.task:
       self.set_workspace_bounds('full_workspace')
@@ -288,7 +289,15 @@ class Kitchen:
 
     elif 'rope' in self.task:
       cylinder_loc = self._env.sim.data.site_xpos[self.cylinder_index]
-      reward = -np.linalg.norm(cylinder_loc - self.goal)
+
+      if not self.z_goal:
+        reward = -np.linalg.norm(self._env.data.mocap_pos[0][-1] - 2.05)
+        if abs(reward) < 0.01:
+          self.z_goal = True
+        reward += -np.linalg.norm(cylinder_loc - self.goal)
+      else:
+        reward = -np.linalg.norm(cylinder_loc - self.goal)
+
       done = np.abs(reward) < 0.05
 
     elif 'open_microwave' in self.task:
