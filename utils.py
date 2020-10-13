@@ -86,7 +86,7 @@ class ReplayBuffer(Dataset):
             try:
                 self.obses[key] = np.empty((capacity, *val.shape), dtype=val.dtype)
                 self.next_obses[key] = np.empty((capacity, *val.shape), dtype=val.dtype)
-            except:
+            except Exception as e:
                 self.obses[key] = np.empty((capacity, 1), dtype=type(val))
                 self.next_obses[key] = np.empty((capacity, 1), dtype=type(val))
         self.actions = np.empty((capacity, *action_shape), dtype=np.float32)

@@ -8,6 +8,7 @@ import random
 from dm_control.rl.control import PhysicsError
 from dm_control import suite
 from kitchen_env import Kitchen
+import cv2
 
 class DR_Env:
   def __init__(self, env, cameras, height=64, width=64, mean_only=False, dr_list=[], simple_randomization=False, dr_shape=None,
@@ -65,7 +66,7 @@ class DR_Env:
   def seed(self, seed=None):
       self._env.seed(seed)
 
-  def set_real(self, param, param_name):  # kangaroo
+  def set_real(self, param, param_name):
       value = self.real_dr_params[param_name]
       param[:] = value
 
@@ -1083,6 +1084,110 @@ class DR_DMCEnv(DR_Env):
         arr = arr.astype(np.float32)
         return arr
 
+class DR_Dummy(DR_Env):
+    def __init__(self, env, cameras, **kwargs):
+        self.square_size = 4
+        self.speed_multiplier = 3
+        self.square_r = 0.5
+        self.square_g = 0.5
+        self.square_b = 0.0
+        self.reward_range = (-float('inf'), float('inf'))
+        self.metadata = {'render.modes': []}
+        self.timestep = 1
+        self._max_episode_steps = 200
+        super().__init__(env, cameras, **kwargs)
+
+    def get_state(self):
+        return np.array([self.square_size, self.square_r, self.square_g, self.square_b, self.square_x, self.square_y])
+
+    def seed(self, seed=None):
+        if seed is not None:
+            np.random.seed(seed)
+
+    def get_dr(self):
+        return np.array([self.square_size, self.speed_multiplier, self.square_r, self.square_g, self.square_b])
+
+    def update_dr_param(self, param_name, eps=1e-3):
+        if self.mean_only:
+            mean = self.dr[param_name]
+            if self.prop_range_scale:
+                range = max(self.range_scale * mean, eps)
+            else:
+                range = self.range_scale
+        else:
+            mean, range = self.dr[param_name]
+            range = max(range, eps)
+        new_value = np.random.uniform(low=max(mean - range, eps), high=max(mean + range, 2 * eps))
+        self.sim_params += [new_value]
+        self.distribution_mean += [mean]
+        self.distribution_range += [range]
+        return new_value
+
+    def apply_dr(self):
+        self.sim_params = []
+        self.distribution_mean = []
+        self.distribution_range = []
+        if self.dr is None or self.real_world:
+            self.sim_params = np.zeros(self.dr_shape)
+            self.distribution_mean = self.get_dr()
+            self.distribution_range = np.zeros(self.dr_shape, dtype=np.float32)
+            return
+        self.square_size = self.update_dr_param('square_size')
+        self.speed_multiplier = self.update_dr_param('speed_multiplier')
+        self.square_r = self.update_dr_param('square_r')
+        self.square_g = self.update_dr_param('square_g')
+        self.square_b = self.update_dr_param('square_b')
+
+
+    @property
+    def observation_space(self):
+        spaces = {}
+        spaces['image'] = gym.spaces.Box(
+            0, 255,  (3,) + self._size, dtype=np.uint8)
+        return gym.spaces.Dict(spaces)
+
+    @property
+    def action_space(self):
+        return gym.spaces.Box(np.array([-1, -1]), np.array([1, 1]), dtype=np.float32)
+
+    def env_step(self, action):
+        x_update = action[0] * self.speed_multiplier
+        y_update = action[0] * self.speed_multiplier
+        self.square_x += x_update
+        self.square_y += y_update
+        self.square_x = max(self.square_x, 0)
+        self.square_y = max(self.square_y, 0)
+        self.square_x = min(self.square_x, 63)
+        self.square_y = min(self.square_y, 63)
+        obs = self.render()
+        reward = - (np.abs(self.square_x) + np.abs(self.square_y))
+        done = self.timestep >= self._max_episode_steps
+        self.timestep += 1
+        info = {}
+        state = self.get_state()
+        return obs, state, reward, done, info
+
+    def env_reset(self):
+        self.square_x = np.random.uniform(low=10., high=50.)
+        self.square_y = np.random.uniform(low=10., high=50.)
+        obs =  self.render()
+        state = self.get_state()
+        self.timestep = 1
+        return state, obs
+
+    def render(self, mode, size=None, *args, **kwargs):
+        if size is None:
+            size = self._size
+        rgb_array = np.zeros((64, 64, 3))
+        x_start = max(0, int(np.floor(self.square_x - self.square_size)))
+        y_start = max(0, int(np.floor(self.square_y - self.square_size)))
+        x_end = min(63, int(np.floor(self.square_x + self.square_size)))
+        y_end = min(63, int(np.floor(self.square_y + self.square_size)))
+        rgb_array[y_start:y_end, x_start:x_end] = np.clip(np.array([self.square_r, self.square_g, self.square_b]), 0, 1)
+        if size is not None:
+            rgb_array = cv2.resize(rgb_array, size)
+        return np.transpose(rgb_array, (2, 0, 1))
+
 
 def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range(1),
          visualize_reward=False, frame_skip=None, mean_only=False,  dr_list=[], simple_randomization=False, dr_shape=None,
@@ -1109,7 +1214,7 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
                               name=task_name, domain_name=domain_name_root,
                               real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
                               range_scale=range_scale, prop_range_scale=prop_range_scale, state_concat=state_concat,
-                              real_dr_params=real_dr_params, prop_initial_range=prop_initial_range)
+                              real_dr_params=real_dr_params, prop_initial_range=prop_initial_range)  # TODO: apply these to all envs
         return env
     elif 'metaworld' in domain_name:
         if task_name + '-v1' in ed.ALL_V1_ENVIRONMENTS.keys():
@@ -1149,6 +1254,14 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
                        dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape, name=task_name,
                        real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
                        range_scale=range_scale, prop_initial_range=prop_initial_range)
+        return env
+    elif 'dummy' in domain_name:
+        inner_env = None
+        env = DR_Dummy(inner_env, cameras=cameras, height=height, width=width, mean_only=mean_only,
+                        dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape,
+                        name=task_name,
+                        real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
+                        range_scale=range_scale, prop_range_scale=prop_range_scale, state_concat=state_concat,)
         return env
     else:
         raise KeyError("Domain name not found. " + str(domain_name))

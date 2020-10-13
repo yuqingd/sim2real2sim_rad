@@ -218,7 +218,7 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
             log_data[key][step]['loss'] = loss
             np.save(filename, log_data)
 
-def predict_sim_params(sim_param_model, traj, current_sim_params, args, step=5, confidence_level=.3):
+def predict_sim_params(sim_param_model, traj, current_sim_params, args, step=10, confidence_level=.3):
     segment_length = sim_param_model.num_frames
     windows = []
     index = 0
@@ -317,7 +317,7 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
 def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, num_episodes, L, step, args):
     all_ep_rewards = []
     all_ep_success = []
-    def run_eval_loop(sample_stochastically=True):
+    def run_eval_loop(sample_stochastically=False):
         start_time = time.time()
         prefix = 'stochastic_' if sample_stochastically else ''
         obs_batch = []
@@ -356,8 +356,8 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
         if not args.outer_loop_version == 0 and step > args.start_outer_loop:
             current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
             evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test", real_sim_params, current_sim_params)
-            update_sim_params(sim_param_model, sim_env, args, obs_batch, step, L)
-            evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test_after_update", real_sim_params, current_sim_params)
+            # update_sim_params(sim_param_model, sim_env, args, obs_batch, step, L)
+            # evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test_after_update", real_sim_params, current_sim_params)
 
         L.log('eval/' + prefix + 'eval_time', time.time() - start_time, step)
         mean_ep_reward = np.mean(all_ep_rewards)
@@ -423,7 +423,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
 
         video_sim.save('sim_%d.mp4' % step)
 
-    run_eval_loop(sample_stochastically=False)
+    run_eval_loop(sample_stochastically=True)
     L.dump(step)
 
 
