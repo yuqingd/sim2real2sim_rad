@@ -17,7 +17,7 @@ class SimParamModel(nn.Module):
                  dist='normal', act=nn.ELU, batch_size=32, traj_length=200, num_frames=10,
                  embedding_multires=10, use_img=True, state_dim=0, separate_trunks=False, param_names=[],
                  train_range_scale=1, prop_train_range_scale=False, clip_positive=False, dropout=0.5,
-                 initial_range=None):
+                 initial_range=None, single_window=False):
         super(SimParamModel, self).__init__()
         self._shape = shape
         self._layers = layers
@@ -41,6 +41,7 @@ class SimParamModel(nn.Module):
         self.prop_train_range_scale = prop_train_range_scale
         self.clip_positive = clip_positive
         self.initial_range = initial_range
+        self.single_window = single_window
         action_space_dim = np.prod(action_space.shape)
 
         if self.use_img:
@@ -141,7 +142,10 @@ class SimParamModel(nn.Module):
         for traj in full_traj:
             # TODO: previously, we were always taking the first window.  Now, we always take a random one.
             #   We could consider choosing multiple, or choosing a separate segmentation for each batch element.
-            index = np.random.choice(len(traj) - self.num_frames + 1)
+            if self.single_window:
+                index = 0
+            else:
+                index = np.random.choice(len(traj) - self.num_frames + 1)
             traj = traj[index: index + self.num_frames]
             obs_traj, action_traj = zip(*traj)
             if type(action_traj[0]) is np.ndarray:
@@ -233,8 +237,6 @@ class SimParamModel(nn.Module):
         dist_loss_mean = np.mean(full_loss[-1])
         dist_loss_individual = full_loss[-1]
 
-
-
         if should_log:
             L.log('train_sim_params/loss', loss, step)
             L.log('train_sim_params/accuracy', accuracy_mean, step)
@@ -256,7 +258,6 @@ class SimParamModel(nn.Module):
         self.sim_param_optimizer.step()
 
     def update(self, obs_list, sim_params, dist_mean, L, step, should_log, replay_buffer=None):
-        obs_list_og = obs_list
         if replay_buffer is not None:
             if self.encoder_type == 'pixel':
                 obs_list, actions_list, rewards_list, next_obses_list, not_dones_list, cpc_kwargs_list = replay_buffer.sample_cpc_traj(1)
