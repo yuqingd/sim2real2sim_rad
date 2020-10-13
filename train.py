@@ -105,6 +105,7 @@ def parse_args():
     parser.add_argument('--scale_large_and_small', default=False, action='store_true')
     parser.add_argument('--num_sim_param_updates', default=1, type=int)
     parser.add_argument('--state_concat', default=False, action='store_true')
+    parser.add_argument('--prop_initial_range', default=False, action='store_true')
     parser.add_argument('--prop_range_scale', default=False, action='store_true')
     parser.add_argument('--prop_train_range_scale', default=False, action='store_true')
     parser.add_argument('--prop_alpha', default=False, action='store_true')
@@ -127,12 +128,13 @@ def parse_args():
     parser.add_argument('--train_sim_param_every', default=50, type=int)
     parser.add_argument('--momentum', default=0, type=float)
     parser.add_argument('--round_predictions', default=True,  action='store_true')
+    parser.add_argument('--single_window', default=False,  action='store_true')
 
 
     # MISC
     parser.add_argument('--id', default='debug', type=str)
     parser.add_argument('--gpudevice', type=str, required=True, help='cuda visible devices')
-    parser.add_argument('--time_limit', default=200, type=float)
+    parser.add_argument('--time_limit', default=200, type=int)
     parser.add_argument('--delay_steps', default=0, type=int)
 
     args = parser.parse_args()
@@ -140,6 +142,7 @@ def parse_args():
         args = config_dr(args)
     else:
         args.real_dr_list = []
+        args.real_dr_params = {}
         args.dr = None
     args.update = [0] * len(args.real_dr_list)
 
@@ -215,13 +218,15 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
             log_data[key][step]['loss'] = loss
             np.save(filename, log_data)
 
-def predict_sim_params(sim_param_model, traj, current_sim_params, args, step=5, confidence_level=.3):
+def predict_sim_params(sim_param_model, traj, current_sim_params, args, step=10, confidence_level=.3):
     segment_length = sim_param_model.num_frames
     windows = []
     index = 0
     while index < len(traj) - segment_length:
         windows.append(traj[index: index + segment_length])
         index += step
+    if args.single_window:
+        windows = [windows[0]]
 
     if args.round_predictions:
         preds = sim_param_model.forward_classifier(windows, current_sim_params).cpu().numpy()
@@ -312,7 +317,7 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
 def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, num_episodes, L, step, args):
     all_ep_rewards = []
     all_ep_success = []
-    def run_eval_loop(sample_stochastically=True):
+    def run_eval_loop(sample_stochastically=False):
         start_time = time.time()
         prefix = 'stochastic_' if sample_stochastically else ''
         obs_batch = []
@@ -352,7 +357,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
             current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
             evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test", real_sim_params, current_sim_params)
             update_sim_params(sim_param_model, sim_env, args, obs_batch, step, L)
-            evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test_after_update", real_sim_params, current_sim_params)
+            # evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test_after_update", real_sim_params, current_sim_params)
 
         L.log('eval/' + prefix + 'eval_time', time.time() - start_time, step)
         mean_ep_reward = np.mean(all_ep_rewards)
@@ -391,7 +396,6 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
         obs_traj_sim = []
         video_sim.init(enabled=True)
         while not done and len(obs_traj_sim) < args.time_limit:
-            video_sim.init()
             if args.use_img:
                 obs = obs_dict['image']
                 # center crop image
@@ -419,7 +423,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
 
         video_sim.save('sim_%d.mp4' % step)
 
-    run_eval_loop(sample_stochastically=False)
+    run_eval_loop(sample_stochastically=True)
     L.dump(step)
 
 
@@ -491,10 +495,7 @@ def main():
     args = parse_args()
     os.environ['EGL_DEVICE_ID'] = args.gpudevice
     if 'dmc' or 'kitchen' in args.domain_name:
-        from mujoco_py import GlfwContext
-        import mujoco_py
-        GlfwContext(offscreen=True)
-        os.environ['MUJOCO_GL'] = 'glfw'
+        os.environ['MUJOCO_GL'] = 'egl'
     else:
         os.environ['MUJOCO_GL'] = 'osmesa'
     import env_wrapper
@@ -524,6 +525,7 @@ def main():
         delay_steps=args.delay_steps,
         range_scale=args.range_scale,
         prop_range_scale=args.prop_range_scale,
+        prop_initial_range=args.prop_initial_range,
         state_concat=args.state_concat,
         real_dr_params=None,
     )
@@ -625,9 +627,12 @@ def main():
         args=args,
         device=device
     )
-
     if args.outer_loop_version in [1, 3]:
         dist = 'binary' if args.outer_loop_version == 3 else 'normal'
+        if args.prop_initial_range:
+            initial_range = sim_env.get_dr() * args.train_range_scale
+        else:
+            initial_range = None
         sim_param_model = SimParamModel(
             shape=args.sim_params_size,
             layers=args.sim_param_layers,
@@ -650,6 +655,7 @@ def main():
             param_names=args.real_dr_list,
             train_range_scale=args.train_range_scale,
             prop_train_range_scale=args.prop_train_range_scale,
+            initial_range=initial_range,
             clip_positive=args.clip_positive,
             action_space=sim_env.action_space,
         ).to(device)

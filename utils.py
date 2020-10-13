@@ -77,7 +77,7 @@ class ReplayBuffer(Dataset):
         self.device = device
         self.image_size = image_size
         self.transform = transform
-        self.max_traj_length = max_traj_length  # Generalize!
+        self.max_traj_length = int(max_traj_length)  # Generalize!
 
         self.obses = {}
         self.next_obses = {}
@@ -86,7 +86,7 @@ class ReplayBuffer(Dataset):
             try:
                 self.obses[key] = np.empty((capacity, *val.shape), dtype=val.dtype)
                 self.next_obses[key] = np.empty((capacity, *val.shape), dtype=val.dtype)
-            except:
+            except Exception as e:
                 self.obses[key] = np.empty((capacity, 1), dtype=type(val))
                 self.next_obses[key] = np.empty((capacity, 1), dtype=type(val))
         self.actions = np.empty((capacity, *action_shape), dtype=np.float32)

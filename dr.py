@@ -7,6 +7,8 @@ def config_dr(config):
         config = config_dr_metaworld(config)
     elif 'kitchen' in config.domain_name:
         config = config_dr_kitchen(config)
+    elif 'dummy' in config.domain_name:
+        config = config_dummy(config)
     else:
         config.dr = {}
         config.real_dr_params = {}
@@ -45,10 +47,10 @@ def config_dr_dmc(config):
     dr_option = config.dr_option
     if "ball_in_cup" in config.domain_name:
         real_dr_values = {
-            "cup_mass": .0625,
-            "ball_mass": .0654,
+            "cup_mass": .06247,
+            "ball_mass": .06545,
             "cup_damping": 3.,
-            "ball_damping": 3.,
+            "ball_damping": 0.,
             "actuator_gain": 1.,
             "cup_r": self_r,
             "cup_g": self_g,
@@ -520,3 +522,26 @@ def config_dr_metaworld(config):
 
       np.random.set_state(rng_state)
   return config
+
+def config_dummy(config):
+    real_dr_values = {
+        "square_size": 4,
+        "speed_multiplier": 10,
+        "square_r": .5,
+        "square_g": .5,
+        "square_b": 0.0,
+    }
+    config.real_dr_params = real_dr_values
+    config.real_dr_list = list(config.real_dr_params.keys())
+    mean_scale = config.mean_scale
+    range_scale = config.range_scale
+    config.dr = {}  # (mean, range)
+    for key, real_val in config.real_dr_params.items():
+        if real_val == 0:
+            real_val = 5e-2
+        if config.mean_only:
+            config.dr[key] = real_val * mean_scale
+        else:
+            config.dr[key] = (real_val * mean_scale, real_val * range_scale)
+    config.sim_params_size = len(config.real_dr_list)
+    return config
