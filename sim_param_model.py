@@ -139,10 +139,10 @@ class SimParamModel(nn.Module):
         full_obs_traj = []
         full_action_traj = []
         for traj in full_traj:
-            index = 0
-            while index < len(traj) - self.num_frames:
-                traj = traj[index: index + self.num_frames]
-                index += step
+            # TODO: previously, we were always taking the first window.  Now, we always take a random one.
+            #   We could consider choosing multiple, or choosing a separate segmentation for each batch element.
+            index = np.random.choice(len(traj) - self.num_frames + 1)
+            traj = traj[index: index + self.num_frames]
             obs_traj, action_traj = zip(*traj)
             if type(action_traj[0]) is np.ndarray:
                 full_action_traj.append(torch.FloatTensor(np.concatenate(action_traj)).to(self.device))
