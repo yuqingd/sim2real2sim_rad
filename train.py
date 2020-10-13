@@ -254,7 +254,6 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
                     pred_sim_params.append(predict_sim_params(sim_param_model, ob, current_sim_params, args))
             else:
                 pred_sim_params.append(predict_sim_params(sim_param_model, obs[0], current_sim_params, args))
-            print("UPDATE - PREDICT SIM PARAMS", current_sim_params)
             pred_sim_params = np.mean(pred_sim_params, axis=0)
 
     updates = []
@@ -356,7 +355,6 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
             obs_batch.append(obs_traj)
         if not args.outer_loop_version == 0 and step > args.start_outer_loop:
             current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
-            print("EVAL_TEST - PREDICT SIM PARAMS", current_sim_params)
             evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test", real_sim_params, current_sim_params)
             update_sim_params(sim_param_model, sim_env, args, obs_batch, step, L)
             # evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test_after_update", real_sim_params, current_sim_params)
@@ -420,7 +418,6 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
             dist_mean = obs_dict['distribution_mean']
             current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
             evaluate_sim_params(sim_param_model, args, [obs_traj_sim], step, L, "val", sim_params, current_sim_params)
-            print("EVAL_VAL - PREDICT SIM PARAMS", current_sim_params)
             if args.outer_loop_version == 3:
                 sim_param_model.train_classifier(obs_traj_sim, sim_params, dist_mean, L, step, True)
 
@@ -720,7 +717,6 @@ def main():
                 if args.outer_loop_version != 0 and obs_traj is not None:
                     should_log = step % args.eval_freq == 0
                     start_sim_model = time.time()
-                    print("TRAINING DIST MEAN", sim_env.distribution_mean)
                     for i in range(args.num_sim_param_updates):
                         should_log_i = should_log and i == 0
                         if args.update_sim_param_from in ['latest', 'both']:

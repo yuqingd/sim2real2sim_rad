@@ -204,7 +204,12 @@ class SimParamModel(nn.Module):
         fake_pred = torch.cat([low, high, dist_mean], dim=0)
         labels = (fake_pred > sim_params.unsqueeze(0).to(self.device)).long()
 
-        shuffled_indices = torch.stack([torch.randperm(len(fake_pred)) for _ in range(len(sim_params))], dim=1).to(self.device)
+        # Shuffle all params but the last, which is distribution mean
+        shuffled_indices = torch.stack([torch.randperm(len(fake_pred) - 1) for _ in range(len(sim_params))], dim=1).to(
+            self.device)
+        dist_mean_indices = torch.zeros(1, len(distribution_mean)).to(self.device).int() + len(shuffled_indices)
+        shuffled_indices = torch.cat([shuffled_indices, dist_mean_indices])
+
         labels = torch.gather(labels, 0, shuffled_indices)
         fake_pred = torch.gather(fake_pred, 0, shuffled_indices)
 
