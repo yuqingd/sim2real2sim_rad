@@ -129,6 +129,7 @@ def parse_args():
     parser.add_argument('--momentum', default=0, type=float)
     parser.add_argument('--round_predictions', default=True,  action='store_true')
     parser.add_argument('--single_window', default=False,  action='store_true')
+    parser.add_argument('--no_train_policy', default=False,  action='store_true')
 
 
     # MISC
@@ -658,6 +659,7 @@ def main():
             initial_range=initial_range,
             clip_positive=args.clip_positive,
             action_space=sim_env.action_space,
+            single_window=args.single_window,
         ).to(device)
     else:
         sim_param_model = None
@@ -778,7 +780,7 @@ def main():
                 action = agent.sample_action(obs_img)
 
         # run training update
-        if step >= args.init_steps:
+        if (not args.no_train_policy) and step >= args.init_steps:
             num_updates = 1
             for _ in range(num_updates):
                 agent.update(replay_buffer, L, step)
