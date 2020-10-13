@@ -43,7 +43,7 @@ def run_eval_loop(sample_stochastically=True):
             elif step < 40:
                 action = [-.1, .5, 0]
             else:
-                action = [-.4, .5, -.3]
+                action = [-.2, .5, -.3]
             step+=1
             obs_traj.append(obs)
             obs_dict, reward, done, info = env.step(action)

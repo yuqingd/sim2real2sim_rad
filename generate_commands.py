@@ -77,8 +77,8 @@ ol3_params = ol3_params + env_params + dr_params + common_params
 
 sweep_params_list = [
     # oracle_params,
-    baseline_params,
-    # ol3_params,
+    # baseline_params,
+    ol3_params,
 ]
 
 id = starting_id
