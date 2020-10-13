@@ -120,11 +120,6 @@ class DR_Env:
     return self._env.action_space
 
   def env_step(self, action):
-      if self.real_world:
-          x = action[0]
-          action[0] = action[1]
-          action[1] = x
-
       obs, reward, done, info = self._env.step(action)
       if len(obs.shape) == 3:
           state = np.array([0])
@@ -1255,7 +1250,7 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
                           simple_randomization=False,
                           step_repeat=50,
                           control_version='mocap_ik',
-                          step_size=0.01,
+                          step_size=0.055,
                           initial_randomization_steps=3,
                           minimal=False,
                           grayscale=grayscale,

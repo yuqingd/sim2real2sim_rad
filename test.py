@@ -38,7 +38,7 @@ env = utils.FrameStack(env, k=args.frame_stack)
 # env.set_special_reset('grip')
 env.reset()
 num_episodes = 10
-time_limit = 200
+time_limit = 60
 image_size = 84
 
 

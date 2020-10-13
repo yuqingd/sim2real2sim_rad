@@ -328,7 +328,8 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
             done = False
             episode_reward = 0
             obs_traj = []
-            while not done and len(obs_traj) < args.time_limit:
+            step = 0
+            while not done and step < args.time_limit:
                 if args.use_img:
                     obs = obs_dict['image']
                     # center crop image
@@ -345,6 +346,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
                 obs_dict, reward, done, _ = real_env.step(action)
                 video_real.record(real_env)
                 episode_reward += reward
+                step += 1
 
             video_real.save('real_%d.mp4' % step)
             L.log('eval/' + prefix + 'episode_reward', episode_reward, step)
@@ -495,7 +497,10 @@ def main():
     args = parse_args()
     os.environ['EGL_DEVICE_ID'] = args.gpudevice
     if 'dmc' or 'kitchen' in args.domain_name:
-        os.environ['MUJOCO_GL'] = 'egl'
+        from mujoco_py import GlfwContext
+        import mujoco_py
+        GlfwContext(offscreen=True)
+        os.environ['MUJOCO_GL'] = 'glfw'
     else:
         os.environ['MUJOCO_GL'] = 'osmesa'
     import env_wrapper
@@ -673,7 +678,8 @@ def main():
             sim_param_step = 0
             for checkpoint in sim_param_checkpoint:
                 sim_param_step = max(sim_param_step,[int(x) for x in re.findall('\d+', checkpoint)][-1])
-            sim_param_model.load(model_dir, sim_param_step)
+            if sim_param_step > 0:
+                sim_param_model.load(model_dir, sim_param_step)
             start_step = min(start_step, sim_param_step)
         replay_buffer.load(buffer_dir)  # TODO: do we have to save optimizer?
 
