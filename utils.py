@@ -84,14 +84,9 @@ class ReplayBuffer(Dataset):
         for key in example_obs.keys():
             val = example_obs[key]
             try:
-                t1 = val.shape
-                t2 = (capacity, *val.shape)
-                r3 = val.dtype
-                r4 = np.empty((capacity, *val.shape), dtype=val.dtype)
                 self.obses[key] = np.empty((capacity, *val.shape), dtype=val.dtype)
                 self.next_obses[key] = np.empty((capacity, *val.shape), dtype=val.dtype)
             except Exception as e:
-                print("ERROR", e)
                 self.obses[key] = np.empty((capacity, 1), dtype=type(val))
                 self.next_obses[key] = np.empty((capacity, 1), dtype=type(val))
         self.actions = np.empty((capacity, *action_shape), dtype=np.float32)

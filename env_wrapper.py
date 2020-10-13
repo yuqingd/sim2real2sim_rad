@@ -1151,7 +1151,6 @@ class DR_Dummy(DR_Env):
         return gym.spaces.Box(np.array([-1, -1]), np.array([1, 1]), dtype=np.float32)
 
     def env_step(self, action):
-        print("action", action)
         x_update = action[0] * self.speed_multiplier
         y_update = action[0] * self.speed_multiplier
         self.square_x += x_update
@@ -1165,18 +1164,18 @@ class DR_Dummy(DR_Env):
         done = self.timestep >= self._max_episode_steps
         self.timestep += 1
         info = {}
-        state = None
+        state = self.get_state()
         return obs, state, reward, done, info
 
     def env_reset(self):
         self.square_x = np.random.uniform(low=10., high=50.)
         self.square_y = np.random.uniform(low=10., high=50.)
         obs =  self.render()
-        state = None
+        state = self.get_state()
         self.timestep = 1
         return state, obs
 
-    def render(self, size=None, *args, **kwargs):
+    def render(self, mode, size=None, *args, **kwargs):
         if size is None:
             size = self._size
         rgb_array = np.zeros((64, 64, 3))
@@ -1185,18 +1184,8 @@ class DR_Dummy(DR_Env):
         x_end = min(63, int(np.floor(self.square_x + self.square_size)))
         y_end = min(63, int(np.floor(self.square_y + self.square_size)))
         rgb_array[y_start:y_end, x_start:x_end] = np.clip(np.array([self.square_r, self.square_g, self.square_b]), 0, 1)
-        rgb_orig = rgb_array.copy()
-        print("COORDS", self.square_size, self.square_x, self.square_y)
         if size is not None:
             rgb_array = cv2.resize(rgb_array, size)
-        # if not y_end - y_start == x_end - x_start:
-        #     diff1 = y_end - y_start
-        #     diff2 = x_end - x_start
-        #     print("???")
-        #     import matplotlib.pyplot as plt
-        #     plt.imshow(rgb_orig)
-        #     plt.show()
-        #     temp =3
         return np.transpose(rgb_array, (2, 0, 1))
 
 
