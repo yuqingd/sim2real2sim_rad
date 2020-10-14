@@ -108,7 +108,7 @@ class SimParamModel(nn.Module):
                     raise NotImplementedError(type(obs_traj[0][0]))
 
                 features = self.encoder(input, detach=True)
-                features = features / torch.norm(features)
+                features = features #/ torch.norm(features)
             else:
                 if type(obs_traj[0][0]) is torch.Tensor:
                     features = torch.stack([torch.cat([o for o in traj], dim=0) for traj in obs_traj], dim=0)
@@ -216,6 +216,13 @@ class SimParamModel(nn.Module):
 
         labels = torch.gather(labels, 0, shuffled_indices)
         fake_pred = torch.gather(fake_pred, 0, shuffled_indices)
+        assert obs_traj[0][0].shape == (9, 84, 84), obs_traj[0][0].shape
+        try:
+            dr_param = np.max(obs_traj[0][0][0]) / 255 # red channel of first
+        except:
+            dr_param = torch.max(obs_traj[0][0][0]) / 255
+        pred_labels = fake_pred > dr_param
+        hardcoded_accuracy = (torch.sum(labels == pred_labels) * 1.0) / np.prod(labels.shape)
 
         pred_class = self.forward_classifier([obs_traj], fake_pred)
         pred_class_flat = pred_class.flatten().unsqueeze(0).float()
@@ -238,6 +245,8 @@ class SimParamModel(nn.Module):
         dist_loss_individual = full_loss[-1]
 
         if should_log:
+            print("hardcoded accuracy", hardcoded_accuracy.item())
+            L.log('train_hardcoded_accuracy', hardcoded_accuracy, step)
             L.log('train_sim_params/loss', loss, step)
             L.log('train_sim_params/accuracy', accuracy_mean, step)
             L.log('train_sim_params/error', error_mean, step)

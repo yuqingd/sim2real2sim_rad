@@ -1132,11 +1132,12 @@ class DR_Dummy(DR_Env):
             self.distribution_mean = self.get_dr()
             self.distribution_range = np.zeros(self.dr_shape, dtype=np.float32)
             return
-        self.square_size = self.update_dr_param('square_size')
-        self.speed_multiplier = self.update_dr_param('speed_multiplier')
+        # self.square_size = self.update_dr_param('square_size')
+        # self.speed_multiplier = self.update_dr_param('speed_multiplier')
         self.square_r = self.update_dr_param('square_r')
-        self.square_g = self.update_dr_param('square_g')
-        self.square_b = self.update_dr_param('square_b')
+        self.square_r = min(1 - 1e-3, self.square_r)
+        # self.square_g = self.update_dr_param('square_g')
+        # self.square_b = self.update_dr_param('square_b')
 
 
     @property
@@ -1185,7 +1186,8 @@ class DR_Dummy(DR_Env):
         y_end = min(63, int(np.floor(self.square_y + self.square_size)))
         rgb_array[y_start:y_end, x_start:x_end] = np.clip(np.array([self.square_r, self.square_g, self.square_b]), 0, 1)
         if size is not None:
-            rgb_array = cv2.resize(rgb_array, size).astype(np.uint8)
+            rgb_array = cv2.resize(rgb_array, size)
+            rgb_array = (rgb_array * 255).astype(np.uint8)
         return np.transpose(rgb_array, (2, 0, 1))
 
 

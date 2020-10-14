@@ -66,7 +66,7 @@ class PixelEncoder(nn.Module):
         h_fc = self.fc(h)
         self.outputs['fc'] = h_fc
 
-        h_norm = self.ln(h_fc)
+        h_norm = h_fc #self.ln(h_fc)
         self.outputs['ln'] = h_norm
 
         if self.output_logits:
