@@ -43,7 +43,7 @@ class SimParamModel(nn.Module):
         self.initial_range = initial_range
         self.single_window = single_window
         action_space_dim = np.prod(action_space.shape)
-        encoder_feature_dim = 16
+        # encoder_feature_dim = 16
 
         if self.use_img:
             trunk_input_dim = encoder_feature_dim + additional + action_space_dim * num_frames
@@ -85,7 +85,7 @@ class SimParamModel(nn.Module):
                 encoder_num_filters, output_logits=True
             )
 
-        self.apply(weight_init)
+        #self.apply(weight_init)
 
         parameters = list(self.trunk.parameters())
         if self.use_img:
@@ -109,13 +109,13 @@ class SimParamModel(nn.Module):
                     raise NotImplementedError(type(obs_traj[0][0]))
 
                 # Input is b x c * num_frames x h x w.  We take the first image and downsample to
-                downsampled_img = input[:, 0, ::25, ::25].reshape(len(input), -1)
-                features = downsampled_img / 255
-                #features = self.encoder(input, detach=False)
+                #downsampled_img = input[:, 0, ::25, ::25].reshape(len(input), -1)
+                #features = downsampled_img / 255
+                features = self.encoder(input, detach=False)
                 print("NORM", torch.norm(features).item(), torch.min(features).item(), torch.max(features).item())
-                if np.random.uniform() < .05:
-                    print("features", features)
-                # features = features / torch.norm(features)
+                #if np.random.uniform() < .05:
+                #    print("features", features)
+                features = features / torch.norm(features)
             else:
                 if type(obs_traj[0][0]) is torch.Tensor:
                     features = torch.stack([torch.cat([o for o in traj], dim=0) for traj in obs_traj], dim=0)
