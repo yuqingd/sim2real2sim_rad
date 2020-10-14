@@ -81,10 +81,9 @@ class SimParamModel(nn.Module):
             obs_shape = (3 * self.num_frames, h, w)
             self.encoder = make_encoder(
                 encoder_type, obs_shape, encoder_feature_dim, encoder_num_layers,
-                encoder_num_filters, output_logits=True
+                encoder_num_filters, output_logits=True, use_layer_norm=False
             )
 
-        self.apply(weight_init)
 
         parameters = list(self.trunk.parameters())
         if self.use_img:
@@ -196,7 +195,7 @@ class SimParamModel(nn.Module):
         else:
             low_val = sim_params - dist_range
 
-        num_low = np.random.randint(0, self.batch * 4)
+        num_low = np.random.randint(0, self.batch * 4)  # TODO: figure out why x4
         low = torch.FloatTensor(
             np.random.uniform(size=(num_low, len(sim_params)), low=low_val,
                               high=sim_params)).to(self.device)
