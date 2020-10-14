@@ -111,6 +111,7 @@ class SimParamModel(nn.Module):
                 # Input is b x c * num_frames x h x w.  We take the first image and downsample to
                 downsampled_img = input[:, 0, ::25, ::25].reshape(len(input), -1)
                 features = downsampled_img
+                print("NORM", torch.norm(features).item(), torch.min(features).item(), torch.max(features).item())
                 # features = self.encoder(input, detach=False)
                 # features = features / torch.norm(features)
             else:
