@@ -121,8 +121,9 @@ class DR_Env:
 
   def env_step(self, action):
       if self.real_world:
+        #flip x, y coordinates and reverse y
         x = action[1]
-        action[1] = action[0]
+        action[1] = -action[0]
         action[0] = x
 
       obs, reward, done, info = self._env.step(action)
