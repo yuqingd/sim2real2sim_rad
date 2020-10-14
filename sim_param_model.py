@@ -165,6 +165,7 @@ class SimParamModel(nn.Module):
         pred_labels = pred_labels.to(self.device)
 
         encoded_pred_labels = self.positional_encoding(pred_labels)
+        #encoded_pred_labels = pred_labels.repeat(1, 21)
         full_action_traj = torch.stack(full_action_traj)
 
         feat = self.get_features(full_obs_traj)
@@ -196,7 +197,9 @@ class SimParamModel(nn.Module):
         else:
             low_val = distribution_mean - dist_range
 
-        num_low = np.random.randint(0, self.batch * 4)
+        num_low = np.random.randint(0, self.batch)
+        #np.random.seed(0)
+        #torch.manual_seed(0)
         low = torch.FloatTensor(
             np.random.uniform(size=(num_low, len(sim_params)), low=low_val,
                               high=distribution_mean)).to(self.device)

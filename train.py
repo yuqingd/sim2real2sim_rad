@@ -76,7 +76,7 @@ def parse_args():
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_buffer', default=False, action='store_true')
     parser.add_argument('--save_video', default=False, action='store_true')
-    parser.add_argument('--save_model', default=True, action='store_true')
+    parser.add_argument('--save_model', default=False, action='store_true')
     parser.add_argument('--detach_encoder', default=False, action='store_true')
 
     parser.add_argument('--data_augs', default='crop', type=str)
@@ -683,6 +683,7 @@ def main():
     start_time = time.time()
     success = None
     obs_traj = None
+    one_and_only = None
 
     train_policy_time = 0
     train_sim_model_time = 0
@@ -720,7 +721,9 @@ def main():
                     for i in range(args.num_sim_param_updates):
                         should_log_i = should_log and i == 0
                         if args.update_sim_param_from in ['latest', 'both']:
-                            sim_param_model.update(obs_traj, sim_params, sim_env.distribution_mean,
+                            if one_and_only is None:
+                                one_and_only = (obs_traj, sim_params, sim_env.distribution_mean)
+                            sim_param_model.update(one_and_only[0], one_and_only[1], one_and_only[2],
                                                    L, step, should_log_i)
                         if args.update_sim_param_from in ['buffer', 'both']:
                             sim_param_model.update(obs_traj, sim_params, sim_env.distribution_mean,
@@ -772,7 +775,7 @@ def main():
 
         # sample action for data collection
         train_policy_start = time.time()
-        if step < args.init_steps:
+        if args.no_train_policy or (step < args.init_steps):
             action = sim_env.action_space.sample()
         else:
             with utils.eval_mode(agent):
