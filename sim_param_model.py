@@ -190,20 +190,21 @@ class SimParamModel(nn.Module):
             dist_range = self.train_range_scale
         sim_params = torch.FloatTensor(sim_params) # 1 - dimensional
         eps = 1e-3
+        distribution_mean = np.array(distribution_mean)
         if self.clip_positive:
-            low_val = torch.clamp(sim_params - dist_range, eps, float('inf'))
+            low_val = torch.clamp(distribution_mean - dist_range, eps, float('inf'))
         else:
-            low_val = sim_params - dist_range
+            low_val = distribution_mean - dist_range
 
         num_low = np.random.randint(0, self.batch * 4)
         low = torch.FloatTensor(
             np.random.uniform(size=(num_low, len(sim_params)), low=low_val,
-                              high=sim_params)).to(self.device)
+                              high=distribution_mean)).to(self.device)
 
         high = torch.FloatTensor(
             np.random.uniform(size=(self.batch * 4 - num_low, len(sim_params)),
-                              low=sim_params,
-                              high=sim_params + dist_range)).to(self.device)
+                              low=distribution_mean,
+                              high=distribution_mean + dist_range)).to(self.device)
         dist_mean = torch.FloatTensor(distribution_mean).unsqueeze(0).to(self.device)
         fake_pred = torch.cat([low, high, dist_mean], dim=0)
         labels = (fake_pred > sim_params.unsqueeze(0).to(self.device)).long()
