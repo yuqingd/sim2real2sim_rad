@@ -107,7 +107,7 @@ class SimParamModel(nn.Module):
                 else:
                     raise NotImplementedError(type(obs_traj[0][0]))
 
-                features = self.encoder(input, detach=True)
+                features = self.encoder(input, detach=False)
                 features = features / torch.norm(features)
             else:
                 if type(obs_traj[0][0]) is torch.Tensor:
