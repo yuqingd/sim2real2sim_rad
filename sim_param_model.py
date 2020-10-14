@@ -82,7 +82,7 @@ class SimParamModel(nn.Module):
             obs_shape = (3 * self.num_frames, h, w)
             self.encoder = make_encoder(
                 encoder_type, obs_shape, encoder_feature_dim, encoder_num_layers,
-                encoder_num_filters, output_logits=True
+                encoder_num_filters, output_logits=True, use_layer_norm=False
             )
 
         #self.apply(weight_init)
