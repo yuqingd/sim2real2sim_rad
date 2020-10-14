@@ -1086,7 +1086,7 @@ class DR_DMCEnv(DR_Env):
 
 class DR_Dummy(DR_Env):
     def __init__(self, env, cameras, **kwargs):
-        self.square_size = 4
+        self.square_size = 20
         self.speed_multiplier = 3
         self.square_r = 0.5
         self.square_g = 0.5
