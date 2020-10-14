@@ -795,7 +795,8 @@ def main():
         done = True if episode_step >= args.time_limit - 1 else done
         done_bool = float(done)
         episode_reward += reward
-        replay_buffer.add(obs, action, reward, next_obs, done_bool)
+        if one_and_only is None:
+            replay_buffer.add(obs, action, reward, next_obs, done_bool)
         obs_traj.append((obs_img, action))
 
         if 'success' in obs.keys():
