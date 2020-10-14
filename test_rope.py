@@ -10,13 +10,13 @@ import mujoco_py
 
 GlfwContext(offscreen=True)
 os.environ['MUJOCO_GL'] = 'glfw'
-# env_real = make('kitchen', real_world=True,
-#         task_name='rope',
-#         seed=0,
-#         from_pixels=True,
-#         height=84,
-#         width=84
-#     )
+env_real = make('kitchen', real_world=True,
+        task_name='rope',
+        seed=0,
+        from_pixels=True,
+        height=84,
+        width=84
+    )
 
 env_sim = make('kitchen', real_world=False,
         task_name='rope',
@@ -25,10 +25,10 @@ env_sim = make('kitchen', real_world=False,
         height=84,
         width=84
     )
-# env.set_special_reset('grip')
-# env_real.reset()
+env_real.reset()
+env_sim.reset()
 num_episodes = 1
-time_limit = 30
+time_limit = 60
 image_size = 84
 real_video_dir = utils.make_dir(os.path.join('./logdir', 'debug_video'))
 
@@ -51,11 +51,11 @@ def run_eval_loop(env, name):
             obs = obs_dict['image']
             # center crop image
             obs = utils.center_crop_image(obs, image_size)
-            action = [.1, 0, 0]
-            if name == 'real':
-                x = action[1]
-                action[1] = action[0]
-                action[0] = x
+            if step < 30:
+                action = [0, .1, 0]
+            else:
+                action = [.1, .1, -.05]
+
             step+=1
             obs_traj.append(obs)
             obs_dict, reward, done, info = env.step(action)
@@ -65,4 +65,4 @@ def run_eval_loop(env, name):
         video.save('real_{}.mp4'.format(name))
 
 run_eval_loop(env_sim, 'sim')
-# run_eval_loop(env_real, 'real')
+run_eval_loop(env_real, 'real')
