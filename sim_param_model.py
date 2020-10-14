@@ -107,8 +107,12 @@ class SimParamModel(nn.Module):
                 else:
                     raise NotImplementedError(type(obs_traj[0][0]))
 
-                features = self.encoder(input, detach=True)
-                features = features #/ torch.norm(features)
+                temp = 3
+                # Input is b x c * num_frames x h x w.  We take the first image and downsample to
+                # downsampled_img = input[:, 0, ::4, ::4].reshape(len(input), -1)
+                # features = downsampled_img
+                features = self.encoder(input, detach=False)
+                # features = features / torch.norm(features)
             else:
                 if type(obs_traj[0][0]) is torch.Tensor:
                     features = torch.stack([torch.cat([o for o in traj], dim=0) for traj in obs_traj], dim=0)
