@@ -1098,7 +1098,7 @@ class DR_Dummy(DR_Env):
         super().__init__(env, cameras, **kwargs)
 
     def get_state(self):
-        return np.array([self.square_size, self.square_r, self.square_g, self.square_b, self.square_x, self.square_y])
+        return np.array([self.square_r, self.square_size, self.square_g, self.square_b, self.square_x, self.square_y])
 
     def seed(self, seed=None):
         if seed is not None:
