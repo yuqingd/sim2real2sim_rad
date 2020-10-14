@@ -193,6 +193,7 @@ class ReplayBuffer(Dataset):
         idxs = np.random.randint(
             0, self.capacity if self.full else self.done_idx, size=self.batch_size
         )
+        print("IDXs - CPC", idxs)
         return self._sample_cpc(idxs, image_only=True)
 
     def _sample_cpc(self, idxs, image_only=True, use_img=False):
@@ -246,6 +247,7 @@ class ReplayBuffer(Dataset):
         cpc_kwargs_list = []
         for traj_id in traj_ids:
             idxs = np.where(self.traj_ids[:self.capacity if self.full else self.done_idx] == traj_id)[0]
+            print("IDXs - CPC_TRAJ", traj_id)
             if len(idxs) < self.max_traj_length:
                 last = idxs[-1]
                 last_repeat = np.zeros(self.max_traj_length - len(idxs), dtype=np.int32) + last

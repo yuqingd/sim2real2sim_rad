@@ -294,18 +294,25 @@ class SimParamModel(nn.Module):
             loss.backward()
             self.sim_param_optimizer.step()
         else:
+            def to_numpy(x):
+                return x.detach().cpu().numpy()
+
             if replay_buffer is None:
-                self.train_classifier(obs_list, sim_params, dist_mean,
+                self.train_classifier(obs_list, np.array(sim_params), np.array(dist_mean),
                                       L, step, should_log)
             else:
                 for obs_traj, action_traj in zip(obs_list, actions_list):
+                    action_traj = [to_numpy(a) for a in action_traj]
                     if self.encoder_type == 'pixel':
-                        self.train_classifier(list(zip(obs_traj['image'], action_traj)),
-                                              obs_traj['sim_params'][-1].to('cpu'),
-                                              obs_traj['distribution_mean'][-1].to('cpu'), L, step, should_log)
+                        obs_traj_image = [to_numpy(i) for i in obs_traj['image']]
+                        self.train_classifier(list(zip(obs_traj_image, action_traj)),
+                                              to_numpy(obs_traj['sim_params'][-1]),
+                                              to_numpy(obs_traj['distribution_mean'][-1]), L, step, should_log)
                     else:
-                        self.train_classifier(list(zip(obs_traj['state'], action_traj)), obs_traj['sim_params'][-1].to('cpu'),
-                                              obs_traj['distribution_mean'][-1].to('cpu'), L, step, should_log)
+                        obs_traj_state = [to_numpy(i) for i in obs_traj['state']]
+                        self.train_classifier(list(zip(obs_traj_state, action_traj)),
+                                              to_numpy(obs_traj['sim_params'][-1]),
+                                              to_numpy(obs_traj['distribution_mean'][-1]), L, step, should_log)
 
 
     def save(self, model_dir, step):
