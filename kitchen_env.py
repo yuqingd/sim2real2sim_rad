@@ -29,7 +29,7 @@ class Kitchen:
                control_version='mocap_ik', distance=2., azimuth=50, elevation=-40,
                initial_randomization_steps=1, minimal=False, dataset_step=None, grayscale=False, delay_steps=0):
     if 'rope' in task:
-      distance = 1.1
+      distance = 1.2
       azimuth = 35
       elevation = -48
     if 'cabinet' in task:
@@ -373,7 +373,7 @@ class Kitchen:
       x_low = -.4  # Left of box
       x_high = .1  # Right of Box
       y_low = 0  # Right in front of the robot's pedestal
-      y_high = .3  # behind box
+      y_high = .35  # behind box
       z_low = 0  # Tabletop
       z_high = 2.1
     elif bounds == 'full_workspace':
