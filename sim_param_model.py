@@ -95,35 +95,27 @@ class SimParamModel(nn.Module):
         )
 
     def get_features(self, obs_traj):
-        # detach_encoder allows to stop gradient propagation to encoder
-
-        with torch.no_grad():
-            if self.use_img:
-                if type(obs_traj[0][0]) is np.ndarray:
-                    input = torch.FloatTensor(obs_traj).to(self.device)
-                    B, num_frames, C, H, W = input.shape
-                    input = input.view(B, num_frames * C, H, W)
-                elif type(obs_traj[0][0]) is torch.Tensor:
-                    input = torch.stack([torch.cat([o for o in traj], dim=0) for traj in obs_traj], dim=0)
-                else:
-                    raise NotImplementedError(type(obs_traj[0][0]))
-
-                # Input is b x c * num_frames x h x w.  We take the first image and downsample to
-                #downsampled_img = input[:, 0, ::25, ::25].reshape(len(input), -1)
-                #features = downsampled_img / 255
-                if torch.max(input).item() > 1:
-                     input = input / 255
-                features = self.encoder(input, detach=False)
-
-                print("NORM", torch.norm(features).item(), torch.min(features).item(), torch.max(features).item())
-                features = features / torch.norm(features)
+        if self.use_img:
+            if type(obs_traj[0][0]) is np.ndarray:
+                input = torch.FloatTensor(obs_traj).to(self.device)
+                B, num_frames, C, H, W = input.shape
+                input = input.view(B, num_frames * C, H, W)
+            elif type(obs_traj[0][0]) is torch.Tensor:
+                input = torch.stack([torch.cat([o for o in traj], dim=0) for traj in obs_traj], dim=0)
             else:
-                if type(obs_traj[0][0]) is torch.Tensor:
-                    features = torch.stack([torch.cat([o for o in traj], dim=0) for traj in obs_traj], dim=0)
-                elif type(obs_traj[0][0]) is np.ndarray:
-                    features = torch.FloatTensor([np.concatenate([o for o in traj], axis=0) for traj in obs_traj]).to(self.device)
-                else:
-                    raise NotImplementedError(type(obs_traj[0][0]))
+                raise NotImplementedError(type(obs_traj[0][0]))
+
+            # Input is b x c * num_frames x h x w.  We take the first image and downsample to
+            #downsampled_img = input[:, 0, ::25, ::25].reshape(len(input), -1)
+            #features = downsampled_img / 255
+            if torch.max(input).item() > 1:
+                 input = input / 255
+            features = self.encoder(input, detach=False)
+
+            print("NORM", torch.norm(features).item(), torch.min(features).item(), torch.max(features).item())
+            features = features / torch.norm(features)
+        else:
+            raise NotImplementedError(type(obs_traj[0][0]))
 
         return features
 
