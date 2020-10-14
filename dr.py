@@ -526,10 +526,10 @@ def config_dr_metaworld(config):
 def config_dummy(config):
     real_dr_values = {
         # "square_size": 4,
-        # "speed_multiplier": 10,
+        # "speed_multiplier": 3,
         "square_r": .5,
         # "square_g": .5,
-        # "square_b": 0.0,
+        # "square_b": 0.,
     }
     config.real_dr_params = real_dr_values
     config.real_dr_list = list(config.real_dr_params.keys())

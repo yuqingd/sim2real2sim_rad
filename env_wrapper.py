@@ -1135,6 +1135,8 @@ class DR_Dummy(DR_Env):
         # self.square_size = self.update_dr_param('square_size')
         # self.speed_multiplier = self.update_dr_param('speed_multiplier')
         self.square_r = self.update_dr_param('square_r')
+        self.square_r = min(1 - 1e-3, self.square_r)
+        self.square_r = max(1e-3, self.square_r)
         # self.square_g = self.update_dr_param('square_g')
         # self.square_b = self.update_dr_param('square_b')
 
