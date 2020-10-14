@@ -466,11 +466,20 @@ def random_crop(imgs, output_size):
 
 
 def center_crop_image(image, output_size):
-    h, w = image.shape[1:]
-    new_h, new_w = output_size, output_size
+    if len(image.shape) == 3:  # No batch
+        h, w = image.shape[1:]
+        new_h, new_w = output_size, output_size
 
-    top = (h - new_h)//2
-    left = (w - new_w)//2
+        top = (h - new_h)//2
+        left = (w - new_w)//2
 
-    image = image[:, top:top + new_h, left:left + new_w]
+        image = image[:, top:top + new_h, left:left + new_w]
+    else:
+        b, c, h, w = image.shape
+        new_h, new_w = output_size, output_size
+
+        top = (h - new_h) // 2
+        left = (w - new_w) // 2
+
+        image = image[:, :, top:top + new_h, left:left + new_w]
     return image
