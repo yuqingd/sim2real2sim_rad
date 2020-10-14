@@ -716,7 +716,7 @@ def main():
 
         if done:
             if step > 0:
-                if args.outer_loop_version != 0 and obs_traj is not None:
+                if (step > args.init_steps) and args.outer_loop_version != 0 and obs_traj is not None:
                     should_log = step % args.eval_freq == 0
                     start_sim_model = time.time()
                     for i in range(args.num_sim_param_updates):
