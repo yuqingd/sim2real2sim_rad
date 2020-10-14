@@ -195,16 +195,21 @@ class ReplayBuffer(Dataset):
         )
         return self._sample_cpc(idxs, image_only=True)
 
-    def _sample_cpc(self, idxs, image_only=True, use_img=False):
+    def _sample_cpc(self, idxs, image_only=True, use_img=False, random_crop_img=True):
 
         obses = self.obses['image'][idxs]
         next_obses = self.next_obses['image'][idxs]
 
         pos = obses.copy()
 
-        obses = random_crop(obses, self.image_size)
-        next_obses = random_crop(next_obses, self.image_size)
-        pos = random_crop(pos, self.image_size)
+        if random_crop_img:
+            obses = random_crop(obses, self.image_size)
+            next_obses = random_crop(next_obses, self.image_size)
+            pos = random_crop(pos, self.image_size)
+        else:
+            obses = random_crop(obses, self.image_size)
+            next_obses = random_crop(next_obses, self.image_size)
+            pos = random_crop(pos, self.image_size)
 
         obses = torch.as_tensor(obses, device=self.device).float()
         next_obses = torch.as_tensor(
@@ -250,7 +255,7 @@ class ReplayBuffer(Dataset):
                 last = idxs[-1]
                 last_repeat = np.zeros(self.max_traj_length - len(idxs), dtype=np.int32) + last
                 idxs = np.concatenate([idxs, last_repeat], 0)
-            obs, actions, rewards, next_obses, not_dones, cpc_kwargs = self._sample_cpc(idxs, image_only=False)
+            obs, actions, rewards, next_obses, not_dones, cpc_kwargs = self._sample_cpc(idxs, image_only=False, random_crop_img=False)
             obs_list.append(obs)
             actions_list.append(actions)
             rewards_list.append(rewards)
