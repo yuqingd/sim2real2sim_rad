@@ -14,7 +14,7 @@ from positional_encoding import get_embedder
 class SimParamModel(nn.Module):
     def __init__(self, shape, action_space, layers, units, device, obs_shape, encoder_type,
         encoder_feature_dim, encoder_num_layers, encoder_num_filters, agent, sim_param_lr=1e-3, sim_param_beta=0.9,
-                 dist='normal', act=nn.ELU, batch_size=32, traj_length=200, num_frames=10,
+                 dist='normal', act=nn.ELU, batch_size=8, traj_length=200, num_frames=10,
                  embedding_multires=10, use_img=True, state_dim=0, separate_trunks=False, param_names=[],
                  train_range_scale=1, prop_train_range_scale=False, clip_positive=False, dropout=0.5,
                  initial_range=None, single_window=False):
@@ -195,13 +195,13 @@ class SimParamModel(nn.Module):
         else:
             low_val = sim_params - dist_range
 
-        num_low = np.random.randint(0, self.batch * 4)
+        num_low = np.random.randint(0, self.batch)
         low = torch.FloatTensor(
             np.random.uniform(size=(num_low, len(sim_params)), low=low_val,
                               high=sim_params)).to(self.device)
 
         high = torch.FloatTensor(
-            np.random.uniform(size=(self.batch * 4 - num_low, len(sim_params)),
+            np.random.uniform(size=(self.batch - num_low, len(sim_params)),
                               low=sim_params,
                               high=sim_params + dist_range)).to(self.device)
         dist_mean = torch.FloatTensor(distribution_mean).unsqueeze(0).to(self.device)
@@ -262,16 +262,18 @@ class SimParamModel(nn.Module):
                 L.log(f'train_sim_params/{param}/dist_mean_error', dist_error_individual[i], step)
 
         # Optimize the critic
-        self.sim_param_optimizer.zero_grad()
-        loss.backward()
-        self.sim_param_optimizer.step()
+        return loss
+        # self.sim_param_optimizer.zero_grad()
+        # loss.backward()
+        # self.sim_param_optimizer.step()
 
     def update(self, obs_list, sim_params, dist_mean, L, step, should_log, replay_buffer=None):
+        total_num_trajs = 16
         if replay_buffer is not None:
             if self.encoder_type == 'pixel':
-                obs_list, actions_list, rewards_list, next_obses_list, not_dones_list, cpc_kwargs_list = replay_buffer.sample_cpc_traj(1)
+                obs_list, actions_list, rewards_list, next_obses_list, not_dones_list, cpc_kwargs_list = replay_buffer.sample_cpc_traj(total_num_trajs)
             else:
-                obs_list, actions_list, rewards_list, next_obses_list, not_dones_list = replay_buffer.sample_proprio_traj(16)
+                obs_list, actions_list, rewards_list, next_obses_list, not_dones_list = replay_buffer.sample_proprio_traj(total_num_trajs)
 
         if self._dist == 'normal':
             pred_sim_params = []
@@ -291,17 +293,22 @@ class SimParamModel(nn.Module):
             self.sim_param_optimizer.step()
         else:
             if replay_buffer is None:
-                self.train_classifier(obs_list, sim_params, dist_mean,
+                loss = self.train_classifier(obs_list, sim_params, dist_mean,
                                       L, step, should_log)
             else:
+                losses = []
                 for obs_traj, action_traj in zip(obs_list, actions_list):
                     if self.encoder_type == 'pixel':
-                        self.train_classifier(list(zip(obs_traj['image'], action_traj)),
+                        losses.append (self.train_classifier(list(zip(obs_traj['image'], action_traj)),
                                               obs_traj['sim_params'][-1].to('cpu'),
-                                              obs_traj['distribution_mean'][-1].to('cpu'), L, step, should_log)
+                                              obs_traj['distribution_mean'][-1].to('cpu'), L, step, should_log))
                     else:
-                        self.train_classifier(list(zip(obs_traj['state'], action_traj)), obs_traj['sim_params'][-1].to('cpu'),
-                                              obs_traj['distribution_mean'][-1].to('cpu'), L, step, should_log)
+                        losses.append(self.train_classifier(list(zip(obs_traj['state'], action_traj)), obs_traj['sim_params'][-1].to('cpu'),
+                                              obs_traj['distribution_mean'][-1].to('cpu'), L, step, should_log))
+                loss = sum(losses)
+            self.sim_param_optimizer.zero_grad()
+            loss.backward()
+            self.sim_param_optimizer.step()
 
 
     def save(self, model_dir, step):
