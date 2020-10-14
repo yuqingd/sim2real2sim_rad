@@ -220,11 +220,12 @@ class SimParamModel(nn.Module):
 
         labels = torch.gather(labels, 0, shuffled_indices)
         fake_pred = torch.gather(fake_pred, 0, shuffled_indices)
-        assert obs_traj[0][0].shape == (9, 84, 84), obs_traj[0][0].shape
         try:
-            dr_param = np.max(obs_traj[0][0][0]) / 255 # red channel of first
+            dr_param = np.max(obs_traj[0][0][0]) # red channel of first
         except:
-            dr_param = torch.max(obs_traj[0][0][0]) / 255
+            dr_param = torch.max(obs_traj[0][0][0])
+        if self.use_img:
+            dr_param = dr_param / 255
         pred_labels = fake_pred > dr_param
         hardcoded_accuracy = (torch.sum(labels == pred_labels) * 1.0) / np.prod(labels.shape)
 
