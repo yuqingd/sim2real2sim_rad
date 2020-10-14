@@ -52,7 +52,7 @@ def run_eval_loop(env, name):
             # center crop image
             obs = utils.center_crop_image(obs, image_size)
             action = [.1, 0, 0]
-            if name == 'sim':
+            if name == 'real':
                 x = action[1]
                 action[1] = action[0]
                 action[0] = x

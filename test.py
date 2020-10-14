@@ -53,7 +53,7 @@ agent = make_agent(
     args=args,
     device=device
 )
-load_dir = '/home/philip/Desktop/logdir/baseline'
+load_dir = './logdir/baseline_kitchen-rope-im84-b128-s0-curl_sac-pixel-crop'
 real_video_dir = utils.make_dir(os.path.join(load_dir, 'real_robot_video'))
 video = VideoRecorder(real_video_dir, camera_id=0)
 
@@ -91,7 +91,7 @@ def run_eval_loop(sample_stochastically=True):
             obs = utils.center_crop_image(obs, image_size)
 
             with utils.eval_mode(agent):
-                action = agent.select_action(obs)
+                action = agent.sample_action(obs)
             obs_traj.append(obs)
             obs_dict, reward, done, _ = env.step(action)
             video.record(env)
