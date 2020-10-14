@@ -720,13 +720,13 @@ def main():
                     start_sim_model = time.time()
                     for i in range(args.num_sim_param_updates):
                         should_log_i = should_log and i == 0
+                        if one_and_only is None:
+                            one_and_only = (obs_traj, sim_params, sim_env.distribution_mean)
                         if args.update_sim_param_from in ['latest', 'both']:
-                            if one_and_only is None:
-                                one_and_only = (obs_traj, sim_params, sim_env.distribution_mean)
                             sim_param_model.update(one_and_only[0], one_and_only[1], one_and_only[2],
                                                    L, step, should_log_i)
                         if args.update_sim_param_from in ['buffer', 'both']:
-                            sim_param_model.update(obs_traj, sim_params, sim_env.distribution_mean,
+                            sim_param_model.update(one_and_only[0], one_and_only[1], one_and_only[2],
                                                    L, step, should_log_i, replay_buffer)
                     train_sim_model_time += time.time() - start_sim_model
 
