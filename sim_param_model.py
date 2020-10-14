@@ -107,6 +107,8 @@ class SimParamModel(nn.Module):
                 else:
                     raise NotImplementedError(type(obs_traj[0][0]))
 
+                if torch.max(input).item() > 1:
+                    input = input / 255
                 features = self.encoder(input, detach=False)
                 features = features / torch.norm(features)
             else:
