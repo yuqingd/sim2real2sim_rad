@@ -328,8 +328,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
             done = False
             episode_reward = 0
             obs_traj = []
-            step = 0
-            while not done and step < args.time_limit:
+            while not done and len(obs_traj) < args.time_limit:
                 if args.use_img:
                     obs = obs_dict['image']
                     # center crop image
@@ -346,7 +345,6 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
                 obs_dict, reward, done, _ = real_env.step(action)
                 video_real.record(real_env)
                 episode_reward += reward
-                step += 1
 
             video_real.save('real_%d.mp4' % step)
             L.log('eval/' + prefix + 'episode_reward', episode_reward, step)
