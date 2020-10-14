@@ -230,10 +230,11 @@ def predict_sim_params(sim_param_model, traj, current_sim_params, args, step=10,
         windows = [windows[0]]
 
     if args.round_predictions:
-        preds = sim_param_model.forward_classifier(windows, current_sim_params).cpu().numpy()
-        mask = (preds > confidence_level) & (preds < 1 - confidence_level)
-        preds = np.round(preds)
-        preds[mask] = 0.5
+        with torch.no_grad():
+            preds = sim_param_model.forward_classifier(windows, current_sim_params).cpu().numpy()
+            mask = (preds > confidence_level) & (preds < 1 - confidence_level)
+            preds = np.round(preds)
+            preds[mask] = 0.5
 
     # Round to the nearest integer so each prediction is voting up or down
     # Alternatively, we could just take a mean of their probabilities
