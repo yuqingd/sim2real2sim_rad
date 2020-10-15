@@ -79,6 +79,8 @@ class PixelEncoder(nn.Module):
             out = torch.tanh(h_norm)
             self.outputs['tanh'] = out
 
+        b, c, h, w = obs.shape
+        out = obs[:, 0, 0, :self.feature_dim]
         return out
 
     def copy_conv_weights_from(self, source):

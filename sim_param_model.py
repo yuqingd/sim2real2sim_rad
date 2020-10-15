@@ -111,6 +111,7 @@ class SimParamModel(nn.Module):
             if torch.max(input).item() > 1:
                  input = input / 255
             features = self.encoder(input, detach=False)
+            self.feature_norm = torch.norm(features)
 
             print("NORM", torch.norm(features).item(), torch.min(features).item(), torch.max(features).item())
             features = features / torch.norm(features)
@@ -254,6 +255,7 @@ class SimParamModel(nn.Module):
             L.log('train_sim_params/dist_mean_loss', dist_loss_mean, step)
             L.log('train_sim_params/dist_mean_accuracy', dist_accuracy_mean, step)
             L.log('train_sim_params/dist_mean_error', dist_error_mean, step)
+            L.log('train_sim_params/feature_norm', self.feature_norm, step)
             for i, param in enumerate(self.param_names):
                 L.log(f'train_sim_params/{param}/loss', individual_loss[i], step)
                 L.log(f'train_sim_params/{param}/accuracy', individual_accuracy[i], step)
