@@ -10,8 +10,8 @@ ABSENT = 'absent'
 # If assign_gpus is true, you can specify which GPUs you have and how many slots are available on each.
 # By default, it will fill up one gpu before going onto the next, which may or may not be what we want.
 # If you don't want to assign gpus, make the gpus list empty.
-starting_id = 999  # TODO: update this each time!
-gpus = [(0, 2), (1, 1), (3, 1)]
+starting_id = 603  # TODO: update this each time!
+gpus = [(0, 1), (2, 2), (3, 2)]
 
 # This is to grid search. If you don't want to grid search, manually write in the param_args list.
 
@@ -40,7 +40,7 @@ env_params = [
      {"domain_name": ["dmc_cheetah"], "task_name": ["run"], "action_repeat": [4]},
      {"domain_name": ["dmc_ball_in_cup"], "task_name": ["catch"], "action_repeat": [4]},
      {"domain_name": ["dmc_finger"], "task_name": ["spin"], "action_repeat": [2]},
-     {"domain_name": ["kitchen"], "task_name": ["rope", "push_kettle_burner", "open_cabinet"], "action_repeat": [1]},
+     # {"domain_name": ["kitchen"], "task_name": ["rope", "push_kettle_burner", "open_cabinet"], "action_repeat": [1]},
      ],
 ]
 
@@ -77,8 +77,8 @@ ol3_params = ol3_params + env_params + dr_params + common_params
 
 sweep_params_list = [
     # oracle_params,
-    # baseline_params,
-    ol3_params,
+    baseline_params,
+    # ol3_params,
 ]
 
 id = starting_id
