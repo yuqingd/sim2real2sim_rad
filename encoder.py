@@ -9,7 +9,7 @@ def tie_weights(src, trg):
 
 
 # for 84 x 84 inputs
-OUT_DIM = {2: 39, 4: 35, 6: 31}
+OUT_DIM = {1:41, 2: 39, 4: 35, 6: 31}
 # for 64 x 64 inputs
 OUT_DIM_64 = {2: 29, 4: 25, 6: 21}
 
@@ -23,6 +23,7 @@ class PixelEncoder(nn.Module):
         self.obs_shape = obs_shape
         self.feature_dim = feature_dim
         self.num_layers = num_layers
+        self.num_filters = num_filters
 
         self.convs = nn.ModuleList(
             [nn.Conv2d(obs_shape[0], num_filters, 3, stride=2)]
@@ -60,27 +61,30 @@ class PixelEncoder(nn.Module):
 
     def forward(self, obs, detach=False):
         h = self.forward_conv(obs)
+        out = h.reshape(len(obs), -1)
+        out = out[:, :self.feature_dim]
 
-        if detach:
-            h = h.detach()
+        # if detach:
+        #     h = h.detach()
+        #
+        # h_fc = self.fc(h)
+        # self.outputs['fc'] = h_fc
+        #
+        # if self.use_layer_norm:
+        #     h_norm = self.ln(h_fc)
+        # else:
+        #     h_norm = h_fc
+        # self.outputs['ln'] = h_norm
+        #
+        # b, c, h, w = obs.shape
+        # h_norm = obs[:, 0, 0, :self.feature_dim]
+        #
+        # if self.output_logits:
+        #     out = h_norm
+        # else:
+        #     out = torch.tanh(h_norm)
+        #     self.outputs['tanh'] = out
 
-        h_fc = self.fc(h)
-        self.outputs['fc'] = h_fc
-
-        if self.use_layer_norm:
-            h_norm = self.ln(h_fc)
-        else:
-            h_norm = h_fc
-        self.outputs['ln'] = h_norm
-
-        if self.output_logits:
-            out = h_norm
-        else:
-            out = torch.tanh(h_norm)
-            self.outputs['tanh'] = out
-
-        b, c, h, w = obs.shape
-        out = obs[:, 0, 0, :self.feature_dim]
         return out
 
     def copy_conv_weights_from(self, source):
