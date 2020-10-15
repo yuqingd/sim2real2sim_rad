@@ -536,6 +536,8 @@ def config_dummy(config):
         config.real_dr_list = list(real_dr_values.keys())
     elif dr_option == 'red':
         config.real_dr_list = ['square_r']
+    elif dr_option == 'visual_dr':
+        config.real_dr_list = ['square_r', 'square_g', 'square_b']
     elif dr_option == 'speed':
         config.real_dr_list = ['speed_multiplier']
     elif dr_option == 'size':
