@@ -17,7 +17,9 @@ class SimParamModel(nn.Module):
                  dist='normal', act=nn.ELU, batch_size=32, traj_length=200, num_frames=10,
                  embedding_multires=10, use_img=True, state_dim=0, separate_trunks=False, param_names=[],
                  train_range_scale=1, prop_train_range_scale=False, clip_positive=False, dropout=0.5,
-                 initial_range=None, single_window=False):
+                 initial_range=None, single_window=False, share_encoder=False, normalize_features=False,
+                 use_downsampling=True, use_encoder=True, downsample_size=10, use_layer_norm=False,
+                 use_weight_init=False):
         super(SimParamModel, self).__init__()
         self._shape = shape
         self._layers = layers
@@ -42,10 +44,29 @@ class SimParamModel(nn.Module):
         self.clip_positive = clip_positive
         self.initial_range = initial_range
         self.single_window = single_window
+        self.share_encoder = share_encoder
+        self.use_downsampling = use_downsampling
+        self.use_encoder = use_encoder
+        self.normalize_features = normalize_features
+        self.downsample_size = downsample_size
+        self.use_layer_norm = use_layer_norm
+        self.use_weight_init = use_weight_init
         action_space_dim = np.prod(action_space.shape)
 
         if self.use_img:
-            trunk_input_dim = encoder_feature_dim + additional + action_space_dim * num_frames
+            assert use_encoder or use_downsampling, "we must use at least one encoding scheme"
+            if self.use_encoder:
+                if self.share_encoder:
+                    encoder_dims = encoder_feature_dim * num_frames
+                else:
+                    encoder_dims = encoder_feature_dim
+            else:
+                encoder_dims = 0
+            if self.use_downsampling:
+                downsample_dims = downsample_size * downsample_size * 3
+            else:
+                downsample_dims = 0
+            trunk_input_dim = encoder_dims + downsample_dims + additional + action_space_dim * num_frames
         else:
             trunk_input_dim = state_dim[-1] * self.num_frames + additional + action_space_dim * num_frames
 
@@ -78,12 +99,21 @@ class SimParamModel(nn.Module):
         if self.use_img:
             # change obs_shape to account for the trajectory length, since images are stacked channel-wise
             c, h, w = obs_shape
-            obs_shape = (3 * self.num_frames, h, w)
-            self.encoder = make_encoder(
-                encoder_type, obs_shape, encoder_feature_dim, encoder_num_layers,
-                encoder_num_filters, output_logits=True, use_layer_norm=False
-            )
+            if self.share_encoder:
+                obs_shape = (3, h, w)
+                self.encoder = make_encoder(
+                    encoder_type, obs_shape, encoder_feature_dim, encoder_num_layers,
+                    encoder_num_filters, output_logits=True, use_layer_norm=self.use_layer_norm
+                )
+            else:
+                obs_shape = (3 * self.num_frames, h, w)
+                self.encoder = make_encoder(
+                    encoder_type, obs_shape, encoder_feature_dim, encoder_num_layers,
+                    encoder_num_filters, output_logits=True, use_layer_norm=self.use_layer_norm
+                )
 
+        if self.use_weight_init:
+            self.apply(weight_init)
 
         parameters = list(self.trunk.parameters())
         if self.use_img:
@@ -96,7 +126,15 @@ class SimParamModel(nn.Module):
         # detach_encoder allows to stop gradient propagation to encoder
 
         if self.use_img:
-            if type(obs_traj[0][0]) is np.ndarray:
+            # Share encoder case
+            if obs_traj[0][0].shape[0] == 9:
+                input = []
+                for i in range(len(obs_traj[0])):
+                    if type(obs_traj[0][0]) is torch.Tensor:
+                        input.append(torch.FloatTensor([traj[i].detach().cpu().numpy() for traj in obs_traj]).to(self.device))
+                    else:
+                        input.append(torch.FloatTensor([traj[i] for traj in obs_traj]).to(self.device))
+            elif type(obs_traj[0][0]) is np.ndarray:
                 input = torch.FloatTensor(obs_traj).to(self.device)
                 B, num_frames, C, H, W = input.shape
                 input = input.view(B, num_frames * C, H, W)
@@ -105,10 +143,37 @@ class SimParamModel(nn.Module):
             else:
                 raise NotImplementedError(type(obs_traj[0][0]))
 
-            if torch.max(input).item() > 1:
-                input = input / 255
-            features = self.encoder(input, detach=False)
-            features = features / torch.norm(features)
+            if self.use_encoder:
+                if self.share_encoder:
+                    features = [self.encoder(img, detach=True) for img in input]
+                    features = torch.cat(features, dim=1)
+                else:
+                    # Don't update the conv layers if we're sharing, otherwise to
+                    features = self.encoder(input, detach=self.share_encoder)
+                if self.normalize_features:
+                    features = features / torch.norm(features)
+            if self.use_downsampling:
+                # input is multiple frames stacked, but we only need the first
+                if type(input) is list:
+                    first_input = input[0][:, :3]
+                else:
+                    first_input = input[:, :3]
+
+                input_size = first_input.shape[-1]
+                output_size = self.downsample_size
+                bin_size = input_size // output_size
+
+                if torch.max(first_input).item() > 1:
+                    first_input = first_input / 255
+                b, c, h, w = first_input.shape
+                downsample_features = first_input.reshape(
+                    (b, c, output_size, bin_size, output_size, bin_size)).mean(5).mean(3).reshape(b, -1)
+                if self.use_encoder:
+                    features = torch.cat([features, downsample_features], dim=1)
+                else:
+                    features = downsample_features
+            temp = 3
+
         else:
             if type(obs_traj[0][0]) is torch.Tensor:
                 features = torch.stack([torch.cat([o for o in traj], dim=0) for traj in obs_traj], dim=0)
@@ -155,7 +220,7 @@ class SimParamModel(nn.Module):
             else:
                 raise NotImplementedError
             # If we're using images, only use the first of the stacked frames
-            if self.use_img:
+            if self.use_img and not self.share_encoder:
                 full_obs_traj.append([o[:3] for o in obs_traj])
             else:
                 full_obs_traj.append(obs_traj)
