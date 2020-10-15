@@ -1132,11 +1132,16 @@ class DR_Dummy(DR_Env):
             self.distribution_mean = self.get_dr()
             self.distribution_range = np.zeros(self.dr_shape, dtype=np.float32)
             return
-        self.square_size = np.clip(self.update_dr_param('square_size'), 0, 30)
-        self.speed_multiplier = np.clip(self.update_dr_param('speed_multiplier'), 0, float('inf'))
-        self.square_r = np.clip(self.update_dr_param('square_r'), 0, 1)
-        self.square_g = np.clip(self.update_dr_param('square_g'), 0, 1)
-        self.square_b = np.clip(self.update_dr_param('square_b'), 0, 1)
+        if 'square_size' in self.dr_list:
+            self.square_size = np.clip(self.update_dr_param('square_size'), 0, 30)
+        if 'speed_multiplier' in self.dr_list:
+            self.speed_multiplier = np.clip(self.update_dr_param('speed_multiplier'), 0, float('inf'))
+        if 'square_r' in self.dr_list:
+            self.square_r = np.clip(self.update_dr_param('square_r'), 0, 1)
+        if 'square_g' in self.dr_list:
+            self.square_g = np.clip(self.update_dr_param('square_g'), 0, 1)
+        if 'square_b' in self.dr_list:
+            self.square_b = np.clip(self.update_dr_param('square_b'), 0, 1)
 
 
     @property

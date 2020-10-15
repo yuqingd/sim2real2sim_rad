@@ -531,8 +531,16 @@ def config_dummy(config):
         "square_g": .5,
         "square_b": 0.,
     }
+    dr_option = config.dr_option
+    if dr_option == 'all_dr':
+        config.real_dr_list = list(real_dr_values.keys())
+    elif dr_option == 'red':
+        config.real_dr_list = ['square_r']
+    elif dr_option == 'speed':
+        config.real_dr_list = ['speed_multiplier']
+    elif dr_option == 'size':
+        config.real_dr_list = ['square_size']
     config.real_dr_params = real_dr_values
-    config.real_dr_list = list(config.real_dr_params.keys())
     mean_scale = config.mean_scale
     range_scale = config.range_scale
     config.dr = {}  # (mean, range)
