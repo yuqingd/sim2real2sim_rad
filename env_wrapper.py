@@ -1086,8 +1086,8 @@ class DR_DMCEnv(DR_Env):
 
 class DR_Dummy(DR_Env):
     def __init__(self, env, cameras, **kwargs):
-        self.square_size = 4
-        self.speed_multiplier = 3
+        self.square_size = 4.
+        self.speed_multiplier = 3.
         self.square_r = 0.5
         self.square_g = 0.5
         self.square_b = 0.0
@@ -1132,13 +1132,11 @@ class DR_Dummy(DR_Env):
             self.distribution_mean = self.get_dr()
             self.distribution_range = np.zeros(self.dr_shape, dtype=np.float32)
             return
-        # self.square_size = self.update_dr_param('square_size')
-        # self.speed_multiplier = self.update_dr_param('speed_multiplier')
-        self.square_r = self.update_dr_param('square_r')
-        self.square_r = min(1 - 1e-3, self.square_r)
-        self.square_r = max(1e-3, self.square_r)
-        # self.square_g = self.update_dr_param('square_g')
-        # self.square_b = self.update_dr_param('square_b')
+        self.square_size = np.clip(self.update_dr_param('square_size'), 0, 30)
+        self.speed_multiplier = np.clip(self.update_dr_param('speed_multiplier'), 0, float('inf'))
+        self.square_r = np.clip(self.update_dr_param('square_r'), 0, 1)
+        self.square_g = np.clip(self.update_dr_param('square_g'), 0, 1)
+        self.square_b = np.clip(self.update_dr_param('square_b'), 0, 1)
 
 
     @property
