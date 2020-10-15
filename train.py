@@ -327,6 +327,38 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
     all_ep_rewards = []
     all_ep_success = []
     def run_eval_loop(sample_stochastically=False):
+        obs_dict = sim_env.reset()
+        done = False
+        obs_traj_sim = []
+        video_sim.init(enabled=True)
+        while not done and len(obs_traj_sim) < args.time_limit:
+            if args.use_img:
+                obs = obs_dict['image']
+                # center crop image
+                if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
+                        args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
+                    obs = utils.center_crop_image(obs, args.image_size)
+            else:
+                obs = obs_dict['state']
+            with utils.eval_mode(agent):
+                if sample_stochastically:
+                    action = agent.sample_action(obs)
+                else:
+                    action = agent.select_action(obs)
+            obs_traj_sim.append((obs, action))
+            obs_dict, reward, done, _ = sim_env.step(action)
+
+            video_sim.record(sim_env)
+            sim_params = obs_dict['sim_params']
+        if sim_param_model is not None:
+            dist_mean = obs_dict['distribution_mean']
+            current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
+            evaluate_sim_params(sim_param_model, args, [obs_traj_sim], step, L, "val", sim_params, current_sim_params)
+            if args.outer_loop_version == 3:
+                sim_param_model.train_classifier(obs_traj_sim, sim_params, dist_mean, L, step, True)
+
+        video_sim.save('sim_%d.mp4' % step)
+
         start_time = time.time()
         prefix = 'stochastic_' if sample_stochastically else ''
         obs_batch = []
@@ -400,37 +432,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
 
         np.save(filename, log_data)
 
-        obs_dict = sim_env.reset()
-        done = False
-        obs_traj_sim = []
-        video_sim.init(enabled=True)
-        while not done and len(obs_traj_sim) < args.time_limit:
-            if args.use_img:
-                obs = obs_dict['image']
-                # center crop image
-                if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
-                    args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
-                    obs = utils.center_crop_image(obs, args.image_size)
-            else:
-                obs = obs_dict['state']
-            with utils.eval_mode(agent):
-                if sample_stochastically:
-                    action = agent.sample_action(obs)
-                else:
-                    action = agent.select_action(obs)
-            obs_traj_sim.append((obs, action))
-            obs_dict, reward, done, _ = sim_env.step(action)
 
-            video_sim.record(sim_env)
-            sim_params = obs_dict['sim_params']
-        if sim_param_model is not None:
-            dist_mean = obs_dict['distribution_mean']
-            current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
-            evaluate_sim_params(sim_param_model, args, [obs_traj_sim], step, L, "val", sim_params, current_sim_params)
-            if args.outer_loop_version == 3:
-                sim_param_model.train_classifier(obs_traj_sim, sim_params, dist_mean, L, step, True)
-
-        video_sim.save('sim_%d.mp4' % step)
 
     run_eval_loop(sample_stochastically=True)
     L.dump(step)
