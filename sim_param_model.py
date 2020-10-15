@@ -51,6 +51,7 @@ class SimParamModel(nn.Module):
         self.downsample_size = downsample_size
         self.use_layer_norm = use_layer_norm
         self.use_weight_init = use_weight_init
+        self.feature_norm = None
         action_space_dim = np.prod(action_space.shape)
 
         if self.use_img:
@@ -150,6 +151,7 @@ class SimParamModel(nn.Module):
                 else:
                     # Don't update the conv layers if we're sharing, otherwise to
                     features = self.encoder(input, detach=self.share_encoder)
+                self.feature_norm = torch.norm(features)
                 if self.normalize_features:
                     features = features / torch.norm(features)
             if self.use_downsampling:
@@ -309,6 +311,8 @@ class SimParamModel(nn.Module):
             L.log('train_sim_params/dist_mean_loss', dist_loss_mean, step)
             L.log('train_sim_params/dist_mean_accuracy', dist_accuracy_mean, step)
             L.log('train_sim_params/dist_mean_error', dist_error_mean, step)
+            if self.feature_norm is not None:
+                L.log('train_sim_params/feature_norm', self.feature_norm, step)
             for i, param in enumerate(self.param_names):
                 L.log(f'train_sim_params/{param}/loss', individual_loss[i], step)
                 L.log(f'train_sim_params/{param}/accuracy', individual_accuracy[i], step)
