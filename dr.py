@@ -525,8 +525,8 @@ def config_dr_metaworld(config):
 
 def config_dummy(config):
     real_dr_values = {
-        "square_size": 4.,
-        "speed_multiplier": 3.,
+        "square_size": 6.,
+        "speed_multiplier": 5.,
         "square_r": .5,
         "square_g": .5,
         "square_b": 0.,

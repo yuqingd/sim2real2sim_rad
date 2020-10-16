@@ -1086,11 +1086,12 @@ class DR_DMCEnv(DR_Env):
 
 class DR_Dummy(DR_Env):
     def __init__(self, env, cameras, full_screen_square=False, **kwargs):
-        self.square_size = 4.
-        self.speed_multiplier = 3.
+        self.square_size = 6.
+        self.speed_multiplier = 5.
         self.square_r = 0.5
         self.square_g = 0.5
         self.square_b = 0.0
+        self.margin = 16  # based on how much we crop the image
         self.reward_range = (-float('inf'), float('inf'))
         self.metadata = {'render.modes': []}
         self.timestep = 1
@@ -1136,7 +1137,7 @@ class DR_Dummy(DR_Env):
         if 'square_size' in self.dr_list:
             self.square_size = np.clip(self.update_dr_param('square_size'), 0, 30)
         if 'speed_multiplier' in self.dr_list:
-            self.speed_multiplier = np.clip(self.update_dr_param('speed_multiplier'), 0, float('inf'))
+            self.speed_multiplier = np.clip(self.update_dr_param('speed_multiplier'), 0, 20)
         if 'square_r' in self.dr_list:
             self.square_r = np.clip(self.update_dr_param('square_r'), 0, 1)
         if 'square_g' in self.dr_list:
@@ -1161,10 +1162,10 @@ class DR_Dummy(DR_Env):
         y_update = action[0] * self.speed_multiplier
         self.square_x += x_update
         self.square_y += y_update
-        self.square_x = max(self.square_x, 0)
-        self.square_y = max(self.square_y, 0)
-        self.square_x = min(self.square_x, 63)
-        self.square_y = min(self.square_y, 63)
+        self.square_x = max(self.square_x, 0 + self.margin)
+        self.square_y = max(self.square_y, 0 + self.margin)
+        self.square_x = min(self.square_x, 100 - self.margin)
+        self.square_y = min(self.square_y, 100 - self.margin)
         obs = self.render()
         reward = - (np.abs(self.square_x) + np.abs(self.square_y))
         done = self.timestep >= self._max_episode_steps
@@ -1174,8 +1175,8 @@ class DR_Dummy(DR_Env):
         return obs, state, reward, done, info
 
     def env_reset(self):
-        self.square_x = np.random.uniform(low=10., high=50.)
-        self.square_y = np.random.uniform(low=10., high=50.)
+        self.square_x = np.random.uniform(low=20., high=80.)
+        self.square_y = np.random.uniform(low=20., high=80.)
         obs =  self.render()
         state = self.get_state()
         self.timestep = 1
@@ -1184,16 +1185,16 @@ class DR_Dummy(DR_Env):
     def render(self, mode='rgb_array', size=None, *args, **kwargs):
         if size is None:
             size = self._size
-        rgb_array = np.zeros((64, 64, 3))
+        rgb_array = np.zeros((100, 100, 3))
         x_start = max(0, int(np.floor(self.square_x - self.square_size)))
         y_start = max(0, int(np.floor(self.square_y - self.square_size)))
-        x_end = min(63, int(np.floor(self.square_x + self.square_size)))
-        y_end = min(63, int(np.floor(self.square_y + self.square_size)))
+        x_end = min(100, int(np.floor(self.square_x + self.square_size)))
+        y_end = min(100, int(np.floor(self.square_y + self.square_size)))
         if self.full_screen_square:
             rgb_array[:] = np.clip(np.array([self.square_r, self.square_g, self.square_b]), 0, 1)
         else:
             rgb_array[y_start:y_end, x_start:x_end] = np.clip(np.array([self.square_r, self.square_g, self.square_b]), 0, 1)
-        if size is not None:
+        if not size == (100, 100):
             rgb_array = cv2.resize(rgb_array, size)
         rgb_array = (rgb_array * 255).astype(np.uint8)
         return np.transpose(rgb_array, (2, 0, 1))
