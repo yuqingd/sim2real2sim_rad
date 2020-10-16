@@ -145,6 +145,7 @@ def parse_args():
     parser.add_argument('--time_limit', default=200, type=int)
     parser.add_argument('--delay_steps', default=0, type=int)
     parser.add_argument('--full_screen_square', default=False, action='store_true')
+    parser.add_argument('--train_offline_dir', default=None, type=str)
 
     args = parser.parse_args()
     if args.dr:
@@ -156,6 +157,29 @@ def parse_args():
     args.update = [0] * len(args.real_dr_list)
 
     return args
+
+def train_offline(args, L, real_env, sim_env, agent, sim_param_model, video_real, video_sim, replay_buffer):
+    train_sim_model_time = 0
+    eval_time = 0
+    start_step = 0
+    for step in range(start_step, args.num_train_steps):
+        if step % args.eval_freq == 0:
+            total_time = train_sim_model_time + eval_time
+            if total_time > 0:
+                L.log('eval_time/train_sim_model', train_sim_model_time / total_time, step)
+                L.log('eval_time/eval', eval_time / total_time, step)
+
+            start_eval = time.time()
+            evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim,
+                     args.num_eval_episodes, L, step, args)
+            eval_time += time.time() - start_eval
+        should_log = step % args.eval_freq == 0
+        start_sim_model = time.time()
+        obs = sim_env.reset()
+        sim_params = obs['sim_params']
+        sim_param_model.update(None, sim_params, sim_env.distribution_mean,
+                                       L, step, should_log, replay_buffer)
+        train_sim_model_time += time.time() - start_sim_model
 
 
 def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_params, current_sim_params):
@@ -602,7 +626,10 @@ def main():
     sim_video_dir = utils.make_dir(os.path.join(args.work_dir, 'sim_video'))
     real_video_dir = utils.make_dir(os.path.join(args.work_dir, 'real_video'))
     model_dir = utils.make_dir(os.path.join(args.work_dir, 'model'))
-    buffer_dir = utils.make_dir(os.path.join(args.work_dir, 'buffer'))
+    if args.train_offline_dir is None:
+        buffer_dir = utils.make_dir(os.path.join(args.work_dir, 'buffer'))
+    else:
+        buffer_dir = utils.make_dir(os.path.join(args.train_offline_dir, 'buffer'))
 
 
     video_real = VideoRecorder(real_video_dir if args.save_video else None, camera_id=args.cameras[0])
@@ -697,10 +724,14 @@ def main():
             for checkpoint in sim_param_checkpoint:
                 sim_param_step = max(sim_param_step,[int(x) for x in re.findall('\d+', checkpoint)][-1])
             sim_param_model.load(model_dir, sim_param_step)
-            start_step = min(start_step, sim_param_step)
-        replay_buffer.load(buffer_dir)  # TODO: do we have to save optimizer?
+            start_step = min(start_step, sim_param_step)  # TODO: do we have to save optimizer?
+    if load_model or args.train_offline_dir is not None:
+        replay_buffer.load(buffer_dir)
 
     L = Logger(args.work_dir, use_tb=args.save_tb)
+
+    if args.train_offline_dir is not None:
+        train_offline(args, L, real_env, sim_env, agent, sim_param_model, video_real, video_sim, replay_buffer)
 
     episode, episode_reward, done = 0, 0, True
     start_time = time.time()
