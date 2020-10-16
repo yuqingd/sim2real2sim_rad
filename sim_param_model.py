@@ -237,7 +237,10 @@ class SimParamModel(nn.Module):
         feat = self.get_features(full_obs_traj)
         B_label = len(pred_labels)
         B_traj = len(full_traj)
-        fake_pred = torch.cat([encoded_pred_labels.repeat(B_traj, 1), feat.repeat(B_label, 1), full_action_traj.repeat(B_label, 1)], dim=-1)
+        assert B_label == 1 or B_traj == 1
+        fake_pred = torch.cat([encoded_pred_labels.repeat(B_traj, 1),
+                               feat.repeat(B_label, 1),
+                               full_action_traj.repeat(B_label, 1)], dim=-1)
 
         if self.separate_trunks:
             x = torch.cat([trunk(fake_pred) for trunk in self.trunk], dim=-1)
