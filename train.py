@@ -162,7 +162,7 @@ def train_offline(args, L, real_env, sim_env, agent, sim_param_model, video_real
     train_sim_model_time = 0
     eval_time = 0
     start_step = 0
-    for step in range(start_step, args.num_train_steps):
+    for step in range(start_step, args.num_train_steps, 200):
         if step % args.eval_freq == 0:
             total_time = train_sim_model_time + eval_time
             if total_time > 0:
