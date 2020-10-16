@@ -146,6 +146,8 @@ def parse_args():
     parser.add_argument('--delay_steps', default=0, type=int)
     parser.add_argument('--full_screen_square', default=False, action='store_true')
     parser.add_argument('--train_offline_dir', default=None, type=str)
+    parser.add_argument('--val_split', default=.2, type=float,
+                        help='validation split; currently only for offline training but we should fix this.')
 
     args = parser.parse_args()
     if args.dr:
@@ -163,7 +165,8 @@ def train_offline(args, L, real_env, sim_env, agent, sim_param_model, video_real
     eval_time = 0
     start_step = 0
     for step in range(start_step, args.num_train_steps, 200):
-        if step % args.eval_freq == 0:
+        should_log = step % args.eval_freq == 0
+        if should_log:
             total_time = train_sim_model_time + eval_time
             if total_time > 0:
                 L.log('eval_time/train_sim_model', train_sim_model_time / total_time, step)
@@ -172,13 +175,12 @@ def train_offline(args, L, real_env, sim_env, agent, sim_param_model, video_real
             start_eval = time.time()
             evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim,
                      args.num_eval_episodes, L, step, args)
+            sim_param_model.update(None, None, sim_env.distribution_mean,
+                                   L, step, should_log, replay_buffer, val=True, tag="train_val")
             eval_time += time.time() - start_eval
             L.dump(step)
-        should_log = step % args.eval_freq == 0
         start_sim_model = time.time()
-        obs = sim_env.reset()
-        sim_params = obs['sim_params']
-        sim_param_model.update(None, sim_params, sim_env.distribution_mean,
+        sim_param_model.update(None, None, sim_env.distribution_mean,
                                        L, step, should_log, replay_buffer)
         train_sim_model_time += time.time() - start_sim_model
 
@@ -457,8 +459,6 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
             dist_mean = obs_dict['distribution_mean']
             current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
             evaluate_sim_params(sim_param_model, args, [obs_traj_sim], step, L, "val", sim_params, current_sim_params)
-            if args.outer_loop_version == 3:
-                sim_param_model.train_classifier(obs_traj_sim, sim_params, dist_mean, L, step, True)
 
         video_sim.save('sim_%d.mp4' % step)
 
@@ -662,7 +662,8 @@ def main():
         batch_size=args.batch_size,
         device=device,
         image_size=args.image_size,
-        max_traj_length=args.time_limit
+        max_traj_length=args.time_limit,
+        val_split=args.val_split if (args.train_offline_dir is not None) else None,
     )
 
     agent = make_agent(

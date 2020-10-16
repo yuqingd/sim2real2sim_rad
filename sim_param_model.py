@@ -250,8 +250,7 @@ class SimParamModel(nn.Module):
         pred_class = pred_class.mean
         return pred_class
 
-
-    def train_classifier(self, obs_traj, sim_params, distribution_mean,  L, step, should_log):
+    def train_classifier(self, obs_traj, sim_params, distribution_mean,  L, step, should_log, tag):
         if self.initial_range is not None:
             dist_range = self.initial_range
         elif self.prop_train_range_scale:
@@ -308,35 +307,31 @@ class SimParamModel(nn.Module):
         dist_loss_individual = full_loss[-1]
 
         if should_log:
-            L.log('train_sim_params/loss', loss, step)
-            L.log('train_sim_params/accuracy', accuracy_mean, step)
-            L.log('train_sim_params/error', error_mean, step)
-            L.log('train_sim_params/dist_mean_loss', dist_loss_mean, step)
-            L.log('train_sim_params/dist_mean_accuracy', dist_accuracy_mean, step)
-            L.log('train_sim_params/dist_mean_error', dist_error_mean, step)
+            L.log(f'{tag}_sim_params/loss', loss, step)
+            L.log(f'{tag}_sim_params/accuracy', accuracy_mean, step)
+            L.log(f'{tag}_sim_params/error', error_mean, step)
+            L.log(f'{tag}_sim_params/dist_mean_loss', dist_loss_mean, step)
+            L.log(f'{tag}_sim_params/dist_mean_accuracy', dist_accuracy_mean, step)
+            L.log(f'{tag}_sim_params/dist_mean_error', dist_error_mean, step)
             if self.feature_norm is not None:
-                L.log('train_sim_params/feature_norm', self.feature_norm, step)
+                L.log(f'{tag}_sim_params/feature_norm', self.feature_norm, step)
             for i, param in enumerate(self.param_names):
-                L.log(f'train_sim_params/{param}/loss', individual_loss[i], step)
-                L.log(f'train_sim_params/{param}/accuracy', individual_accuracy[i], step)
-                L.log(f'train_sim_params/{param}/error', individual_error[i], step)
-                L.log(f'train_sim_params/{param}/dist_mean_loss', dist_loss_individual[i], step)
-                L.log(f'train_sim_params/{param}/dist_mean_accuracy', dist_accuracy_individual[i], step)
-                L.log(f'train_sim_params/{param}/dist_mean_error', dist_error_individual[i], step)
+                L.log(f'{tag}_sim_params/{param}/loss', individual_loss[i], step)
+                L.log(f'{tag}_sim_params/{param}/accuracy', individual_accuracy[i], step)
+                L.log(f'{tag}_sim_params/{param}/error', individual_error[i], step)
+                L.log(f'{tag}_sim_params/{param}/dist_mean_loss', dist_loss_individual[i], step)
+                L.log(f'{tag}_sim_params/{param}/dist_mean_accuracy', dist_accuracy_individual[i], step)
+                L.log(f'{tag}_sim_params/{param}/dist_mean_error', dist_error_individual[i], step)
 
-        # Optimize the critic
         return loss
-        # self.sim_param_optimizer.zero_grad()
-        # loss.backward()
-        # self.sim_param_optimizer.step()
 
-    def update(self, obs_list, sim_params, dist_mean, L, step, should_log, replay_buffer=None):
+    def update(self, obs_list, sim_params, dist_mean, L, step, should_log, replay_buffer=None, val=False, tag="train"):
         total_num_trajs = 16
         if replay_buffer is not None:
             if self.encoder_type == 'pixel':
-                obs_list, actions_list, rewards_list, next_obses_list, not_dones_list, cpc_kwargs_list = replay_buffer.sample_cpc_traj(total_num_trajs)
+                obs_list, actions_list, rewards_list, next_obses_list, not_dones_list, cpc_kwargs_list = replay_buffer.sample_cpc_traj(total_num_trajs, val=val)
             else:
-                obs_list, actions_list, rewards_list, next_obses_list, not_dones_list = replay_buffer.sample_proprio_traj(total_num_trajs)
+                obs_list, actions_list, rewards_list, next_obses_list, not_dones_list = replay_buffer.sample_proprio_traj(total_num_trajs, val=val)
 
         if self._dist == 'normal':
             pred_sim_params = []
@@ -348,30 +343,47 @@ class SimParamModel(nn.Module):
             loss = F.mse_loss(torch.stack(pred_sim_params), torch.stack(actual_params))
 
             if should_log:
-                L.log('train_sim_params/loss', loss, step)
+                L.log(f'{tag}_sim_params/loss', loss, step)
 
             # Optimize the critic
             self.sim_param_optimizer.zero_grad()
             loss.backward()
             self.sim_param_optimizer.step()
         else:
-            if replay_buffer is None:
-                loss = self.train_classifier(obs_list, sim_params, dist_mean,
-                                      L, step, should_log)
+            if val:
+                with torch.no_grad():
+                    for obs_traj, action_traj in zip(obs_list, actions_list):
+                        if self.encoder_type == 'pixel':
+                            self.train_classifier(list(zip(obs_traj['image'], action_traj)),
+                                                                obs_traj['sim_params'][-1].to('cpu'),
+                                                                obs_traj['distribution_mean'][-1].to('cpu'), L, step,
+                                                                should_log, tag)
+                        else:
+                            self.train_classifier(list(zip(obs_traj['state'], action_traj)),
+                                                                obs_traj['sim_params'][-1].to('cpu'),
+                                                                obs_traj['distribution_mean'][-1].to('cpu'), L, step,
+                                                                should_log, tag)
             else:
-                losses = []
-                for obs_traj, action_traj in zip(obs_list, actions_list):
-                    if self.encoder_type == 'pixel':
-                        losses.append (self.train_classifier(list(zip(obs_traj['image'], action_traj)),
-                                              obs_traj['sim_params'][-1].to('cpu'),
-                                              obs_traj['distribution_mean'][-1].to('cpu'), L, step, should_log))
-                    else:
-                        losses.append(self.train_classifier(list(zip(obs_traj['state'], action_traj)), obs_traj['sim_params'][-1].to('cpu'),
-                                              obs_traj['distribution_mean'][-1].to('cpu'), L, step, should_log))
-                loss = sum(losses)
-            self.sim_param_optimizer.zero_grad()
-            loss.backward()
-            self.sim_param_optimizer.step()
+                if replay_buffer is None:
+                    loss = self.train_classifier(obs_list, sim_params, dist_mean,
+                                          L, step, should_log, tag)
+                else:
+                    losses = []
+                    for obs_traj, action_traj in zip(obs_list, actions_list):
+                        if self.encoder_type == 'pixel':
+                            losses.append (self.train_classifier(list(zip(obs_traj['image'], action_traj)),
+                                                  obs_traj['sim_params'][-1].to('cpu'),
+                                                  obs_traj['distribution_mean'][-1].to('cpu'),
+                                                                 L, step, should_log, tag))
+                        else:
+                            losses.append(self.train_classifier(list(zip(obs_traj['state'], action_traj)),
+                                                                obs_traj['sim_params'][-1].to('cpu'),
+                                                                obs_traj['distribution_mean'][-1].to('cpu'),
+                                                                L, step, should_log, tag))
+                    loss = sum(losses)
+                self.sim_param_optimizer.zero_grad()
+                loss.backward()
+                self.sim_param_optimizer.step()
 
 
     def save(self, model_dir, step):
