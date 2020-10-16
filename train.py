@@ -371,7 +371,9 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
                 else:
                     obs = obs_dict['state']
                 with utils.eval_mode(agent):
-                    if sample_stochastically:
+                    if args.no_train_policy:
+                        action = sim_env.action_space.sample()
+                    elif sample_stochastically:
                         action = agent.sample_action(obs)
                     else:
                         action = agent.select_action(obs)
@@ -439,7 +441,9 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
             else:
                 obs = obs_dict['state']
             with utils.eval_mode(agent):
-                if sample_stochastically:
+                if args.no_train_policy:
+                    action = sim_env.action_space.sample()
+                elif sample_stochastically:
                     action = agent.sample_action(obs)
                 else:
                     action = agent.select_action(obs)
@@ -826,7 +830,7 @@ def main():
 
         # sample action for data collection
         train_policy_start = time.time()
-        if step < args.init_steps:
+        if args.no_train_policy or step < args.init_steps:
             action = sim_env.action_space.sample()
         else:
             with utils.eval_mode(agent):
