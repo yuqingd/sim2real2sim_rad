@@ -1085,7 +1085,7 @@ class DR_DMCEnv(DR_Env):
         return arr
 
 class DR_Dummy(DR_Env):
-    def __init__(self, env, cameras, **kwargs):
+    def __init__(self, env, cameras, full_screen_square=False, **kwargs):
         self.square_size = 4.
         self.speed_multiplier = 3.
         self.square_r = 0.5
@@ -1095,6 +1095,7 @@ class DR_Dummy(DR_Env):
         self.metadata = {'render.modes': []}
         self.timestep = 1
         self._max_episode_steps = 200
+        self.full_screen_square = full_screen_square
         super().__init__(env, cameras, **kwargs)
 
     def get_state(self):
@@ -1188,7 +1189,10 @@ class DR_Dummy(DR_Env):
         y_start = max(0, int(np.floor(self.square_y - self.square_size)))
         x_end = min(63, int(np.floor(self.square_x + self.square_size)))
         y_end = min(63, int(np.floor(self.square_y + self.square_size)))
-        rgb_array[y_start:y_end, x_start:x_end] = np.clip(np.array([self.square_r, self.square_g, self.square_b]), 0, 1)
+        if self.full_screen_square:
+            rgb_array[:] = np.clip(np.array([self.square_r, self.square_g, self.square_b]), 0, 1)
+        else:
+            rgb_array[y_start:y_end, x_start:x_end] = np.clip(np.array([self.square_r, self.square_g, self.square_b]), 0, 1)
         if size is not None:
             rgb_array = cv2.resize(rgb_array, size)
         rgb_array = (rgb_array * 255).astype(np.uint8)
@@ -1199,7 +1203,7 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
          visualize_reward=False, frame_skip=None, mean_only=False,  dr_list=[], simple_randomization=False, dr_shape=None,
                real_world=False, dr=None, use_state="None", use_img=True,
                 grayscale=False, delay_steps=0, range_scale=.1, prop_range_scale=False, state_concat=False,
-         real_dr_params=None, prop_initial_range=False):
+         real_dr_params=None, prop_initial_range=False, full_screen_square=False):
     # DMC
     if 'dmc' in domain_name:
         domain_name_root = domain_name[4:]  # Task name is formatted as dmc_walker.  Now just walker
@@ -1267,7 +1271,7 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
                         dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape,
                         name=task_name,
                         real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
-                        range_scale=range_scale, prop_range_scale=prop_range_scale, state_concat=state_concat,)
+                        range_scale=range_scale, prop_range_scale=prop_range_scale, state_concat=state_concat, full_screen_square=full_screen_square)
         return env
     else:
         raise KeyError("Domain name not found. " + str(domain_name))

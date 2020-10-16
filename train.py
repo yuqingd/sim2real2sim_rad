@@ -144,6 +144,7 @@ def parse_args():
     parser.add_argument('--gpudevice', type=str, required=True, help='cuda visible devices')
     parser.add_argument('--time_limit', default=200, type=int)
     parser.add_argument('--delay_steps', default=0, type=int)
+    parser.add_argument('--full_screen_square', default=False, action='store_true')
 
     args = parser.parse_args()
     if args.dr:
@@ -537,6 +538,7 @@ def main():
         prop_initial_range=args.prop_initial_range,
         state_concat=args.state_concat,
         real_dr_params=None,
+        full_screen_square=args.full_screen_square,
     )
 
     real_env = env_wrapper.make(
@@ -560,6 +562,7 @@ def main():
         prop_range_scale=args.prop_range_scale,
         state_concat=args.state_concat,
         real_dr_params=args.real_dr_params,
+        full_screen_square=args.full_screen_square,
     )
 
     # stack several consecutive frames together
