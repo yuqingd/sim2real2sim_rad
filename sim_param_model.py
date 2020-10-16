@@ -151,9 +151,9 @@ class SimParamModel(nn.Module):
                 else:
                     # Don't update the conv layers if we're sharing, otherwise to
                     features = self.encoder(input, detach=self.share_encoder)
-                self.feature_norm = torch.norm(features)
+                self.feature_norm = torch.norm(features).detach()
                 if self.normalize_features:
-                    features = features / torch.norm(features)
+                    features = features / torch.norm(features).detach()
             if self.use_downsampling:
                 # input is multiple frames stacked, but we only need the first
                 if type(input) is list:
