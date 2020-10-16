@@ -173,6 +173,7 @@ def train_offline(args, L, real_env, sim_env, agent, sim_param_model, video_real
             evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim,
                      args.num_eval_episodes, L, step, args)
             eval_time += time.time() - start_eval
+            L.dump(step)
         should_log = step % args.eval_freq == 0
         start_sim_model = time.time()
         obs = sim_env.reset()
