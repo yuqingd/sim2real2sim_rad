@@ -18,7 +18,7 @@ class SimParamModel(nn.Module):
                  embedding_multires=10, use_img=True, state_dim=0, separate_trunks=False, param_names=[],
                  train_range_scale=1, prop_train_range_scale=False, clip_positive=False, dropout=0.5,
                  initial_range=None, single_window=False, share_encoder=False, normalize_features=False,
-                 use_downsampling=True, use_encoder=True, downsample_size=10, use_layer_norm=False,
+                 use_downsampling=True, use_encoder=True, downsample_size=32, use_layer_norm=False,
                  use_weight_init=False):
         super(SimParamModel, self).__init__()
         self._shape = shape
@@ -322,16 +322,18 @@ class SimParamModel(nn.Module):
                 L.log(f'train_sim_params/{param}/dist_mean_error', dist_error_individual[i], step)
 
         # Optimize the critic
-        self.sim_param_optimizer.zero_grad()
-        loss.backward()
-        self.sim_param_optimizer.step()
+        return loss
+        # self.sim_param_optimizer.zero_grad()
+        # loss.backward()
+        # self.sim_param_optimizer.step()
 
     def update(self, obs_list, sim_params, dist_mean, L, step, should_log, replay_buffer=None):
+        total_num_trajs = 16
         if replay_buffer is not None:
             if self.encoder_type == 'pixel':
-                obs_list, actions_list, rewards_list, next_obses_list, not_dones_list, cpc_kwargs_list = replay_buffer.sample_cpc_traj(1)
+                obs_list, actions_list, rewards_list, next_obses_list, not_dones_list, cpc_kwargs_list = replay_buffer.sample_cpc_traj(total_num_trajs)
             else:
-                obs_list, actions_list, rewards_list, next_obses_list, not_dones_list = replay_buffer.sample_proprio_traj(16)
+                obs_list, actions_list, rewards_list, next_obses_list, not_dones_list = replay_buffer.sample_proprio_traj(total_num_trajs)
 
         if self._dist == 'normal':
             pred_sim_params = []
@@ -351,17 +353,22 @@ class SimParamModel(nn.Module):
             self.sim_param_optimizer.step()
         else:
             if replay_buffer is None:
-                self.train_classifier(obs_list, sim_params, dist_mean,
+                loss = self.train_classifier(obs_list, sim_params, dist_mean,
                                       L, step, should_log)
             else:
+                losses = []
                 for obs_traj, action_traj in zip(obs_list, actions_list):
                     if self.encoder_type == 'pixel':
-                        self.train_classifier(list(zip(obs_traj['image'], action_traj)),
+                        losses.append (self.train_classifier(list(zip(obs_traj['image'], action_traj)),
                                               obs_traj['sim_params'][-1].to('cpu'),
-                                              obs_traj['distribution_mean'][-1].to('cpu'), L, step, should_log)
+                                              obs_traj['distribution_mean'][-1].to('cpu'), L, step, should_log))
                     else:
-                        self.train_classifier(list(zip(obs_traj['state'], action_traj)), obs_traj['sim_params'][-1].to('cpu'),
-                                              obs_traj['distribution_mean'][-1].to('cpu'), L, step, should_log)
+                        losses.append(self.train_classifier(list(zip(obs_traj['state'], action_traj)), obs_traj['sim_params'][-1].to('cpu'),
+                                              obs_traj['distribution_mean'][-1].to('cpu'), L, step, should_log))
+                loss = sum(losses)
+            self.sim_param_optimizer.zero_grad()
+            loss.backward()
+            self.sim_param_optimizer.step()
 
 
     def save(self, model_dir, step):
