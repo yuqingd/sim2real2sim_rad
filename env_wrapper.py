@@ -1109,7 +1109,7 @@ class DR_Dummy(DR_Env):
     def get_dr(self):
         return np.array([self.square_size, self.speed_multiplier, self.square_r, self.square_g, self.square_b])
 
-    def update_dr_param(self, param_name, eps=1e-3):
+    def update_dr_param(self, param_name, min_val=1e-3, max_val=float('inf'), eps=1e-3):
         if self.mean_only:
             mean = self.dr[param_name]
             if self.prop_range_scale:
@@ -1119,7 +1119,8 @@ class DR_Dummy(DR_Env):
         else:
             mean, range = self.dr[param_name]
             range = max(range, eps)
-        new_value = np.random.uniform(low=max(mean - range, eps), high=max(mean + range, 2 * eps))
+        new_value = np.random.uniform(low=np.clip(mean - range, min_val, max_val),
+                                      high=np.clip(mean + range, min_val, max_val))
         self.sim_params += [new_value]
         self.distribution_mean += [mean]
         self.distribution_range += [range]
@@ -1135,15 +1136,15 @@ class DR_Dummy(DR_Env):
             self.distribution_range = np.zeros(self.dr_shape, dtype=np.float32)
             return
         if 'square_size' in self.dr_list:
-            self.square_size = np.clip(self.update_dr_param('square_size'), 0, 30)
+            self.square_size = self.update_dr_param('square_size', 0, 30)
         if 'speed_multiplier' in self.dr_list:
-            self.speed_multiplier = np.clip(self.update_dr_param('speed_multiplier'), 0, 20)
+            self.speed_multiplier = self.update_dr_param('speed_multiplier', 0, 20)
         if 'square_r' in self.dr_list:
-            self.square_r = np.clip(self.update_dr_param('square_r'), 0, 1)
+            self.square_r = self.update_dr_param('square_r', 0, 1)
         if 'square_g' in self.dr_list:
-            self.square_g = np.clip(self.update_dr_param('square_g'), 0, 1)
+            self.square_g = self.update_dr_param('square_g', 0, 1)
         if 'square_b' in self.dr_list:
-            self.square_b = np.clip(self.update_dr_param('square_b'), 0, 1)
+            self.square_b = self.update_dr_param('square_b', 0, 1)
 
 
     @property
