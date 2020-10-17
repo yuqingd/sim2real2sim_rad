@@ -342,7 +342,9 @@ class SimParamModel(nn.Module):
 
         return loss, (full_loss, accuracy, error, self.feature_norm.detach().cpu().numpy())
 
-    def log(self, L, tag, step, loss, accuracy, error, feature_norm):
+    def log(self, L, tag, step, should_log, loss, accuracy, error, feature_norm):
+        if not should_log:
+            return
         individual_loss = np.mean(loss, axis=0)
         loss_mean = np.mean(loss)
         individual_accuracy = np.mean(accuracy, axis=0)
@@ -435,11 +437,11 @@ class SimParamModel(nn.Module):
                                 list(zip(obs_traj['state'], action_traj)),
                                 obs_traj['sim_params'][-1].to('cpu'),
                                 obs_traj['distribution_mean'][-1].to('cpu'))
-                        self.log(L, tag, step, *log_params)
+                        self.log(L, tag, step, should_log, *log_params)
             else:
                 if replay_buffer is None:
                     loss, log_params = self.train_classifier(obs_list, sim_params, dist_mean)
-                    self.log(L, tag, step, *log_params)
+                    self.log(L, tag, step, should_log, *log_params)
                 else:
                     losses = []
                     loss_vectors = []
@@ -467,7 +469,8 @@ class SimParamModel(nn.Module):
                              np.concatenate(loss_vectors),
                              np.concatenate(accuracy_vectors),
                              np.concatenate(error_vectors),
-                             np.mean(norm_vectors))
+                             np.mean(norm_vectors),
+                             should_log)
                 self.sim_param_optimizer.zero_grad()
                 loss.backward()
                 self.sim_param_optimizer.step()
