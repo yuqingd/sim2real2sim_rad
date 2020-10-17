@@ -72,9 +72,9 @@ class SimParamModel(nn.Module):
                 downsample_dims = downsample_size * downsample_size * 3
             else:
                 downsample_dims = 0
-            trunk_input_dim = encoder_dims + downsample_dims + additional + action_space_dim * num_frames
+            trunk_input_dim = encoder_dims + downsample_dims + additional
         else:
-            trunk_input_dim = state_dim[-1] * self.num_frames + additional + action_space_dim * num_frames
+            trunk_input_dim = state_dim[-1] * self.num_frames + additional
 
         # If each sim param has its own trunk, create a separate trunk for each
         num_sim_params = shape
@@ -106,13 +106,13 @@ class SimParamModel(nn.Module):
             # change obs_shape to account for the trajectory length, since images are stacked channel-wise
             c, h, w = obs_shape
             if self.share_encoder:
-                obs_shape = (3, h, w)
+                obs_shape = (3 + action_space_dim, h, w)
                 self.encoder = make_encoder(
                     encoder_type, obs_shape, encoder_feature_dim, encoder_num_layers,
                     encoder_num_filters, output_logits=True, use_layer_norm=self.use_layer_norm
                 )
             else:
-                obs_shape = (3 * self.num_frames, h, w)
+                obs_shape = ((3 + action_space_dim) * self.num_frames, h, w)
                 self.encoder = make_encoder(
                     encoder_type, obs_shape, encoder_feature_dim, encoder_num_layers,
                     encoder_num_filters, output_logits=True, use_layer_norm=self.use_layer_norm
@@ -128,27 +128,47 @@ class SimParamModel(nn.Module):
             parameters, lr=sim_param_lr, betas=(sim_param_beta, 0.999)
         )
 
-    def get_features(self, obs_traj):
+    def get_features(self, obs_batch, act_batch):
         # detach_encoder allows to stop gradient propagation to encoder
 
         if self.use_img:
             # Share encoder case
-            if obs_traj[0][0].shape[0] == 9:
+            if obs_batch[0][0].shape[0] == 9:
                 input = []
-                for i in range(len(obs_traj[0])):
-                    if type(obs_traj[0][0]) is torch.Tensor:
+                for i in range(len(obs_batch[0])):
+                    if type(obs_batch[0][0]) is torch.Tensor:
                         input.append(
-                            torch.FloatTensor([traj[i].detach().cpu().numpy() for traj in obs_traj]).to(self.device))
+                            torch.FloatTensor([traj[i].detach().cpu().numpy() for traj in obs_batch]).to(self.device))
                     else:
-                        input.append(torch.FloatTensor([traj[i] for traj in obs_traj]).to(self.device))
-            elif type(obs_traj[0][0]) is np.ndarray:
-                input = torch.FloatTensor(obs_traj).to(self.device)
+                        input.append(torch.FloatTensor([traj[i] for traj in obs_batch]).to(self.device))
+            elif type(obs_batch[0][0]) is np.ndarray:
+                input_original = torch.FloatTensor(obs_batch).to(self.device)
+                c, h, w = obs_batch[0][0].shape
+                a_dim = act_batch[0].shape[-1]
+                a_layer = np.ones((a_dim, h, w))
+                combined_traj = [[np.concatenate([o, a_layer * a.reshape(a_dim, 1, 1)], axis=0)
+                                  for o, a in zip(o_traj, a_traj)]
+                                 for o_traj, a_traj in zip(obs_batch, act_batch)]
+                input = torch.FloatTensor(combined_traj).to(self.device)
                 B, num_frames, C, H, W = input.shape
                 input = input.view(B, num_frames * C, H, W)
-            elif type(obs_traj[0][0]) is torch.Tensor:
-                input = torch.stack([torch.cat([o for o in traj], dim=0) for traj in obs_traj], dim=0)
+            elif type(obs_batch[0][0]) is torch.Tensor:
+                input_original = torch.stack([torch.cat([o for o in traj], dim=0) for traj in obs_batch], dim=0)
+                # TODO: this is inefficient and clunky.  If we end up using this method, go back and make all our code
+                #  either use np.array or tensors.
+                obs_batch = [[o.detach().cpu().numpy() for o in obs_traj] for obs_traj in obs_batch]
+                act_batch = [a.detach().cpu().numpy() for a in act_batch]
+                c, h, w = obs_batch[0][0].shape
+                a_dim = act_batch[0].shape[-1]
+                a_layer = np.ones((a_dim, h, w))
+                combined_traj = [[np.concatenate([o, a_layer * a.reshape(a_dim, 1, 1)], axis=0)
+                                  for o, a in zip(o_traj, a_traj)]
+                                 for o_traj, a_traj in zip(obs_batch, act_batch)]
+                input = torch.FloatTensor(combined_traj).to(self.device)
+                B, num_frames, C, H, W = input.shape
+                input = input.view(B, num_frames * C, H, W)
             else:
-                raise NotImplementedError(type(obs_traj[0][0]))
+                raise NotImplementedError(type(obs_batch[0][0]))
 
             if self.use_encoder:
                 if self.share_encoder:
@@ -183,13 +203,13 @@ class SimParamModel(nn.Module):
             temp = 3
 
         else:
-            if type(obs_traj[0][0]) is torch.Tensor:
-                features = torch.stack([torch.cat([o for o in traj], dim=0) for traj in obs_traj], dim=0)
-            elif type(obs_traj[0][0]) is np.ndarray:
-                features = torch.FloatTensor([np.concatenate([o for o in traj], axis=0) for traj in obs_traj]).to(
+            if type(obs_batch[0][0]) is torch.Tensor:
+                features = torch.stack([torch.cat([o for o in traj], dim=0) for traj in obs_batch], dim=0)
+            elif type(obs_batch[0][0]) is np.ndarray:
+                features = torch.FloatTensor([np.concatenate([o for o in traj], axis=0) for traj in obs_batch]).to(
                     self.device)
             else:
-                raise NotImplementedError(type(obs_traj[0][0]))
+                raise NotImplementedError(type(obs_batch[0][0]))
 
         return features
 
@@ -224,9 +244,9 @@ class SimParamModel(nn.Module):
             traj = traj[index: index + self.num_frames]
             obs_traj, action_traj = zip(*traj)
             if type(action_traj[0]) is np.ndarray:
-                full_action_traj.append(torch.FloatTensor(np.concatenate(action_traj)).to(self.device))
+                full_action_traj.append(np.stack(action_traj))
             elif type(action_traj[0]) is torch.Tensor:
-                full_action_traj.append(torch.cat(action_traj))
+                full_action_traj.append(torch.stack(action_traj))
             else:
                 raise NotImplementedError
             # If we're using images, only use the first of the stacked frames
@@ -239,15 +259,14 @@ class SimParamModel(nn.Module):
         pred_labels = pred_labels.to(self.device)
 
         encoded_pred_labels = self.positional_encoding(pred_labels)
-        full_action_traj = torch.stack(full_action_traj)
+        # full_action_traj = torch.stack(full_action_traj)
 
-        feat = self.get_features(full_obs_traj)
+        feat = self.get_features(full_obs_traj, full_action_traj)
         B_label = len(pred_labels)
         B_traj = len(full_traj)
         assert B_label == 1 or B_traj == 1
         fake_pred = torch.cat([encoded_pred_labels.repeat(B_traj, 1),
-                               feat.repeat(B_label, 1),
-                               full_action_traj.repeat(B_label, 1)], dim=-1)
+                               feat.repeat(B_label, 1)], dim=-1)
 
         if self.separate_trunks:
             x = torch.cat([trunk(fake_pred) for trunk in self.trunk], dim=-1)
