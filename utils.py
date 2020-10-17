@@ -133,8 +133,8 @@ class ReplayBuffer(Dataset):
         return idxs
 
     def get_idxs_traj(self, num_trajs, val=False):
+        total_num_samples = self.capacity if self.full else self.done_idx
         if self.val_split is not None:
-            total_num_samples = self.capacity if self.full else self.done_idx
             cutoff = int(total_num_samples * self.val_split)
             if val:
                 start_idx = 0
@@ -142,10 +142,13 @@ class ReplayBuffer(Dataset):
             else:
                 start_idx = cutoff
                 end_idx = total_num_samples
+        else:
+            start_idx = 0
+            end_idx = total_num_samples
         unique_trajs = np.unique(self.traj_ids[start_idx: end_idx])
         # The way we split trajectories will result in one trajectory being in train and val. We remove it from val.
-        # if val:
-        #     unique_trajs = unique_trajs[:-1]
+        if val:
+            unique_trajs = unique_trajs[:-1]
         traj_ids = np.random.choice(unique_trajs, size=num_trajs, replace=True)
         return traj_ids
 
