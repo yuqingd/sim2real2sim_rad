@@ -465,12 +465,11 @@ class SimParamModel(nn.Module):
                         error_vectors.append(error)
                         norm_vectors.append(norm)
                     loss = sum(losses)
-                    self.log(L, tag, step,
+                    self.log(L, tag, step, should_log,
                              np.concatenate(loss_vectors),
                              np.concatenate(accuracy_vectors),
                              np.concatenate(error_vectors),
-                             np.mean(norm_vectors),
-                             should_log)
+                             np.mean(norm_vectors))
                 self.sim_param_optimizer.zero_grad()
                 loss.backward()
                 self.sim_param_optimizer.step()
