@@ -150,11 +150,6 @@ class SimParamModel(nn.Module):
             else:
                 raise NotImplementedError(type(obs_traj[0][0]))
 
-            # subtract the first frame from the others
-            # TODO: if this works, don't hardcode num_frames
-            input[:, 3:] = input[:, 3:] / input[:, :3].repeat(1, 9, 1, 1).detach()
-
-
             if self.use_encoder:
                 if self.share_encoder:
                     features = [self.encoder(img, detach=True) for img in input]
