@@ -31,7 +31,7 @@ class PixelEncoder(nn.Module):
             self.convs.append(nn.Conv2d(num_filters, num_filters, 3, stride=1))
 
         out_dim = OUT_DIM_64[num_layers] if obs_shape[-1] == 64 else OUT_DIM[num_layers]
-        self.fc = nn.Linear(num_filters * out_dim * out_dim, self.feature_dim)
+        self.fc = nn.Linear(num_filters * out_dim * out_dim + 20, self.feature_dim)
         self.ln = nn.LayerNorm(self.feature_dim)
 
         self.outputs = dict()
@@ -58,11 +58,12 @@ class PixelEncoder(nn.Module):
         h = conv.reshape(conv.size(0), -1)
         return h
 
-    def forward(self, obs, detach=False):
+    def forward(self, obs, act, detach=False):
         h = self.forward_conv(obs)
 
         if detach:
             h = h.detach()
+        h = torch.cat([h, act], dim=1)
 
         h_fc = self.fc(h)
         self.outputs['fc'] = h_fc

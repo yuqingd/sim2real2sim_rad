@@ -72,9 +72,9 @@ class SimParamModel(nn.Module):
                 downsample_dims = downsample_size * downsample_size * 3
             else:
                 downsample_dims = 0
-            trunk_input_dim = encoder_dims + downsample_dims + additional + action_space_dim * num_frames
+            trunk_input_dim = encoder_dims + downsample_dims + additional
         else:
-            trunk_input_dim = state_dim[-1] * self.num_frames + additional + action_space_dim * num_frames
+            trunk_input_dim = state_dim[-1] * self.num_frames + additional
 
         # If each sim param has its own trunk, create a separate trunk for each
         num_sim_params = shape
@@ -128,7 +128,7 @@ class SimParamModel(nn.Module):
             parameters, lr=sim_param_lr, betas=(sim_param_beta, 0.999)
         )
 
-    def get_features(self, obs_traj):
+    def get_features(self, obs_traj, act):
         # detach_encoder allows to stop gradient propagation to encoder
 
         if self.use_img:
@@ -152,11 +152,11 @@ class SimParamModel(nn.Module):
 
             if self.use_encoder:
                 if self.share_encoder:
-                    features = [self.encoder(img, detach=True) for img in input]
+                    features = [self.encoder(img, act, detach=True) for img in input]
                     features = torch.cat(features, dim=1)
                 else:
                     # Don't update the conv layers if we're sharing, otherwise to
-                    features = self.encoder(input, detach=self.share_encoder)
+                    features = self.encoder(input, act, detach=self.share_encoder)
                 self.feature_norm = torch.norm(features).detach()
                 if self.normalize_features:
                     features = features / torch.norm(features).detach()
@@ -241,13 +241,12 @@ class SimParamModel(nn.Module):
         encoded_pred_labels = self.positional_encoding(pred_labels)
         full_action_traj = torch.stack(full_action_traj)
 
-        feat = self.get_features(full_obs_traj)
+        feat = self.get_features(full_obs_traj, full_action_traj)
         B_label = len(pred_labels)
         B_traj = len(full_traj)
         assert B_label == 1 or B_traj == 1
         fake_pred = torch.cat([encoded_pred_labels.repeat(B_traj, 1),
-                               feat.repeat(B_label, 1),
-                               full_action_traj.repeat(B_label, 1)], dim=-1)
+                               feat.repeat(B_label, 1)], dim=-1)
 
         if self.separate_trunks:
             x = torch.cat([trunk(fake_pred) for trunk in self.trunk], dim=-1)
