@@ -144,8 +144,8 @@ class ReplayBuffer(Dataset):
                 end_idx = total_num_samples
         unique_trajs = np.unique(self.traj_ids[start_idx: end_idx])
         # The way we split trajectories will result in one trajectory being in train and val. We remove it from val.
-        if val:
-            unique_trajs = unique_trajs[:-1]
+        # if val:
+        #     unique_trajs = unique_trajs[:-1]
         traj_ids = np.random.choice(unique_trajs, size=num_trajs, replace=True)
         return traj_ids
 

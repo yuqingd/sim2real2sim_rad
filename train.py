@@ -137,6 +137,7 @@ def parse_args():
     parser.add_argument('--use_encoder', default=False, action='store_true')
     parser.add_argument('--use_layer_norm', default=False, action='store_true')
     parser.add_argument('--weight_init', default=False, action='store_true')
+    parser.add_argument('--single_branch', default=False, action='store_true')
 
 
     # MISC
@@ -173,14 +174,21 @@ def train_offline(args, L, real_env, sim_env, agent, sim_param_model, video_real
                 L.log('eval_time/eval', eval_time / total_time, step)
 
             start_eval = time.time()
-            evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim,
-                     args.num_eval_episodes, L, step, args)
-            sim_param_model.update(None, None, sim_env.distribution_mean,
-                                   L, step, should_log, replay_buffer, val=True, tag="train_val")
+            if args.single_branch:
+                sim_param_model.update_singlebranch(L, step, should_log, replay_buffer, val=True, tag="train_val")
+            else:
+                evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim,
+                         args.num_eval_episodes, L, step, args)
+
+                sim_param_model.update(None, None, sim_env.distribution_mean,
+                                       L, step, should_log, replay_buffer, val=True, tag="train_val")
             eval_time += time.time() - start_eval
             L.dump(step)
         start_sim_model = time.time()
-        sim_param_model.update(None, None, sim_env.distribution_mean,
+        if args.single_branch:
+            sim_param_model.update_singlebranch(L, step, should_log, replay_buffer)
+        else:
+            sim_param_model.update(None, None, sim_env.distribution_mean,
                                        L, step, should_log, replay_buffer)
         train_sim_model_time += time.time() - start_sim_model
 
@@ -711,6 +719,7 @@ def main():
             use_encoder=args.use_encoder,
             use_layer_norm=args.use_layer_norm,
             use_weight_init=args.weight_init,
+            single_branch=args.single_branch,
         ).to(device)
         # Use the same encoder for the agent and the sim param model
         if args.share_encoder:
