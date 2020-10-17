@@ -71,7 +71,8 @@ def preprocess_obs(obs, bits=5):
 
 class ReplayBuffer(Dataset):
     """Buffer to store environment transitions."""
-    def __init__(self, example_obs, action_shape, capacity, batch_size, device, image_size=84, transform=None, max_traj_length=200):
+    def __init__(self, example_obs, action_shape, capacity, batch_size, device, image_size=84, transform=None,
+                 max_traj_length=200, val_split=None):
         self.capacity = capacity
         self.batch_size = batch_size
         self.device = device
@@ -99,6 +100,7 @@ class ReplayBuffer(Dataset):
         self.done_idx = 0
         self.last_save = 0
         self.full = False
+        self.val_split = val_split
 
     def add(self, obs, action, reward, next_obs, done):
         for k, v in obs.items():
@@ -116,12 +118,42 @@ class ReplayBuffer(Dataset):
         self.idx = (self.idx + 1) % self.capacity
         self.full = self.full or self.idx == 0
 
-    def sample_proprio(self, use_img=False):
-        
-        idxs = np.random.randint(
-            0, self.capacity if self.full else self.done_idx, size=self.batch_size
-        )
+    def get_idxs(self, val=False):
+        if self.val_split is not None:
+            total_num_samples = self.capacity if self.full else self.done_idx
+            cutoff = int(total_num_samples * self.val_split)
+            if val:
+                start_idx = 0
+                end_idx = cutoff
+            else:
+                start_idx = cutoff
+                end_idx = total_num_samples
 
+        idxs = np.random.randint(start_idx, end_idx, size=self.batch_size)
+        return idxs
+
+    def get_idxs_traj(self, num_trajs, val=False):
+        total_num_samples = self.capacity if self.full else self.done_idx
+        if self.val_split is not None:
+            cutoff = int(total_num_samples * self.val_split)
+            if val:
+                start_idx = 0
+                end_idx = cutoff
+            else:
+                start_idx = cutoff
+                end_idx = total_num_samples
+        else:
+            start_idx = 0
+            end_idx = total_num_samples
+        unique_trajs = np.unique(self.traj_ids[start_idx: end_idx])
+        # The way we split trajectories will result in one trajectory being in train and val. We remove it from val.
+        if val:
+            unique_trajs = unique_trajs[:-1]
+        traj_ids = np.random.choice(unique_trajs, size=num_trajs, replace=True)
+        return traj_ids
+
+    def sample_proprio(self, use_img=False, val=False):
+        idxs = self.get_idxs(val)
         return self._sample_proprio(idxs, image_only=True, use_image=use_img)
 
     def _sample_proprio(self, idxs, image_only=True, use_image=True):
@@ -162,10 +194,9 @@ class ReplayBuffer(Dataset):
 
         return obses, actions, rewards, next_obses, not_dones
 
-    def sample_proprio_traj(self, num_trajs):
+    def sample_proprio_traj(self, num_trajs, val=False):
         # Select trajectory indices
-        unique_trajs = np.unique(self.traj_ids[:self.capacity if self.full else self.done_idx])
-        traj_ids = np.random.choice(unique_trajs, size=num_trajs, replace=True)
+        traj_ids = self.get_idxs_traj(num_trajs, val)
 
         # Obtain indices for each trajectory
         obs_list = []
@@ -188,11 +219,8 @@ class ReplayBuffer(Dataset):
             not_dones_list.append(not_dones)
         return obs_list, actions_list, rewards_list, next_obses_list, not_dones_list
 
-    def sample_cpc(self):
-
-        idxs = np.random.randint(
-            0, self.capacity if self.full else self.done_idx, size=self.batch_size
-        )
+    def sample_cpc(self, val=False):
+        idxs = self.get_idxs(val)
         return self._sample_cpc(idxs, image_only=True)
 
     def _sample_cpc(self, idxs, image_only=True, use_img=False, random_crop_img=True):
@@ -237,10 +265,9 @@ class ReplayBuffer(Dataset):
 
         return obses, actions, rewards, next_obses, not_dones, cpc_kwargs
 
-    def sample_cpc_traj(self, num_trajs):
+    def sample_cpc_traj(self, num_trajs, val=False):
         # Select trajectory indices
-        unique_trajs = np.unique(self.traj_ids[:self.capacity if self.full else self.done_idx])
-        traj_ids = np.random.choice(unique_trajs, size=num_trajs, replace=True)
+        traj_ids = self.get_idxs_traj(num_trajs, val)
 
         # Obtain indices for each trajectory
         obs_list = []
@@ -264,10 +291,8 @@ class ReplayBuffer(Dataset):
             cpc_kwargs_list.append(cpc_kwargs)
         return obs_list, actions_list, rewards_list, next_obses_list, not_dones_list, cpc_kwargs_list
 
-    def sample_rad(self, aug_funcs):
-        idxs = np.random.randint(
-            0, self.capacity if self.full else self.done_idx, size=self.batch_size
-        )
+    def sample_rad(self, aug_funcs, val=False):
+        idxs = self.get_idxs(val)
         return self._sample_rad(aug_funcs, idxs, image_only=True)
 
     def _sample_rad(self, aug_funcs, idxs, image_only=True):
@@ -317,10 +342,9 @@ class ReplayBuffer(Dataset):
 
         return obses, actions, rewards, next_obses, not_dones
 
-    def sample_rad_traj(self, aug_funcs, num_trajs):
+    def sample_rad_traj(self, aug_funcs, num_trajs, val=False):
         # Select trajectory indices
-        unique_trajs = np.unique(self.traj_ids[:self.capacity if self.full else self.done_idx])
-        traj_ids = np.random.choice(unique_trajs, size=num_trajs, replace=True)
+        traj_ids = self.get_idxs_traj(num_trajs, val)
 
         # Obtain indices for each trajectory
         obs_list = []
@@ -383,7 +407,7 @@ class ReplayBuffer(Dataset):
             self.not_dones[start:end] = payload[4]
             self.traj_ids[start:end] = payload[5]
             self.idx = end
-            self.done_idx = end // self.max_traj_length
+            self.done_idx = end - (end % self.max_traj_length)
             self.last_save = end
 
     def __getitem__(self, idx):
