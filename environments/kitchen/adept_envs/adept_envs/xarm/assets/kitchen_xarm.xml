@@ -44,14 +44,14 @@
               texturedir="../../../../adept_models/kitchen"/>
 
     <equality>
-        <weld body1="mocap" body2="link7" solref="0.02 1"></weld>
+        <weld body1="mocap" body2="link7" solref="0.2 1"></weld>
     </equality>
 
     <worldbody>
 
         <body mocap="true" name="mocap" pos="-0.15 0.01 1.95">
             <geom conaffinity="0" contype="0" pos="0 0 0" rgba="0.0 0.5 0.5 0" size="0.01" type="sphere"></geom>
-            <site name="mocap" pos="0 0 0" rgba="0 0 1 1" size="0.1" type="sphere"></site>
+            <site name="mocap" pos="0 0 0" rgba="0 0 1 0" size="0.1" type="sphere"></site>
         </body>
 
         <site name='target' pos='0 0 0' size='0.1' rgba='0 2 0 .2'/>
