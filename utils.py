@@ -239,9 +239,9 @@ class ReplayBuffer(Dataset):
             next_obses = random_crop(next_obses, self.image_size)
             pos = random_crop(pos, self.image_size)
         else:
-            obses = random_crop(obses, self.image_size)
-            next_obses = random_crop(next_obses, self.image_size)
-            pos = random_crop(pos, self.image_size)
+            obses = center_crop_image(obses, self.image_size)
+            next_obses = center_crop_image(next_obses, self.image_size)
+            pos = center_crop_image(pos, self.image_size)
 
         obses = torch.as_tensor(obses, device=self.device).float()
         next_obses = torch.as_tensor(
