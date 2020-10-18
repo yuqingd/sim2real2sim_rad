@@ -119,8 +119,9 @@ class ReplayBuffer(Dataset):
         self.full = self.full or self.idx == 0
 
     def get_idxs(self, val=False):
+        total_num_samples = self.capacity if self.full else self.done_idx
+
         if self.val_split is not None:
-            total_num_samples = self.capacity if self.full else self.done_idx
             cutoff = int(total_num_samples * self.val_split)
             if val:
                 start_idx = 0
@@ -128,6 +129,9 @@ class ReplayBuffer(Dataset):
             else:
                 start_idx = cutoff
                 end_idx = total_num_samples
+        else:
+            start_idx = 0
+            end_idx = total_num_samples
 
         idxs = np.random.randint(start_idx, end_idx, size=self.batch_size)
         return idxs
