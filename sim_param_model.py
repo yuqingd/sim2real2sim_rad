@@ -152,7 +152,7 @@ class SimParamModel(nn.Module):
 
             # subtract the first frame from the others
             # TODO: if this works, don't hardcode num_frames
-            input[:, 3:] = input[:, 3:] / input[:, :3].repeat(1, 9, 1, 1).detach()
+            input[:, 3:] = input[:, 3:] - input[:, :3].repeat(1, 9, 1, 1).detach()
 
 
             if self.use_encoder:
