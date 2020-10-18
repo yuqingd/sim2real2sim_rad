@@ -550,8 +550,7 @@ def config_dummy(config):
     np.random.seed(0)
     for key, real_val in config.real_dr_params.items():
         if config.scale_large_and_small:
-            if bool(np.random.choice(a=[False, True], size=(1,))):
-                cur_scale = 1 / cur_scale
+            cur_scale = 1 / cur_scale #alternate scaling
 
         if real_val == 0:
             real_val = 5e-2
