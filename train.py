@@ -138,6 +138,7 @@ def parse_args():
     parser.add_argument('--use_layer_norm', default=False, action='store_true')
     parser.add_argument('--weight_init', default=False, action='store_true')
     parser.add_argument('--single_branch', default=False, action='store_true')
+    parser.add_argument('--frame_skip', default=1, type=int)
 
 
     # MISC
@@ -721,6 +722,7 @@ def main():
             use_layer_norm=args.use_layer_norm,
             use_weight_init=args.weight_init,
             single_branch=args.single_branch,
+            frame_skip=args.frame_skip,
         ).to(device)
         # Use the same encoder for the agent and the sim param model
         if args.share_encoder:

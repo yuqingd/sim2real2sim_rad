@@ -21,7 +21,7 @@ class SimParamModel(nn.Module):
                  train_range_scale=1, prop_train_range_scale=False, clip_positive=False, dropout=0.5,
                  initial_range=None, single_window=False, share_encoder=False, normalize_features=False,
                  use_downsampling=True, use_encoder=True, downsample_size=32, use_layer_norm=False,
-                 use_weight_init=False, single_branch=False):
+                 use_weight_init=False, single_branch=False, frame_skip = 1):
         super(SimParamModel, self).__init__()
         self._shape = shape
         self._layers = layers
@@ -57,6 +57,7 @@ class SimParamModel(nn.Module):
         self.use_layer_norm = use_layer_norm
         self.use_weight_init = use_weight_init
         self.feature_norm = torch.FloatTensor([-1])[0]
+        self.frame_skip = frame_skip
         action_space_dim = np.prod(action_space.shape)
 
         if self.use_img:
@@ -220,8 +221,8 @@ class SimParamModel(nn.Module):
             if self.single_window:
                 index = 0
             else:
-                index = np.random.choice(len(traj) - self.num_frames + 1)
-            traj = traj[index: index + self.num_frames]
+                index = np.random.choice(len(traj) - self.num_frames * self.frame_skip + 1)
+            traj = traj[index: index + self.num_frames * self.frame_skip : self.frame_skip]
             obs_traj, action_traj = zip(*traj)
             if type(action_traj[0]) is np.ndarray:
                 full_action_traj.append(torch.FloatTensor(np.concatenate(action_traj)).to(self.device))
