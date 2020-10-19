@@ -315,11 +315,11 @@ def config_dr_kitchen(config):
                 ]
             elif dr_option == 'nonconflicting_dr':
                 config.real_dr_list = [
-                    "joint7_damping", "robot_b", "robot_g", "robot_r", "cylinder_b", "cylinder_g",
-                    "cylinder_r", "cylinder_mass", "box1_r", "box1_g", "box1_b", "box2_r", "box2_g", "box2_b", "box3_r",
-                    "box3_g", "box3_b", "box4_r", "box4_g", "box4_b", "box5_r", "box5_g", "box5_b",
+                    "robot_b", "robot_g", "robot_r", "cylinder_b", "cylinder_g",
+                    "cylinder_r", "cylinder_mass", "box1_r", "box1_g", "box1_b",
+                    #"box2_r", "box2_g", "box2_b", "box3_r", "box3_g", "box3_b", "box4_r", "box4_g", "box4_b", "box5_r", "box5_g", "box5_b",
                     # "box6_r", "box6_g", "box6_b", "box7_r", "box7_g", "box7_b", "box8_r", "box8_g", "box8_b",
-                    "rope_damping", "lighting",
+                    "rope_friction", "lighting",
                 ]
 
         else:
