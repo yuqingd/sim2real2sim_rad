@@ -37,7 +37,7 @@ class SimParamModel(nn.Module):
         self.use_img = use_img
         self.state_dim = state_dim
         self.separate_trunks = separate_trunks
-        positional_encoding, embedding_dim = get_embedder(embedding_multires, shape, i=0)
+        positional_encoding, embedding_dim = get_embedder(embedding_multires, 1, i=0)
         self.single_branch = single_branch
         if single_branch:
             embedding_dim = 21
@@ -56,7 +56,7 @@ class SimParamModel(nn.Module):
         self.downsample_size = downsample_size
         self.use_layer_norm = use_layer_norm
         self.use_weight_init = use_weight_init
-        self.feature_norm = None
+        self.feature_norm = torch.FloatTensor([-1])
         action_space_dim = np.prod(action_space.shape)
 
         if self.use_img:
@@ -103,20 +103,24 @@ class SimParamModel(nn.Module):
             self.trunk = nn.Sequential(*trunk).to(self.device)
 
         if self.use_img:
-            # change obs_shape to account for the trajectory length, since images are stacked channel-wise
-            c, h, w = obs_shape
-            if self.share_encoder:
-                obs_shape = (3, h, w)
-                self.encoder = make_encoder(
-                    encoder_type, obs_shape, encoder_feature_dim, encoder_num_layers,
-                    encoder_num_filters, output_logits=True, use_layer_norm=self.use_layer_norm
-                )
-            else:
-                obs_shape = (3 * self.num_frames, h, w)
-                self.encoder = make_encoder(
-                    encoder_type, obs_shape, encoder_feature_dim, encoder_num_layers,
-                    encoder_num_filters, output_logits=True, use_layer_norm=self.use_layer_norm
-                )
+            encoders_list = []
+            for _ in range(num_sim_params):
+                # change obs_shape to account for the trajectory length, since images are stacked channel-wise
+                c, h, w = obs_shape
+                if self.share_encoder:
+                    obs_shape = (3, h, w)
+                    encoder = make_encoder(
+                        encoder_type, obs_shape, encoder_feature_dim, encoder_num_layers,
+                        encoder_num_filters, output_logits=True, use_layer_norm=self.use_layer_norm
+                    )
+                else:
+                    obs_shape = (3 * self.num_frames, h, w)
+                    encoder = make_encoder(
+                        encoder_type, obs_shape, encoder_feature_dim, encoder_num_layers,
+                        encoder_num_filters, output_logits=True, use_layer_norm=self.use_layer_norm
+                    )
+                encoders_list.append(encoder)
+            self.encoder = torch.nn.ModuleList(encoders_list)
 
         if self.use_weight_init:
             self.apply(weight_init)
@@ -155,12 +159,15 @@ class SimParamModel(nn.Module):
                     features = [self.encoder(img, detach=True) for img in input]
                     features = torch.cat(features, dim=1)
                 else:
+                    features = [encoder(input, detach=False) for encoder in self.encoder]
                     # Don't update the conv layers if we're sharing, otherwise to
-                    features = self.encoder(input, detach=self.share_encoder)
-                self.feature_norm = torch.norm(features).detach()
+                    # features = self.encoder(input, detach=self.share_encoder)
+                # self.feature_norm = torch.norm(features).detach()
                 if self.normalize_features:
+                    raise NotImplementedError
                     features = features / torch.norm(features).detach()
             if self.use_downsampling:
+                raise NotImplementedError
                 # input is multiple frames stacked, but we only need the first
                 if type(input) is list:
                     first_input = input[0][:, :3]
@@ -238,19 +245,23 @@ class SimParamModel(nn.Module):
         # normalize [-1, 1]
         pred_labels = pred_labels.to(self.device)
 
-        encoded_pred_labels = self.positional_encoding(pred_labels)
+        encoded_pred_labels_list = [
+            self.positional_encoding(pred_labels[:, i:i+1]) for i in range(pred_labels.shape[-1])
+        ]
         full_action_traj = torch.stack(full_action_traj)
 
-        feat = self.get_features(full_obs_traj)
+        feat_list = self.get_features(full_obs_traj)
         B_label = len(pred_labels)
         B_traj = len(full_traj)
         assert B_label == 1 or B_traj == 1
-        fake_pred = torch.cat([encoded_pred_labels.repeat(B_traj, 1),
+        fake_pred_list = [torch.cat([encoded_pred_labels.repeat(B_traj, 1),
                                feat.repeat(B_label, 1),
                                full_action_traj.repeat(B_label, 1)], dim=-1)
+                            for feat, encoded_pred_labels in zip(feat_list, encoded_pred_labels_list)]
 
         if self.separate_trunks:
-            x = torch.cat([trunk(fake_pred) for trunk in self.trunk], dim=-1)
+
+            x = torch.cat([trunk(fake_pred) for trunk, fake_pred in zip(self.trunk, fake_pred_list)], dim=-1)
         else:
             x = self.trunk(fake_pred)
         pred_class = torch.distributions.bernoulli.Bernoulli(logits=x)
