@@ -16,13 +16,15 @@ OUT_DIM_64 = {2: 29, 4: 25, 6: 21}
 
 class PixelEncoder(nn.Module):
     """Convolutional encoder of pixels observations."""
-    def __init__(self, obs_shape, feature_dim, num_layers=2, num_filters=32, output_logits=False, use_layer_norm=True):
+    def __init__(self, obs_shape, feature_dim, num_layers=2, num_filters=32, output_logits=False, use_layer_norm=True,
+                 spatial_softmax=True):
         super().__init__()
 
         assert len(obs_shape) == 3
         self.obs_shape = obs_shape
         self.feature_dim = feature_dim
         self.num_layers = num_layers
+        self.spatial_sofrmax = spatial_softmax
 
         self.convs = nn.ModuleList(
             [nn.Conv2d(obs_shape[0], num_filters, 3, stride=2)]
@@ -31,7 +33,10 @@ class PixelEncoder(nn.Module):
             self.convs.append(nn.Conv2d(num_filters, num_filters, 3, stride=1))
 
         out_dim = OUT_DIM_64[num_layers] if obs_shape[-1] == 64 else OUT_DIM[num_layers]
-        self.fc = nn.Linear(num_filters * out_dim * out_dim, self.feature_dim)
+        fc_input_dim = num_filters * out_dim * out_dim
+        if spatial_softmax:
+            fc_input_dim += num_filters * 2
+        self.fc = nn.Linear(, self.feature_dim)
         self.ln = nn.LayerNorm(self.feature_dim)
 
         self.outputs = dict()
@@ -56,6 +61,15 @@ class PixelEncoder(nn.Module):
             self.outputs['conv%s' % (i + 1)] = conv
 
         h = conv.reshape(conv.size(0), -1)
+        if self.spatial_softmax:
+            b, c, h, w  = conv.shape
+            conv_flat = conv.flatten(2)
+            features = torch.argmax(conv, dim=-1)  # batch x channels
+            y_pos = features // h
+            x_pos = features % w
+
+
+
         return h
 
     def forward(self, obs, detach=False):
