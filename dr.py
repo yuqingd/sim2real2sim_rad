@@ -525,23 +525,38 @@ def config_dr_metaworld(config):
 
 def config_dummy(config):
     real_dr_values = {
-        "square_size": 4.,
-        "speed_multiplier": 3.,
+        "square_size": 6.,
+        "speed_multiplier": 5.,
         "square_r": .5,
         "square_g": .5,
         "square_b": 0.,
     }
+    dr_option = config.dr_option
+    if dr_option == 'all_dr':
+        config.real_dr_list = list(real_dr_values.keys())
+    elif dr_option == 'red':
+        config.real_dr_list = ['square_r']
+    elif dr_option == 'visual_dr':
+        config.real_dr_list = ['square_r', 'square_g', 'square_b']
+    elif dr_option == 'speed':
+        config.real_dr_list = ['speed_multiplier']
+    elif dr_option == 'size':
+        config.real_dr_list = ['square_size']
     config.real_dr_params = real_dr_values
-    config.real_dr_list = list(config.real_dr_params.keys())
-    mean_scale = config.mean_scale
+    cur_scale = config.mean_scale
     range_scale = config.range_scale
     config.dr = {}  # (mean, range)
+
     for key, real_val in config.real_dr_params.items():
+        if config.scale_large_and_small:
+            cur_scale = 1 / cur_scale #alternate scaling
+
         if real_val == 0:
             real_val = 5e-2
         if config.mean_only:
-            config.dr[key] = real_val * mean_scale
+            config.dr[key] = real_val * cur_scale
         else:
-            config.dr[key] = (real_val * mean_scale, real_val * range_scale)
+            config.dr[key] = (real_val * cur_scale, real_val * range_scale)
+
     config.sim_params_size = len(config.real_dr_list)
     return config
