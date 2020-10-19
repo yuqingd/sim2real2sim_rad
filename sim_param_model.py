@@ -221,8 +221,12 @@ class SimParamModel(nn.Module):
             if self.single_window:
                 index = 0
             else:
+                if len(traj) < self.num_frames * self.frame_skip + 1:
+                    continue
                 index = np.random.choice(len(traj) - self.num_frames * self.frame_skip + 1)
-            traj = traj[index: index + self.num_frames * self.frame_skip : self.frame_skip]
+
+            if len(traj) != self.num_frames:
+                traj = traj[index: index + self.num_frames * self.frame_skip : self.frame_skip]
             obs_traj, action_traj = zip(*traj)
             if type(action_traj[0]) is np.ndarray:
                 full_action_traj.append(torch.FloatTensor(np.concatenate(action_traj)).to(self.device))
