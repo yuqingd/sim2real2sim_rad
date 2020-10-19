@@ -1199,7 +1199,7 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
          visualize_reward=False, frame_skip=None, mean_only=False,  dr_list=[], simple_randomization=False, dr_shape=None,
                real_world=False, dr=None, use_state="None", use_img=True,
                 grayscale=False, delay_steps=0, range_scale=.1, prop_range_scale=False, state_concat=False,
-         real_dr_params=None, prop_initial_range=False):
+         real_dr_params=None, prop_initial_range=False, time_limit=200):
     # DMC
     if 'dmc' in domain_name:
         domain_name_root = domain_name[4:]  # Task name is formatted as dmc_walker.  Now just walker
@@ -1256,11 +1256,11 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
                           simple_randomization=False,
                           step_repeat=50,
                           control_version='mocap_ik',
-                          step_size=0.055,
+                          step_size=0.025,
                           initial_randomization_steps=3,
                           minimal=False,
                           grayscale=grayscale,
-                          time_limit=200,
+                          time_limit=time_limit,
                           delay_steps=delay_steps)
             env = DR_Kitchen(env, cameras=cameras, height=height, width=width, mean_only=mean_only,
                        dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape, name=task_name,

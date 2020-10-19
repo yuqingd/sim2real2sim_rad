@@ -45,47 +45,47 @@
                                     <joint name="cylinder_x" type="slide" range="-1 1" axis="1 0 0"/>
                                     <joint name="cylinder_y" type="slide" range="-1 1" axis="0 1 1"/>
                                     <joint name="cylinder_z" type="slide" range="-1 1" axis="0 0 1"/>
-                                    <geom name="cylinder_viz" class="xarm_viz" rgba="1 .8 0 1" type="cylinder" size="0.017 .02"/>
-                                    <geom name="cylinder_col" class="xarm_col" type="cylinder" size="0.017 .02" mass="0.5" />
+                                    <geom name="cylinder_viz" class="xarm_viz" rgba="1 .8 0 1" type="cylinder" size="0.015 .02"/>
+                                    <geom name="cylinder_col" class="xarm_col" type="cylinder" size="0.015 .02" mass="1" />
                                     <site name="cylinder" pos=".0 0.0 0." size=".01"/>
                                 </body>
 
-                                <body name="left_outer_knuckle" pos="0 0.035 0.059098">
-                                    <inertial pos="0 0.021559 0.015181" quat="0.47789 0.87842 0 0" mass="0.033618" diaginertia="1.9111e-05 1.79089e-05 1.90167e-06" />
-                                    <joint name="drive_joint" pos="0 0 0" axis="1 0 0" limited="true" range="0 0.85" />
-                                    <geom class="xarm_col"  mass="0.033618" mesh="left_outer_knuckle" />
-                                    <geom class="xarm_viz"  mesh="left_outer_knuckle" />
-                                    <body name="left_finger" pos="0 0.035465 0.042039">
-                                        <inertial pos="0 -0.016413 0.029258" quat="0.697634 0.115353 -0.115353 0.697634" mass="0.048304" diaginertia="1.88037e-05 1.7493e-05 3.56792e-06" />
-                                        <joint name="left_finger_joint" pos="0 0 0" axis="-1 0 0" limited="true" range="0 0.85" />
-                                        <geom class="xarm_col" mass="0.048304" mesh="left_finger" />
-                                        <geom class="xarm_viz"  mesh="left_finger" />
-                                    </body>
-                                </body>
-                                <body name="left_inner_knuckle" pos="0 0.02 0.074098">
-                                    <inertial pos="1.86601e-06 0.0220468 0.0261335" quat="0.664139 -0.242732 0.242713 0.664146" mass="0.0230126" diaginertia="8.34216e-06 6.0949e-06 2.75601e-06" />
-                                    <joint name="left_inner_knuckle_joint" pos="0 0 0" axis="1 0 0" limited="true" range="0 0.85" />
-                                    <geom class="xarm_col"  mass="0.0230126" mesh="left_inner_knuckle" />
-                                    <geom class="xarm_viz" mesh="left_inner_knuckle" />
-                                </body>
-                                <body name="right_outer_knuckle" pos="0 -0.035 0.059098">
-                                    <inertial pos="0 -0.021559 0.015181" quat="0.87842 0.47789 0 0" mass="0.033618" diaginertia="1.9111e-05 1.79089e-05 1.90167e-06" />
-                                    <joint name="right_outer_knuckle_joint" pos="0 0 0" axis="-1 0 0" limited="true" range="0 0.85" />
-                                    <geom class="xarm_col" mass="0.033618"  mesh="right_outer_knuckle" />
-                                    <geom class="xarm_viz" mesh="right_outer_knuckle" />
-                                    <body name="right_finger" pos="0 -0.035465 0.042039">
-                                        <inertial pos="0 0.016413 0.029258" quat="0.697634 -0.115356 0.115356 0.697634" mass="0.048304" diaginertia="1.88038e-05 1.7493e-05 3.56779e-06" />
-                                        <joint name="right_finger_joint" pos="0 0 0" axis="1 0 0" limited="true" range="0 0.85" />
-                                        <geom class="xarm_col"  mass="0.048304" mesh="right_finger" />
-                                        <geom class="xarm_viz" mesh="right_finger" />
-                                    </body>
-                                </body>
-                                <body name="right_inner_knuckle" pos="0 -0.02 0.074098">
-                                    <inertial pos="1.866e-06 -0.022047 0.026133" quat="0.66415 0.242702 -0.242721 0.664144" mass="0.023013" diaginertia="8.34209e-06 6.0949e-06 2.75601e-06" />
-                                    <joint name="right_inner_knuckle_joint" pos="0 0 0" axis="-1 0 0" limited="true" range="0 0.85" />
-                                    <geom class="xarm_col"  mass="0.023013"  mesh="right_inner_knuckle" />
-                                    <geom class="xarm_viz"  mesh="right_inner_knuckle" />
-                                </body>
+<!--                                <body name="left_outer_knuckle" pos="0 0.035 0.059098">-->
+<!--                                    <inertial pos="0 0.021559 0.015181" quat="0.47789 0.87842 0 0" mass="0.033618" diaginertia="1.9111e-05 1.79089e-05 1.90167e-06" />-->
+<!--                                    <joint name="drive_joint" pos="0 0 0" axis="1 0 0" limited="true" range="0 0.85" />-->
+<!--&lt;!&ndash;                                    <geom class="xarm_col"  mass="0.033618" mesh="left_outer_knuckle" />&ndash;&gt;-->
+<!--                                    <geom class="xarm_viz"  mesh="left_outer_knuckle" />-->
+<!--                                    <body name="left_finger" pos="0 0.035465 0.042039">-->
+<!--                                        <inertial pos="0 -0.016413 0.029258" quat="0.697634 0.115353 -0.115353 0.697634" mass="0.048304" diaginertia="1.88037e-05 1.7493e-05 3.56792e-06" />-->
+<!--                                        <joint name="left_finger_joint" pos="0 0 0" axis="-1 0 0" limited="true" range="0 0.85" />-->
+<!--&lt;!&ndash;                                        <geom class="xarm_col" mass="0.048304" mesh="left_finger" />&ndash;&gt;-->
+<!--                                        <geom class="xarm_viz"  mesh="left_finger" />-->
+<!--                                    </body>-->
+<!--                                </body>-->
+<!--                                <body name="left_inner_knuckle" pos="0 0.02 0.074098">-->
+<!--                                    <inertial pos="1.86601e-06 0.0220468 0.0261335" quat="0.664139 -0.242732 0.242713 0.664146" mass="0.0230126" diaginertia="8.34216e-06 6.0949e-06 2.75601e-06" />-->
+<!--                                    <joint name="left_inner_knuckle_joint" pos="0 0 0" axis="1 0 0" limited="true" range="0 0.85" />-->
+<!--&lt;!&ndash;                                    <geom class="xarm_col"  mass="0.0230126" mesh="left_inner_knuckle" />&ndash;&gt;-->
+<!--                                    <geom class="xarm_viz" mesh="left_inner_knuckle" />-->
+<!--                                </body>-->
+<!--                                <body name="right_outer_knuckle" pos="0 -0.035 0.059098">-->
+<!--                                    <inertial pos="0 -0.021559 0.015181" quat="0.87842 0.47789 0 0" mass="0.033618" diaginertia="1.9111e-05 1.79089e-05 1.90167e-06" />-->
+<!--                                    <joint name="right_outer_knuckle_joint" pos="0 0 0" axis="-1 0 0" limited="true" range="0 0.85" />-->
+<!--&lt;!&ndash;                                    <geom class="xarm_col" mass="0.033618"  mesh="right_outer_knuckle" />&ndash;&gt;-->
+<!--                                    <geom class="xarm_viz" mesh="right_outer_knuckle" />-->
+<!--                                    <body name="right_finger" pos="0 -0.035465 0.042039">-->
+<!--                                        <inertial pos="0 0.016413 0.029258" quat="0.697634 -0.115356 0.115356 0.697634" mass="0.048304" diaginertia="1.88038e-05 1.7493e-05 3.56779e-06" />-->
+<!--                                        <joint name="right_finger_joint" pos="0 0 0" axis="1 0 0" limited="true" range="0 0.85" />-->
+<!--&lt;!&ndash;                                        <geom class="xarm_col"  mass="0.048304" mesh="right_finger" />&ndash;&gt;-->
+<!--                                        <geom class="xarm_viz" mesh="right_finger" />-->
+<!--                                    </body>-->
+<!--                                </body>-->
+<!--                                <body name="right_inner_knuckle" pos="0 -0.02 0.074098">-->
+<!--                                    <inertial pos="1.866e-06 -0.022047 0.026133" quat="0.66415 0.242702 -0.242721 0.664144" mass="0.023013" diaginertia="8.34209e-06 6.0949e-06 2.75601e-06" />-->
+<!--                                    <joint name="right_inner_knuckle_joint" pos="0 0 0" axis="-1 0 0" limited="true" range="0 0.85" />-->
+<!--&lt;!&ndash;                                    <geom class="xarm_col"  mass="0.023013"  mesh="right_inner_knuckle" />&ndash;&gt;-->
+<!--                                    <geom class="xarm_viz"  mesh="right_inner_knuckle" />-->
+<!--                                </body>-->
                             </body>
                         </body>
                     </body>
