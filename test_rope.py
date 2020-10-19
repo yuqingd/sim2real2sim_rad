@@ -4,16 +4,25 @@ import os
 import utils
 from train import parse_args, make_agent
 import torch
+from train import parse_args
 # ENV = 'FetchPickAndPlace-v1'
-env = make('kitchen', real_world=True,
+
+args = parse_args()
+
+env = make('kitchen', real_world=False,
         task_name='rope',
         seed=0,
         from_pixels=True,
         height=84,
-        width=84
+        width=84,
+        dr_list=args.real_dr_list,
+        dr_shape=args.sim_params_size,
+        dr=args.dr,
+        mean_only=args.mean_only,
     )
 # env.set_special_reset('grip')
 env.reset()
+env.apply_dr()
 num_episodes = 1
 time_limit = 60
 image_size = 84
@@ -50,6 +59,6 @@ def run_eval_loop(sample_stochastically=True):
             video.record(env)
             episode_reward += reward
             print(reward)
-        video.save('real.mp4')
+        video.save('sim.mp4')
 
 run_eval_loop()
