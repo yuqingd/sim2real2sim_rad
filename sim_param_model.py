@@ -56,7 +56,7 @@ class SimParamModel(nn.Module):
         self.downsample_size = downsample_size
         self.use_layer_norm = use_layer_norm
         self.use_weight_init = use_weight_init
-        self.feature_norm = torch.FloatTensor([-1])
+        self.feature_norm = torch.FloatTensor([-1])[0]
         action_space_dim = np.prod(action_space.shape)
 
         if self.use_img:
