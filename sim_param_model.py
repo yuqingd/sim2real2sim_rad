@@ -218,10 +218,10 @@ class SimParamModel(nn.Module):
         for traj in full_traj:
             # TODO: previously, we were always taking the first window.  Now, we always take a random one.
             #   We could consider choosing multiple, or choosing a separate segmentation for each batch element.
-            if self.single_window:
+            if self.single_window or len(traj) == self.num_frames:
                 index = 0
             else:
-                if len(traj) < self.num_frames * self.frame_skip + 1 and len(traj) != self.num_frames:
+                if len(traj) < self.num_frames * self.frame_skip + 1:
                     continue
                 index = np.random.choice(len(traj) - self.num_frames * self.frame_skip + 1)
 
