@@ -546,8 +546,7 @@ def config_dummy(config):
     cur_scale = config.mean_scale
     range_scale = config.range_scale
     config.dr = {}  # (mean, range)
-    rng_state = np.random.get_state()
-    np.random.seed(0)
+
     for key, real_val in config.real_dr_params.items():
         if config.scale_large_and_small:
             cur_scale = 1 / cur_scale #alternate scaling
@@ -558,7 +557,6 @@ def config_dummy(config):
             config.dr[key] = real_val * cur_scale
         else:
             config.dr[key] = (real_val * cur_scale, real_val * range_scale)
-    np.random.set_state(rng_state)
 
     config.sim_params_size = len(config.real_dr_list)
     return config
