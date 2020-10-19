@@ -221,7 +221,7 @@ class SimParamModel(nn.Module):
             if self.single_window:
                 index = 0
             else:
-                if len(traj) < self.num_frames * self.frame_skip + 1:
+                if len(traj) < self.num_frames * self.frame_skip + 1 and len(traj) != self.num_frames:
                     continue
                 index = np.random.choice(len(traj) - self.num_frames * self.frame_skip + 1)
 
