@@ -6,8 +6,7 @@ import copy
 import math
 
 import utils
-from encoder import make_encoder, PixelEncoder
-import data_augs as rad
+from encoder import make_encoder
 from curl_sac import weight_init
 from positional_encoding import get_embedder
 
@@ -122,19 +121,10 @@ class SimParamModel(nn.Module):
             if obs_traj[0][0].shape[0] == 9:
                 input = []
                 for i in range(len(obs_traj[0])):
-                    if type(obs_traj[0][0]) is torch.Tensor:
-                        input.append(
-                            torch.FloatTensor([traj[i].detach().cpu().numpy() for traj in obs_traj]).to(self.device))
-                    else:
-                        input.append(torch.FloatTensor([traj[i] for traj in obs_traj]).to(self.device))
-            elif type(obs_traj[0][0]) is np.ndarray:
-                input = torch.FloatTensor(obs_traj).to(self.device)
-                B, num_frames, C, H, W = input.shape
-                input = input.view(B, num_frames * C, H, W)
-            elif type(obs_traj[0][0]) is torch.Tensor:
-                input = torch.stack([torch.cat([o for o in traj], dim=0) for traj in obs_traj], dim=0)
+                    input.append(
+                        torch.FloatTensor([traj[i].detach().cpu().numpy() for traj in obs_traj]).to(self.device))
             else:
-                raise NotImplementedError(type(obs_traj[0][0]))
+                input = torch.stack([torch.cat([o for o in traj], dim=0) for traj in obs_traj], dim=0)
 
             if self.share_encoder:
                 features = [self.encoder(img, detach=True) for img in input]
@@ -147,35 +137,19 @@ class SimParamModel(nn.Module):
                 features = features / torch.norm(features).detach()
 
         else:
-            if type(obs_traj[0][0]) is torch.Tensor:
-                features = torch.stack([torch.cat([o for o in traj], dim=0) for traj in obs_traj], dim=0)
-            elif type(obs_traj[0][0]) is np.ndarray:
-                features = torch.FloatTensor([np.concatenate([o for o in traj], axis=0) for traj in obs_traj]).to(
-                    self.device)
-            else:
-                raise NotImplementedError(type(obs_traj[0][0]))
+            features = torch.stack([torch.cat([o for o in traj], dim=0) for traj in obs_traj], dim=0)
 
         return features
 
-    def forward(self, obs_traj):
-        if self.use_img:
-            features = self.get_features(obs_traj)
-        else:
-            features = torch.stack(
-                obs_traj)  # TODO: actually do this right, possibly with diff if cases for ndarray vs torch like above
-        x = features.view(1, -1)
-        if self.separate_trunks:
-            x = torch.cat([trunk(x) for trunk in self.trunk], dim=-1)
-        else:
-            x = self.trunk(x)
-        if self._dist == 'normal':
-            return torch.distributions.normal.Normal(x, 1)
-        if self._dist == 'binary':
-            return torch.distributions.bernoulli.Bernoulli(x)
-        raise NotImplementedError(self._dist)
 
     def forward_classifier(self, full_traj, pred_labels, step=5):
         """ obs traj list of lists, pred labels is array [B, num_sim_params] """
+        # Turn np arrays into tensors
+        if type(full_traj[0][0][0]) is np.ndarray:
+            full_traj = [[(torch.FloatTensor(o).to(self.device), torch.FloatTensor(a).to(self.device))
+                          for o, a in traj]
+                         for traj in full_traj]
+
         full_obs_traj = []
         full_action_traj = []
         for traj in full_traj:
@@ -191,12 +165,7 @@ class SimParamModel(nn.Module):
             if len(traj) != self.num_frames:
                 traj = traj[index: index + self.num_frames * self.frame_skip: self.frame_skip]
             obs_traj, action_traj = zip(*traj)
-            if type(action_traj[0]) is np.ndarray:
-                full_action_traj.append(torch.FloatTensor(np.concatenate(action_traj)).to(self.device))
-            elif type(action_traj[0]) is torch.Tensor:
-                full_action_traj.append(torch.cat(action_traj))
-            else:
-                raise NotImplementedError
+            full_action_traj.append(torch.cat(action_traj))
             # If we're using images, only use the first of the stacked frames
             if self.use_img and not self.share_encoder:
                 full_obs_traj.append([o[:3] for o in obs_traj])
