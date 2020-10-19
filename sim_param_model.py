@@ -20,8 +20,7 @@ class SimParamModel(nn.Module):
                  embedding_multires=10, use_img=True, state_dim=0, separate_trunks=False, param_names=[],
                  train_range_scale=1, prop_train_range_scale=False, clip_positive=False, dropout=0.5,
                  initial_range=None, single_window=False, share_encoder=False, normalize_features=False,
-                 use_downsampling=True, use_encoder=True, downsample_size=32, use_layer_norm=False,
-                 use_weight_init=False, single_branch=False, frame_skip = 1):
+                 use_layer_norm=False, use_weight_init=False, frame_skip=1):
         super(SimParamModel, self).__init__()
         self._shape = shape
         self._layers = layers
@@ -38,9 +37,6 @@ class SimParamModel(nn.Module):
         self.state_dim = state_dim
         self.separate_trunks = separate_trunks
         positional_encoding, embedding_dim = get_embedder(embedding_multires, shape, i=0)
-        self.single_branch = single_branch
-        if single_branch:
-            embedding_dim = 21
         self.positional_encoding = positional_encoding
         additional = 0 if dist == 'normal' else embedding_dim
         self.param_names = param_names
@@ -50,10 +46,7 @@ class SimParamModel(nn.Module):
         self.initial_range = initial_range
         self.single_window = single_window
         self.share_encoder = share_encoder
-        self.use_downsampling = use_downsampling
-        self.use_encoder = use_encoder
         self.normalize_features = normalize_features
-        self.downsample_size = downsample_size
         self.use_layer_norm = use_layer_norm
         self.use_weight_init = use_weight_init
         self.feature_norm = torch.FloatTensor([-1])[0]
@@ -61,19 +54,11 @@ class SimParamModel(nn.Module):
         action_space_dim = np.prod(action_space.shape)
 
         if self.use_img:
-            assert use_encoder or use_downsampling, "we must use at least one encoding scheme"
-            if self.use_encoder:
-                if self.share_encoder:
-                    encoder_dims = encoder_feature_dim * num_frames
-                else:
-                    encoder_dims = encoder_feature_dim
+            if self.share_encoder:
+                encoder_dims = encoder_feature_dim * num_frames
             else:
-                encoder_dims = 0
-            if self.use_downsampling:
-                downsample_dims = downsample_size * downsample_size * 3
-            else:
-                downsample_dims = 0
-            trunk_input_dim = encoder_dims + downsample_dims + additional + action_space_dim * num_frames
+                encoder_dims = encoder_feature_dim
+            trunk_input_dim = encoder_dims + additional + action_space_dim * num_frames
         else:
             trunk_input_dim = state_dim[-1] * self.num_frames + additional + action_space_dim * num_frames
 
@@ -151,37 +136,15 @@ class SimParamModel(nn.Module):
             else:
                 raise NotImplementedError(type(obs_traj[0][0]))
 
-            if self.use_encoder:
-                if self.share_encoder:
-                    features = [self.encoder(img, detach=True) for img in input]
-                    features = torch.cat(features, dim=1)
-                else:
-                    # Don't update the conv layers if we're sharing, otherwise to
-                    features = self.encoder(input, detach=self.share_encoder)
-                self.feature_norm = torch.norm(features).detach()
-                if self.normalize_features:
-                    features = features / torch.norm(features).detach()
-            if self.use_downsampling:
-                # input is multiple frames stacked, but we only need the first
-                if type(input) is list:
-                    first_input = input[0][:, :3]
-                else:
-                    first_input = input[:, :3]
-
-                input_size = first_input.shape[-1]
-                output_size = self.downsample_size
-                bin_size = input_size // output_size
-
-                if torch.max(first_input).item() > 1:
-                    first_input = first_input / 255
-                b, c, h, w = first_input.shape
-                downsample_features = first_input.reshape(
-                    (b, c, output_size, bin_size, output_size, bin_size)).mean(5).mean(3).reshape(b, -1)
-                if self.use_encoder:
-                    features = torch.cat([features, downsample_features], dim=1)
-                else:
-                    features = downsample_features
-            temp = 3
+            if self.share_encoder:
+                features = [self.encoder(img, detach=True) for img in input]
+                features = torch.cat(features, dim=1)
+            else:
+                # Don't update the conv layers if we're sharing, otherwise to
+                features = self.encoder(input, detach=self.share_encoder)
+            self.feature_norm = torch.norm(features).detach()
+            if self.normalize_features:
+                features = features / torch.norm(features).detach()
 
         else:
             if type(obs_traj[0][0]) is torch.Tensor:
@@ -262,43 +225,6 @@ class SimParamModel(nn.Module):
         pred_class = pred_class.mean
         return pred_class
 
-    def train_classifier_singlebranch(self, obs_list, action_list, L, step, should_log, tag, use_img):
-        # Obs list is a list of trajectories
-        # Each trajectory is a dictionary
-        # Each dictionary value is a vector with length = # timesteps
-        temp = 3
-        # Should be consistent for all data points b/c we don't update.
-        distribution_mean = obs_list[0]['distribution_mean'][0]
-        labels = torch.stack(
-            [o['sim_params'][0] > distribution_mean for o in obs_list]).float()  # num_trajs x sim_param_dim
-        fake_pred = torch.zeros((1, 1))  # Dummy, for compatibility with forward_classifier function
-        obs_key = 'image' if use_img else 'state'
-        obs_and_actions = [list(zip(o[obs_key], a)) for o, a in zip(obs_list, action_list)]
-        pred_class = self.forward_classifier(obs_and_actions, fake_pred)
-        pred_class_flat = pred_class.flatten().unsqueeze(0).float()
-        labels_flat = labels.flatten().unsqueeze(0).float()
-        loss = nn.BCELoss()(pred_class_flat, labels_flat)
-        full_loss = nn.BCELoss(reduction='none')(pred_class.float(), labels.float()).detach().cpu().numpy()
-        individual_loss = np.mean(full_loss, axis=0)
-        accuracy = torch.round(pred_class) == labels
-        individual_accuracy = torch.mean(accuracy.float(), dim=0).detach().cpu().numpy()
-        accuracy_mean = torch.mean(accuracy.float()).detach().cpu().numpy()
-        error = pred_class - labels
-        individual_error = torch.mean(error.float(), dim=0).detach().cpu().numpy()
-        error_mean = torch.mean(error.float()).detach().cpu().numpy()
-
-        if should_log:
-            L.log(f'{tag}_sim_params/loss', loss, step)
-            L.log(f'{tag}_sim_params/accuracy', accuracy_mean, step)
-            L.log(f'{tag}_sim_params/error', error_mean, step)
-            if self.feature_norm is not None:
-                L.log(f'{tag}_sim_params/feature_norm', self.feature_norm, step)
-            for i, param in enumerate(self.param_names):
-                L.log(f'{tag}_sim_params/{param}/loss', individual_loss[i], step)
-                L.log(f'{tag}_sim_params/{param}/accuracy', individual_accuracy[i], step)
-                L.log(f'{tag}_sim_params/{param}/error', individual_error[i], step)
-
-        return loss
 
     def train_classifier(self, obs_traj, sim_params, distribution_mean):
         if self.initial_range is not None:
@@ -314,7 +240,7 @@ class SimParamModel(nn.Module):
         else:
             low_val = sim_params - dist_range
 
-        num_low = np.random.randint(0, self.batch * 4)  # TODO: figure out why x4
+        num_low = np.random.randint(0, self.batch * 4)
         low = torch.FloatTensor(
             np.random.uniform(size=(num_low, len(sim_params)), low=low_val,
                               high=sim_params)).to(self.device)
@@ -380,27 +306,6 @@ class SimParamModel(nn.Module):
             L.log(f'{tag}_sim_params/{param}/dist_mean_accuracy', dist_accuracy_individual[i], step)
             L.log(f'{tag}_sim_params/{param}/dist_mean_error', dist_error_individual[i], step)
 
-
-
-    def update_singlebranch(self, L, step, should_log, replay_buffer=None, val=False, tag="train"):
-        total_num_trajs = 16
-        if self.encoder_type == 'pixel':
-            obs_list, actions_list, rewards_list, next_obses_list, not_dones_list, cpc_kwargs_list = replay_buffer.sample_cpc_traj(
-                total_num_trajs, val=val)
-        else:
-            obs_list, actions_list, rewards_list, next_obses_list, not_dones_list = replay_buffer.sample_proprio_traj(
-                total_num_trajs, val=val)
-
-        if val:
-            with torch.no_grad():
-                self.train_classifier_singlebranch(obs_list, actions_list, L, step,
-                                                   should_log, tag, use_img=self.use_img)
-        else:
-            loss = self.train_classifier_singlebranch(obs_list, actions_list, L, step,
-                                                      should_log, tag, use_img=self.use_img)
-            self.sim_param_optimizer.zero_grad()
-            loss.backward()
-            self.sim_param_optimizer.step()
 
     def update(self, obs_list, sim_params, dist_mean, L, step, should_log, replay_buffer=None, val=False, tag="train"):
         total_num_trajs = 16
