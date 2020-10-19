@@ -83,7 +83,7 @@ def parse_args():
 
     parser.add_argument('--log_interval', default=100, type=int)
 
-    #S2R2S params
+    # S2R2S params
     parser.add_argument('--mean_only', default=True, action='store_true')
     parser.add_argument('--use_state', default=False, action='store_true')
     parser.add_argument('--use_img', default=False, action='store_true')
@@ -113,7 +113,6 @@ def parse_args():
     parser.add_argument('--update_sim_param_from', choices=['latest', 'buffer', 'both'], type=str.lower,
                         default='latest')
 
-
     # Outer loop options
     parser.add_argument('--sample_real_every', default=2, type=int)
     parser.add_argument('--num_real_world', default=1, type=int)
@@ -127,15 +126,15 @@ def parse_args():
     parser.add_argument('--start_outer_loop', default=0, type=int)
     parser.add_argument('--train_sim_param_every', default=50, type=int)
     parser.add_argument('--momentum', default=0, type=float)
-    parser.add_argument('--round_predictions', default=True,  action='store_true')
-    parser.add_argument('--single_window', default=False,  action='store_true')
-    parser.add_argument('--no_train_policy', default=False,  action='store_true')
-    parser.add_argument('--share_encoder', default=False,  action='store_true', help="use agent encoder for sim param model")
-    parser.add_argument('--normalize_features', default=False,  action='store_true')
+    parser.add_argument('--round_predictions', default=True, action='store_true')
+    parser.add_argument('--single_window', default=False, action='store_true')
+    parser.add_argument('--no_train_policy', default=False, action='store_true')
+    parser.add_argument('--share_encoder', default=False, action='store_true',
+                        help="use agent encoder for sim param model")
+    parser.add_argument('--normalize_features', default=False, action='store_true')
     parser.add_argument('--use_layer_norm', default=False, action='store_true')
     parser.add_argument('--weight_init', default=False, action='store_true')
     parser.add_argument('--frame_skip', default=1, type=int)
-
 
     # MISC
     parser.add_argument('--id', default='debug', type=str)
@@ -158,6 +157,7 @@ def parse_args():
 
     return args
 
+
 def train_offline(args, L, real_env, sim_env, agent, sim_param_model, video_real, video_sim, replay_buffer):
     train_sim_model_time = 0
     eval_time = 0
@@ -174,14 +174,14 @@ def train_offline(args, L, real_env, sim_env, agent, sim_param_model, video_real
             evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim,
                      args.num_eval_episodes, L, step, args)
 
-                sim_param_model.update(None, None, sim_env.distribution_mean,
-                                       L, step, should_log, replay_buffer, val=True, tag="train_val")
-            eval_time += time.time() - start_eval
-            L.dump(step)
-        start_sim_model = time.time()
-        sim_param_model.update(None, None, sim_env.distribution_mean,
-                                       L, step, should_log, replay_buffer)
-        train_sim_model_time += time.time() - start_sim_model
+            sim_param_model.update(None, None, sim_env.distribution_mean,
+                                   L, step, should_log, replay_buffer, val=True, tag="train_val")
+        eval_time += time.time() - start_eval
+        L.dump(step)
+    start_sim_model = time.time()
+    sim_param_model.update(None, None, sim_env.distribution_mean,
+                           L, step, should_log, replay_buffer)
+    train_sim_model_time += time.time() - start_sim_model
 
 
 def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_params, current_sim_params):
@@ -253,12 +253,13 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
             log_data[key][step]['loss'] = loss
             np.save(filename, log_data)
 
+
 def predict_sim_params(sim_param_model, traj, current_sim_params, args, step=10, confidence_level=.3):
     segment_length = sim_param_model.num_frames
     windows = []
     index = 0
     while index < len(traj) - segment_length * args.frame_skip:
-        windows.append(traj[index: index + segment_length * args.frame_skip : args.frame_skip])
+        windows.append(traj[index: index + segment_length * args.frame_skip: args.frame_skip])
         index += step
     if args.single_window:
         windows = [windows[0]]
@@ -276,6 +277,7 @@ def predict_sim_params(sim_param_model, traj, current_sim_params, args, step=10,
     # And whether we want to be confident (e.g. if all windows predict .6, do we predict .6 or 1?
     confident_preds = np.mean(preds, axis=0)
     return confident_preds
+
 
 def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
     with torch.no_grad():
@@ -349,10 +351,10 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
     args.updates = updates
 
 
-
 def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, num_episodes, L, step, args):
     all_ep_rewards = []
     all_ep_success = []
+
     def run_eval_loop(sample_stochastically=False):
         start_time = time.time()
         prefix = 'stochastic_' if sample_stochastically else ''
@@ -368,7 +370,8 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
                 if args.use_img:
                     obs = obs_dict['image']
                     # center crop image
-                    if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
+                    if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
+                        args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
                         obs = utils.center_crop_image(obs, args.image_size)
                 else:
                     obs = obs_dict['state']
@@ -622,11 +625,8 @@ def main():
             load_model = False
         else:
             agent_checkpoint = [f for f in checkpoints if 'curl' in f]
-            if args.outer_loop_version in [1,3]:
+            if args.outer_loop_version in [1, 3]:
                 sim_param_checkpoint = [f for f in checkpoints if 'sim_param' in f]
-
-
-
 
     utils.make_dir(args.work_dir)
     sim_video_dir = utils.make_dir(os.path.join(args.work_dir, 'sim_video'))
@@ -636,7 +636,6 @@ def main():
         buffer_dir = utils.make_dir(os.path.join(args.work_dir, 'buffer'))
     else:
         buffer_dir = utils.make_dir(os.path.join(args.train_offline_dir, 'buffer'))
-
 
     video_real = VideoRecorder(real_video_dir if args.save_video else None, camera_id=args.cameras[0])
     video_sim = VideoRecorder(sim_video_dir if args.save_video else None, camera_id=args.cameras[0])
@@ -727,7 +726,7 @@ def main():
         if sim_param_model is not None:
             sim_param_step = 0
             for checkpoint in sim_param_checkpoint:
-                sim_param_step = max(sim_param_step,[int(x) for x in re.findall('\d+', checkpoint)][-1])
+                sim_param_step = max(sim_param_step, [int(x) for x in re.findall('\d+', checkpoint)][-1])
             sim_param_model.load(model_dir, sim_param_step)
             start_step = min(start_step, sim_param_step)  # TODO: do we have to save optimizer?
     if load_model or args.train_offline_dir is not None:
@@ -816,7 +815,7 @@ def main():
             if args.use_img:
                 obs_img = obs['image']
                 if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
-                        args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
+                    args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
                     obs_img = utils.center_crop_image(obs_img, args.image_size)
             else:
                 obs_img = obs['state']
@@ -864,7 +863,7 @@ def main():
             obs_img = obs['state']
 
         if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
-                args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
+            args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
             obs_img = utils.center_crop_image(obs_img, args.image_size)
 
         episode_step += 1

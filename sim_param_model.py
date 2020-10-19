@@ -189,7 +189,7 @@ class SimParamModel(nn.Module):
                 index = np.random.choice(len(traj) - self.num_frames * self.frame_skip + 1)
 
             if len(traj) != self.num_frames:
-                traj = traj[index: index + self.num_frames * self.frame_skip : self.frame_skip]
+                traj = traj[index: index + self.num_frames * self.frame_skip: self.frame_skip]
             obs_traj, action_traj = zip(*traj)
             if type(action_traj[0]) is np.ndarray:
                 full_action_traj.append(torch.FloatTensor(np.concatenate(action_traj)).to(self.device))
@@ -224,7 +224,6 @@ class SimParamModel(nn.Module):
         pred_class = torch.distributions.bernoulli.Bernoulli(logits=x)
         pred_class = pred_class.mean
         return pred_class
-
 
     def train_classifier(self, obs_traj, sim_params, distribution_mean):
         if self.initial_range is not None:
@@ -305,7 +304,6 @@ class SimParamModel(nn.Module):
             L.log(f'{tag}_sim_params/{param}/dist_mean_loss', dist_loss_individual[i], step)
             L.log(f'{tag}_sim_params/{param}/dist_mean_accuracy', dist_accuracy_individual[i], step)
             L.log(f'{tag}_sim_params/{param}/dist_mean_error', dist_error_individual[i], step)
-
 
     def update(self, obs_list, sim_params, dist_mean, L, step, should_log, replay_buffer=None, val=False, tag="train"):
         total_num_trajs = 16

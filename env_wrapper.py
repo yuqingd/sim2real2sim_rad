@@ -10,187 +10,187 @@ from dm_control import suite
 from kitchen_env import Kitchen
 import cv2
 
+
 class DR_Env:
-  def __init__(self, env, cameras, height=64, width=64, mean_only=False, dr_list=[], simple_randomization=False, dr_shape=None,
-               real_world=False, dr=None, use_state="None", use_img=True, name="task_name",
-               grayscale=False, dataset_step=None, range_scale=.1, prop_range_scale=False, state_concat=False,
-               prop_initial_range=False):
+    def __init__(self, env, cameras, height=64, width=64, mean_only=False, dr_list=[], simple_randomization=False,
+                 dr_shape=None,
+                 real_world=False, dr=None, use_state="None", use_img=True, name="task_name",
+                 grayscale=False, dataset_step=None, range_scale=.1, prop_range_scale=False, state_concat=False,
+                 prop_initial_range=False):
 
-    self._env = env
+        self._env = env
 
-    self._size = (height, width)
+        self._size = (height, width)
 
-    self.mean_only = mean_only
-    self.dr_list = dr_list
-    self.simple_randomization = simple_randomization
-    self.dr_shape = dr_shape
-    self.real_world = real_world
-    self.use_state = use_state
-    self.use_img = use_img
-    self.dr = dr
-    self.grayscale = grayscale
-    self.name = name
-    self.dataset_step = dataset_step
-    self.range_scale = range_scale
-    self.prop_range_scale = prop_range_scale
-    self.state_concat = state_concat
+        self.mean_only = mean_only
+        self.dr_list = dr_list
+        self.simple_randomization = simple_randomization
+        self.dr_shape = dr_shape
+        self.real_world = real_world
+        self.use_state = use_state
+        self.use_img = use_img
+        self.dr = dr
+        self.grayscale = grayscale
+        self.name = name
+        self.dataset_step = dataset_step
+        self.range_scale = range_scale
+        self.prop_range_scale = prop_range_scale
+        self.state_concat = state_concat
 
-    if prop_initial_range:
-        self.initial_range = {}
-        for param in dr_list:
-            eps = 1e-3
-            self.initial_range[param] = max(dr[param] * range_scale, eps)
-    else:
-        self.initial_range = None
-    self.apply_dr()
-
-
-  def __getattr__(self, attr):
-    orig_attr = self._env.__getattribute__(attr)
-
-    if callable(orig_attr):
-      def hooked(*args, **kwargs):
-        result = orig_attr(*args, **kwargs)
-        return result
-      return hooked
-    else:
-      return orig_attr
-
-  def set_dataset_step(self, step):
-    self.dataset_step = step
-
-  def set_dr(self, dr):
-    self.dr = dr
-
-
-  def seed(self, seed=None):
-      self._env.seed(seed)
-
-  def set_real(self, param, param_name):
-      value = self.real_dr_params[param_name]
-      param[:] = value
-
-  def update_dr_param(self, param, param_name, eps=1e-3, indices=None):
-    if param_name in self.dr:
-      if self.initial_range is not None:
-          mean = self.dr[param_name]
-          range = self.initial_range[param_name]
-      elif self.mean_only:
-        mean = self.dr[param_name]
-        if self.prop_range_scale:
-            range = max(self.range_scale * mean, eps)
+        if prop_initial_range:
+            self.initial_range = {}
+            for param in dr_list:
+                eps = 1e-3
+                self.initial_range[param] = max(dr[param] * range_scale, eps)
         else:
-            range = self.range_scale
-      else:
-        mean, range = self.dr[param_name]
-        range = max(range, eps)  # TODO: consider re-adding anneal_range_scale
-      new_value = np.random.uniform(low=max(mean - range, eps), high=max(mean + range, 2 * eps))
-      if indices is None:
-        param[:] = new_value
-      else:
-        try:
-          for i in indices:
-            param[i:i+1] = new_value
-        except:
-          param[indices:indices+1] = new_value
+            self.initial_range = None
+        self.apply_dr()
 
-      self.sim_params += [new_value]
-      self.distribution_mean += [mean]
-      self.distribution_range += [range]
+    def __getattr__(self, attr):
+        orig_attr = self._env.__getattribute__(attr)
 
-  def apply_dr(self):
-    self.sim_params = []
-    self.distribution_mean = []
-    self.distribution_range = []
+        if callable(orig_attr):
+            def hooked(*args, **kwargs):
+                result = orig_attr(*args, **kwargs)
+                return result
 
-
-  @property
-  def observation_space(self):
-    spaces = {}
-    if self.use_state:
-      spaces['state'] = self._env.observation_space
-    # spaces['state'] = gym.spaces.Discrete(spaces['state'])
-    spaces['image'] = gym.spaces.Box(
-       0, 255, self._size + (3,), dtype=np.uint8)
-    #spaces['image'] = self._env.observation_space
-    return gym.spaces.Dict(spaces)
-
-  @property
-  def action_space(self):
-    return self._env.action_space
-
-  def env_step(self, action):
-      obs, reward, done, info = self._env.step(action)
-      if len(obs.shape) == 3:
-          state = np.array([0])
-      else:
-          state = obs
-          obs = self.render(mode='rgb_array')
-      return obs, state, reward, done, info
-
-  def step(self, action):
-
-    obs, state, reward, done, info = self.env_step(action)
-    obs_dict = {}
-
-    if self.use_img:
-        obs_dict['image'] = obs
-    if self.use_state:
-        if self.state_concat:
-            obs_dict['state'] = np.concatenate([state, self.get_dr()])
+            return hooked
         else:
-            obs_dict['state'] = state
-    obs_dict['real_world'] = 1.0 if self.real_world else 0.0
-    obs_dict['sim_params'] = np.array(self.sim_params, dtype=np.float32)
-    if not (self.dr is None) and not self.real_world:
-      obs_dict['dr_params'] = self.get_dr()
-    if 'success' in info:
-        obs_dict['success'] = 1.0 if info['success'] else 0.0
-    obs_dict['distribution_mean'] = np.array(self.distribution_mean, dtype=np.float32)
-    obs_dict['distribution_range'] = np.array(self.distribution_range, dtype=np.float32)
+            return orig_attr
 
-    return obs_dict, reward, done, info
+    def set_dataset_step(self, step):
+        self.dataset_step = step
 
-  def get_dr(self):
-    return np.array([], dtype=np.float32)
+    def set_dr(self, dr):
+        self.dr = dr
 
-  def env_reset(self):
-      state_obs = self._env.reset()
-      img_obs = self.render(mode='rgb_array')
-      return state_obs, img_obs
+    def seed(self, seed=None):
+        self._env.seed(seed)
 
-  def reset(self):
-    self.apply_dr()
-    state_obs, img_obs = self.env_reset()
+    def set_real(self, param, param_name):
+        value = self.real_dr_params[param_name]
+        param[:] = value
 
-    obs_dict = {}
+    def update_dr_param(self, param, param_name, eps=1e-3, indices=None):
+        if param_name in self.dr:
+            if self.initial_range is not None:
+                mean = self.dr[param_name]
+                range = self.initial_range[param_name]
+            elif self.mean_only:
+                mean = self.dr[param_name]
+                if self.prop_range_scale:
+                    range = max(self.range_scale * mean, eps)
+                else:
+                    range = self.range_scale
+            else:
+                mean, range = self.dr[param_name]
+                range = max(range, eps)  # TODO: consider re-adding anneal_range_scale
+            new_value = np.random.uniform(low=max(mean - range, eps), high=max(mean + range, 2 * eps))
+            if indices is None:
+                param[:] = new_value
+            else:
+                try:
+                    for i in indices:
+                        param[i:i + 1] = new_value
+                except:
+                    param[indices:indices + 1] = new_value
 
-    if self.use_img:
-      obs_dict['image'] = img_obs
-    if self.use_state:
-        if self.state_concat:
-            obs_dict['state'] = np.concatenate([state_obs, self.get_dr()])
+            self.sim_params += [new_value]
+            self.distribution_mean += [mean]
+            self.distribution_range += [range]
+
+    def apply_dr(self):
+        self.sim_params = []
+        self.distribution_mean = []
+        self.distribution_range = []
+
+    @property
+    def observation_space(self):
+        spaces = {}
+        if self.use_state:
+            spaces['state'] = self._env.observation_space
+        # spaces['state'] = gym.spaces.Discrete(spaces['state'])
+        spaces['image'] = gym.spaces.Box(
+            0, 255, self._size + (3,), dtype=np.uint8)
+        # spaces['image'] = self._env.observation_space
+        return gym.spaces.Dict(spaces)
+
+    @property
+    def action_space(self):
+        return self._env.action_space
+
+    def env_step(self, action):
+        obs, reward, done, info = self._env.step(action)
+        if len(obs.shape) == 3:
+            state = np.array([0])
         else:
-            obs_dict['state'] = state_obs
+            state = obs
+            obs = self.render(mode='rgb_array')
+        return obs, state, reward, done, info
 
-    obs_dict['real_world'] = 1.0 if self.real_world else 0.0
-    if not (self.dr is None) and not self.real_world:
-      obs_dict['dr_params'] = self.get_dr()
-    obs_dict['success'] = 0.0
-    obs_dict['sim_params'] = np.array(self.sim_params, dtype=np.float32)
-    obs_dict['distribution_mean'] = np.array(self.distribution_mean, dtype=np.float32)
-    obs_dict['distribution_range'] = np.array(self.distribution_range, dtype=np.float32)
-    return obs_dict
+    def step(self, action):
 
-  def get_state(self, state_obs):
-    return state_obs
+        obs, state, reward, done, info = self.env_step(action)
+        obs_dict = {}
 
-  def render(self, size=None, *args, **kwargs):
-    if kwargs.get('mode', 'rgb_array') != 'rgb_array':
-      raise ValueError("Only render mode 'rgb_array' is supported.")
-    kwargs['mode'] = 'rgb_array'
-    height, width = self._size
-    return self._env.render(width=width, height=height, **kwargs)
+        if self.use_img:
+            obs_dict['image'] = obs
+        if self.use_state:
+            if self.state_concat:
+                obs_dict['state'] = np.concatenate([state, self.get_dr()])
+            else:
+                obs_dict['state'] = state
+        obs_dict['real_world'] = 1.0 if self.real_world else 0.0
+        obs_dict['sim_params'] = np.array(self.sim_params, dtype=np.float32)
+        if not (self.dr is None) and not self.real_world:
+            obs_dict['dr_params'] = self.get_dr()
+        if 'success' in info:
+            obs_dict['success'] = 1.0 if info['success'] else 0.0
+        obs_dict['distribution_mean'] = np.array(self.distribution_mean, dtype=np.float32)
+        obs_dict['distribution_range'] = np.array(self.distribution_range, dtype=np.float32)
+
+        return obs_dict, reward, done, info
+
+    def get_dr(self):
+        return np.array([], dtype=np.float32)
+
+    def env_reset(self):
+        state_obs = self._env.reset()
+        img_obs = self.render(mode='rgb_array')
+        return state_obs, img_obs
+
+    def reset(self):
+        self.apply_dr()
+        state_obs, img_obs = self.env_reset()
+
+        obs_dict = {}
+
+        if self.use_img:
+            obs_dict['image'] = img_obs
+        if self.use_state:
+            if self.state_concat:
+                obs_dict['state'] = np.concatenate([state_obs, self.get_dr()])
+            else:
+                obs_dict['state'] = state_obs
+
+        obs_dict['real_world'] = 1.0 if self.real_world else 0.0
+        if not (self.dr is None) and not self.real_world:
+            obs_dict['dr_params'] = self.get_dr()
+        obs_dict['success'] = 0.0
+        obs_dict['sim_params'] = np.array(self.sim_params, dtype=np.float32)
+        obs_dict['distribution_mean'] = np.array(self.distribution_mean, dtype=np.float32)
+        obs_dict['distribution_range'] = np.array(self.distribution_range, dtype=np.float32)
+        return obs_dict
+
+    def get_state(self, state_obs):
+        return state_obs
+
+    def render(self, size=None, *args, **kwargs):
+        if kwargs.get('mode', 'rgb_array') != 'rgb_array':
+            raise ValueError("Only render mode 'rgb_array' is supported.")
+        kwargs['mode'] = 'rgb_array'
+        height, width = self._size
+        return self._env.render(width=width, height=height, **kwargs)
 
 
 class DR_MetaWorldEnv(DR_Env):  # TODO: consider passing through as kwargs
@@ -216,7 +216,6 @@ class DR_MetaWorldEnv(DR_Env):  # TODO: consider passing through as kwargs
     def render(self, mode='rgb_array', camera_id=2, **kwargs):
         obs = super().render(mode, camera_id=camera_id, **kwargs)
         return obs
-
 
     @property
     def observation_space(self):
@@ -489,6 +488,7 @@ class DR_MetaWorldEnv(DR_Env):  # TODO: consider passing through as kwargs
         arr = arr.astype(np.float32)
         return arr
 
+
 class DR_Kitchen(DR_Env):
     def __init__(self, env, cameras, height=100, width=100, mean_only=False, dr_list=[], simple_randomization=False,
                  dr_shape=None, real_world=False, dr=None, use_state="None", use_img=True, name="task_name",
@@ -537,7 +537,6 @@ class DR_Kitchen(DR_Env):
         spaces['image'] = gym.spaces.Box(
             0, 255, self._size + (3,), dtype=np.uint8)
         return gym.spaces.Dict(spaces)
-
 
     def apply_dr(self):
         self.sim_params = []
@@ -811,7 +810,7 @@ class DR_Kitchen(DR_Env):
                 cabinet_index = model.body_name2id('slidelink')
                 cabinet_viz_indices = [geom_dict[name] for name in geom_dict.keys() if "cabinet_viz" in name][0]
                 cabinet_collision_indices = \
-                [geom_dict[name] for name in geom_dict.keys() if "cabinet_collision" in name][0]
+                    [geom_dict[name] for name in geom_dict.keys() if "cabinet_collision" in name][0]
                 dr_update_dict_k = {
                     'cabinet_r': model.geom_rgba[cabinet_viz_indices, 0],
                     'cabinet_g': model.geom_rgba[cabinet_viz_indices, 1],
@@ -826,7 +825,7 @@ class DR_Kitchen(DR_Env):
                 microwave_index = model.body_name2id('microdoorroot')
                 microwave_viz_indices = [geom_dict[name] for name in geom_dict.keys() if "microwave_viz" in name][0]
                 microwave_collision_indices = \
-                [geom_dict[name] for name in geom_dict.keys() if "microwave_collision" in name][0]
+                    [geom_dict[name] for name in geom_dict.keys() if "microwave_collision" in name][0]
                 dr_update_dict_k = {
                     'microwave_r': model.geom_rgba[microwave_viz_indices, 0],
                     'microwave_g': model.geom_rgba[microwave_viz_indices, 1],
@@ -1084,6 +1083,7 @@ class DR_DMCEnv(DR_Env):
         arr = arr.astype(np.float32)
         return arr
 
+
 class DR_Dummy(DR_Env):
     def __init__(self, env, cameras, full_screen_square=False, **kwargs):
         self.square_size = 6.
@@ -1146,12 +1146,11 @@ class DR_Dummy(DR_Env):
         if 'square_b' in self.dr_list:
             self.square_b = self.update_dr_param('square_b', 0, 1)
 
-
     @property
     def observation_space(self):
         spaces = {}
         spaces['image'] = gym.spaces.Box(
-            0, 255,  (3,) + self._size, dtype=np.uint8)
+            0, 255, (3,) + self._size, dtype=np.uint8)
         return gym.spaces.Dict(spaces)
 
     @property
@@ -1178,7 +1177,7 @@ class DR_Dummy(DR_Env):
     def env_reset(self):
         self.square_x = np.random.uniform(low=20., high=80.)
         self.square_y = np.random.uniform(low=20., high=80.)
-        obs =  self.render()
+        obs = self.render()
         state = self.get_state()
         self.timestep = 1
         return state, obs
@@ -1194,7 +1193,8 @@ class DR_Dummy(DR_Env):
         if self.full_screen_square:
             rgb_array[:] = np.clip(np.array([self.square_r, self.square_g, self.square_b]), 0, 1)
         else:
-            rgb_array[y_start:y_end, x_start:x_end] = np.clip(np.array([self.square_r, self.square_g, self.square_b]), 0, 1)
+            rgb_array[y_start:y_end, x_start:x_end] = np.clip(np.array([self.square_r, self.square_g, self.square_b]),
+                                                              0, 1)
         if not size == (100, 100):
             rgb_array = cv2.resize(rgb_array, size)
         rgb_array = (rgb_array * 255).astype(np.uint8)
@@ -1202,9 +1202,10 @@ class DR_Dummy(DR_Env):
 
 
 def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range(1),
-         visualize_reward=False, frame_skip=None, mean_only=False,  dr_list=[], simple_randomization=False, dr_shape=None,
-               real_world=False, dr=None, use_state="None", use_img=True,
-                grayscale=False, delay_steps=0, range_scale=.1, prop_range_scale=False, state_concat=False,
+         visualize_reward=False, frame_skip=None, mean_only=False, dr_list=[], simple_randomization=False,
+         dr_shape=None,
+         real_world=False, dr=None, use_state="None", use_img=True,
+         grayscale=False, delay_steps=0, range_scale=.1, prop_range_scale=False, state_concat=False,
          real_dr_params=None, prop_initial_range=False, time_limit=200, full_screen_square=False):
     # DMC
     if 'dmc' in domain_name:
@@ -1222,11 +1223,12 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
             frame_skip=frame_skip
         )
         env = DR_DMCEnv(env, cameras=cameras, height=height, width=width, mean_only=mean_only,
-                              dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape,
-                              name=task_name, domain_name=domain_name_root,
-                              real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
-                              range_scale=range_scale, prop_range_scale=prop_range_scale, state_concat=state_concat,
-                              real_dr_params=real_dr_params, prop_initial_range=prop_initial_range)  # TODO: apply these to all envs
+                        dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape,
+                        name=task_name, domain_name=domain_name_root,
+                        real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
+                        range_scale=range_scale, prop_range_scale=prop_range_scale, state_concat=state_concat,
+                        real_dr_params=real_dr_params,
+                        prop_initial_range=prop_initial_range)  # TODO: apply these to all envs
         return env
     elif 'metaworld' in domain_name:
         if task_name + '-v1' in ed.ALL_V1_ENVIRONMENTS.keys():
@@ -1242,38 +1244,40 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
         env.set_task(task)
         env.seed(seed)
         env = DR_MetaWorldEnv(env, cameras=cameras, height=height, width=width, mean_only=mean_only,
-                   dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape, name=task_name,
-                   real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
-                   range_scale=range_scale, prop_initial_range=prop_initial_range)
+                              dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape,
+                              name=task_name,
+                              real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
+                              range_scale=range_scale, prop_initial_range=prop_initial_range)
         return env
     elif 'kitchen' in domain_name:
         env = Kitchen(dr=dr, mean_only=mean_only,
-                          early_termination=False,
-                          use_state=use_state,
-                          real_world=real_world,
-                          dr_list=dr_list,
-                          task=task_name,
-                          simple_randomization=False,
-                          step_repeat=50,
-                          control_version='mocap_ik',
-                          step_size=0.025,
-                          initial_randomization_steps=3,
-                          minimal=False,
-                          grayscale=grayscale,
-                          time_limit=time_limit,
-                          delay_steps=delay_steps)
+                      early_termination=False,
+                      use_state=use_state,
+                      real_world=real_world,
+                      dr_list=dr_list,
+                      task=task_name,
+                      simple_randomization=False,
+                      step_repeat=50,
+                      control_version='mocap_ik',
+                      step_size=0.025,
+                      initial_randomization_steps=3,
+                      minimal=False,
+                      grayscale=grayscale,
+                      time_limit=time_limit,
+                      delay_steps=delay_steps)
         env = DR_Kitchen(env, cameras=cameras, height=height, width=width, mean_only=mean_only,
-                       dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape, name=task_name,
-                       real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
-                       range_scale=range_scale, prop_initial_range=prop_initial_range)
+                         dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape, name=task_name,
+                         real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
+                         range_scale=range_scale, prop_initial_range=prop_initial_range)
         return env
     elif 'dummy' in domain_name:
         inner_env = None
         env = DR_Dummy(inner_env, cameras=cameras, height=height, width=width, mean_only=mean_only,
-                        dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape,
-                        name=task_name,
-                        real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
-                        range_scale=range_scale, prop_range_scale=prop_range_scale, state_concat=state_concat, full_screen_square=full_screen_square)
+                       dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape,
+                       name=task_name,
+                       real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
+                       range_scale=range_scale, prop_range_scale=prop_range_scale, state_concat=state_concat,
+                       full_screen_square=full_screen_square)
         return env
     else:
         raise KeyError("Domain name not found. " + str(domain_name))
@@ -1315,6 +1319,8 @@ def generate_shell_commands(domain_name, task_name, cameras, observation_type, e
 
 
 from abc import ABC
+
+
 class EnvWrapper(gym.Env, ABC):
     def __init__(self, env, cameras, from_pixels=True, height=100, width=100, channels_first=True):
         camera_0 = {'trackbodyid': -1, 'distance': 1.5, 'lookat': np.array((0.0, 0.6, 0)),
