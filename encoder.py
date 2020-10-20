@@ -17,14 +17,14 @@ OUT_DIM_64 = {2: 29, 4: 25, 6: 21}
 class PixelEncoder(nn.Module):
     """Convolutional encoder of pixels observations."""
     def __init__(self, obs_shape, feature_dim, num_layers=2, num_filters=32, output_logits=False, use_layer_norm=True,
-                 spatial_softmax=True):
+                 spatial_softmax=False):
         super().__init__()
 
         assert len(obs_shape) == 3
         self.obs_shape = obs_shape
         self.feature_dim = feature_dim
         self.num_layers = num_layers
-        self.spatial_sofrmax = spatial_softmax
+        self.spatial_softmax = spatial_softmax
 
         self.convs = nn.ModuleList(
             [nn.Conv2d(obs_shape[0], num_filters, 3, stride=2)]
@@ -33,10 +33,10 @@ class PixelEncoder(nn.Module):
             self.convs.append(nn.Conv2d(num_filters, num_filters, 3, stride=1))
 
         out_dim = OUT_DIM_64[num_layers] if obs_shape[-1] == 64 else OUT_DIM[num_layers]
-        fc_input_dim = num_filters * out_dim * out_dim
+        fc_input_dim = num_filters * out_dim * out_dim  # TODO: this is huge (39,200)!! Do we want this?
         if spatial_softmax:
             fc_input_dim += num_filters * 2
-        self.fc = nn.Linear(, self.feature_dim)
+        self.fc = nn.Linear(fc_input_dim, self.feature_dim)
         self.ln = nn.LayerNorm(self.feature_dim)
 
         self.outputs = dict()
@@ -60,17 +60,23 @@ class PixelEncoder(nn.Module):
             conv = torch.relu(self.convs[i](conv))
             self.outputs['conv%s' % (i + 1)] = conv
 
-        h = conv.reshape(conv.size(0), -1)
+        features = conv.reshape(conv.size(0), -1)
         if self.spatial_softmax:
             b, c, h, w  = conv.shape
             conv_flat = conv.flatten(2)
-            features = torch.argmax(conv, dim=-1)  # batch x channels
-            y_pos = features // h
-            x_pos = features % w
+            weights = torch.softmax(conv_flat, dim=-1)
+            # Gives positions as [-1,-1,-1, 0,0,0, 1,1,1]
+            device = conv.device
+            y_pos = torch.linspace(-1, 1, steps=h).repeat_interleave(w).reshape(1, 1, h * w).to(device)
+            # Gives positions as [-1,0,1, -1,0,1, -1,0,1]
+            x_pos = torch.linspace(-1, 1, steps=w).repeat(h).reshape(1, 1, h * w).to(device)
 
+            avg_x_pos = torch.sum(weights * x_pos, dim=-1)
+            avg_y_pos = torch.sum(weights * y_pos, dim=-1)
 
+            features = torch.cat([features, avg_x_pos, avg_y_pos], dim=-1)  # TODO: features_dim >> spatial_softmax_dim.  Consider reducing features_dim, repeating spatial_softmax, or concatenating it in later.
 
-        return h
+        return features
 
     def forward(self, obs, detach=False):
         h = self.forward_conv(obs)
@@ -138,8 +144,9 @@ _AVAILABLE_ENCODERS = {'pixel': PixelEncoder, 'identity': IdentityEncoder}
 
 def make_encoder(
     encoder_type, obs_shape, feature_dim, num_layers, num_filters, output_logits=False, use_layer_norm=True,
+    spatial_softmax=False,
 ):
     assert encoder_type in _AVAILABLE_ENCODERS
     return _AVAILABLE_ENCODERS[encoder_type](
-        obs_shape, feature_dim, num_layers, num_filters, output_logits, use_layer_norm,
+        obs_shape, feature_dim, num_layers, num_filters, output_logits, use_layer_norm, spatial_softmax,
     )

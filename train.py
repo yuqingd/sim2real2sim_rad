@@ -135,6 +135,8 @@ def parse_args():
     parser.add_argument('--use_layer_norm', default=False, action='store_true')
     parser.add_argument('--weight_init', default=False, action='store_true')
     parser.add_argument('--frame_skip', default=1, type=int)
+    parser.add_argument('--spatial_softmax_agent', default=False, action='store_true')
+    parser.add_argument('--spatial_softmax_sp', default=False, action='store_true')
 
     # MISC
     parser.add_argument('--id', default='debug', type=str)
@@ -496,7 +498,8 @@ def make_agent(obs_shape, action_shape, args, device):
             num_filters=args.num_filters,
             log_interval=args.log_interval,
             detach_encoder=args.detach_encoder,
-            latent_dim=args.latent_dim
+            latent_dim=args.latent_dim,
+            spatial_softmax=args.spatial_softmax_agent,
         )
     elif args.agent == 'rad_sac':
         return RadSacAgent(
@@ -526,7 +529,8 @@ def make_agent(obs_shape, action_shape, args, device):
             log_interval=args.log_interval,
             detach_encoder=args.detach_encoder,
             latent_dim=args.latent_dim,
-            data_augs=args.data_augs
+            data_augs=args.data_augs,
+            spatial_softmax=args.spatial_softmax_agent,
         )
     else:
         assert 'agent is not supported: %s' % args.agent
@@ -709,6 +713,7 @@ def main():
             use_layer_norm=args.use_layer_norm,
             use_weight_init=args.weight_init,
             frame_skip=args.frame_skip,
+            spatial_softmax=args.spatial_softmax_sp,
         ).to(device)
         # Use the same encoder for the agent and the sim param model
         if args.share_encoder:

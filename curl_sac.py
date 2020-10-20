@@ -49,13 +49,13 @@ class Actor(nn.Module):
     """MLP for actor network."""
     def __init__(
         self, obs_shape, action_shape, hidden_dim, encoder_type,
-        encoder_feature_dim, log_std_min, log_std_max, num_layers, num_filters
+        encoder_feature_dim, log_std_min, log_std_max, num_layers, num_filters, spatial_softmax
     ):
         super().__init__()
 
         self.encoder = make_encoder(
             encoder_type, obs_shape, encoder_feature_dim, num_layers,
-            num_filters, output_logits=True, use_layer_norm=True,
+            num_filters, output_logits=True, use_layer_norm=True, spatial_softmax=spatial_softmax,
         )
 
         self.log_std_min = log_std_min
@@ -259,6 +259,7 @@ class CurlSacAgent(object):
         detach_encoder=False,
         latent_dim=128,
         data_augs='',
+        spatial_softmax=False,
     ):
         self.device = device
         self.discount = discount
@@ -297,7 +298,7 @@ class CurlSacAgent(object):
         self.actor = Actor(
             obs_shape, action_shape, hidden_dim, encoder_type,
             encoder_feature_dim, actor_log_std_min, actor_log_std_max,
-            num_layers, num_filters
+            num_layers, num_filters, spatial_softmax
         ).to(device)
 
         self.critic = Critic(

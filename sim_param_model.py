@@ -19,7 +19,7 @@ class SimParamModel(nn.Module):
                  embedding_multires=10, use_img=True, state_dim=0, separate_trunks=False, param_names=[],
                  train_range_scale=1, prop_train_range_scale=False, clip_positive=False, dropout=0.5,
                  initial_range=None, single_window=False, share_encoder=False, normalize_features=False,
-                 use_layer_norm=False, use_weight_init=False, frame_skip=1):
+                 use_layer_norm=False, use_weight_init=False, frame_skip=1, spatial_softmax=False):
         super(SimParamModel, self).__init__()
         self._shape = shape
         self._layers = layers
@@ -94,13 +94,15 @@ class SimParamModel(nn.Module):
                 obs_shape = (3, h, w)
                 self.encoder = make_encoder(
                     encoder_type, obs_shape, encoder_feature_dim, encoder_num_layers,
-                    encoder_num_filters, output_logits=True, use_layer_norm=self.use_layer_norm
+                    encoder_num_filters, output_logits=True, use_layer_norm=self.use_layer_norm,
+                    spatial_softmax=spatial_softmax,
                 )
             else:
                 obs_shape = (3 * self.num_frames, h, w)
                 self.encoder = make_encoder(
                     encoder_type, obs_shape, encoder_feature_dim, encoder_num_layers,
-                    encoder_num_filters, output_logits=True, use_layer_norm=self.use_layer_norm
+                    encoder_num_filters, output_logits=True, use_layer_norm=self.use_layer_norm,
+                    spatial_softmax=spatial_softmax,
                 )
 
         if self.use_weight_init:
