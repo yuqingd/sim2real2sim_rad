@@ -83,7 +83,7 @@ def parse_args():
 
     parser.add_argument('--log_interval', default=100, type=int)
 
-    #S2R2S params
+    # S2R2S params
     parser.add_argument('--mean_only', default=True, action='store_true')
     parser.add_argument('--use_state', default=False, action='store_true')
     parser.add_argument('--use_img', default=False, action='store_true')
@@ -100,7 +100,7 @@ def parse_args():
     parser.add_argument('--sim_param_beta', default=0.9, type=float)
     parser.add_argument('--sim_param_layers', default=2, type=int)
     parser.add_argument('--sim_param_units', default=400, type=int)
-    parser.add_argument('--separate_trunks', default=False, type=bool)
+    parser.add_argument('--separate_trunks', default=False, action='store_true')
     parser.add_argument('--train_range_scale', default=1, type=float)
     parser.add_argument('--scale_large_and_small', default=False, action='store_true')
     parser.add_argument('--num_sim_param_updates', default=1, type=int)
@@ -112,7 +112,6 @@ def parse_args():
     parser.add_argument('--clip_positive', default=False, action='store_true')
     parser.add_argument('--update_sim_param_from', choices=['latest', 'buffer', 'both'], type=str.lower,
                         default='latest')
-
 
     # Outer loop options
     parser.add_argument('--sample_real_every', default=2, type=int)
@@ -127,16 +126,25 @@ def parse_args():
     parser.add_argument('--start_outer_loop', default=0, type=int)
     parser.add_argument('--train_sim_param_every', default=50, type=int)
     parser.add_argument('--momentum', default=0, type=float)
-    parser.add_argument('--round_predictions', default=True,  action='store_true')
-    parser.add_argument('--single_window', default=False,  action='store_true')
-    parser.add_argument('--no_train_policy', default=False,  action='store_true')
-
+    parser.add_argument('--round_predictions', default=True, action='store_true')
+    parser.add_argument('--single_window', default=False, action='store_true')
+    parser.add_argument('--no_train_policy', default=False, action='store_true')
+    parser.add_argument('--share_encoder', default=False, action='store_true',
+                        help="use agent encoder for sim param model")
+    parser.add_argument('--normalize_features', default=False, action='store_true')
+    parser.add_argument('--use_layer_norm', default=False, action='store_true')
+    parser.add_argument('--weight_init', default=False, action='store_true')
+    parser.add_argument('--frame_skip', default=1, type=int)
 
     # MISC
     parser.add_argument('--id', default='debug', type=str)
     parser.add_argument('--gpudevice', type=str, required=True, help='cuda visible devices')
     parser.add_argument('--time_limit', default=200, type=int)
     parser.add_argument('--delay_steps', default=0, type=int)
+    parser.add_argument('--full_screen_square', default=False, action='store_true')
+    parser.add_argument('--train_offline_dir', default=None, type=str)
+    parser.add_argument('--val_split', default=.2, type=float,
+                        help='validation split; currently only for offline training but we should fix this.')
 
     args = parser.parse_args()
     if args.dr:
@@ -148,6 +156,32 @@ def parse_args():
     args.update = [0] * len(args.real_dr_list)
 
     return args
+
+
+def train_offline(args, L, real_env, sim_env, agent, sim_param_model, video_real, video_sim, replay_buffer):
+    train_sim_model_time = 0
+    eval_time = 0
+    start_step = 0
+    for step in range(start_step, args.num_train_steps, 200):
+        should_log = step % args.eval_freq == 0
+        if should_log:
+            total_time = train_sim_model_time + eval_time
+            if total_time > 0:
+                L.log('eval_time/train_sim_model', train_sim_model_time / total_time, step)
+                L.log('eval_time/eval', eval_time / total_time, step)
+
+            start_eval = time.time()
+            evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim,
+                     args.num_eval_episodes, L, step, args)
+
+            sim_param_model.update(None, None, sim_env.distribution_mean,
+                                   L, step, should_log, replay_buffer, val=True, tag="train_val")
+        eval_time += time.time() - start_eval
+        L.dump(step)
+    start_sim_model = time.time()
+    sim_param_model.update(None, None, sim_env.distribution_mean,
+                           L, step, should_log, replay_buffer)
+    train_sim_model_time += time.time() - start_sim_model
 
 
 def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_params, current_sim_params):
@@ -219,12 +253,13 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
             log_data[key][step]['loss'] = loss
             np.save(filename, log_data)
 
+
 def predict_sim_params(sim_param_model, traj, current_sim_params, args, step=10, confidence_level=.3):
     segment_length = sim_param_model.num_frames
     windows = []
     index = 0
-    while index < len(traj) - segment_length:
-        windows.append(traj[index: index + segment_length])
+    while index < len(traj) - segment_length * args.frame_skip:
+        windows.append(traj[index: index + segment_length * args.frame_skip: args.frame_skip])
         index += step
     if args.single_window:
         windows = [windows[0]]
@@ -242,6 +277,7 @@ def predict_sim_params(sim_param_model, traj, current_sim_params, args, step=10,
     # And whether we want to be confident (e.g. if all windows predict .6, do we predict .6 or 1?
     confident_preds = np.mean(preds, axis=0)
     return confident_preds
+
 
 def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
     with torch.no_grad():
@@ -315,10 +351,10 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
     args.updates = updates
 
 
-
 def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, num_episodes, L, step, args):
     all_ep_rewards = []
     all_ep_success = []
+
     def run_eval_loop(sample_stochastically=False):
         start_time = time.time()
         prefix = 'stochastic_' if sample_stochastically else ''
@@ -334,12 +370,15 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
                 if args.use_img:
                     obs = obs_dict['image']
                     # center crop image
-                    if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
+                    if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
+                        args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
                         obs = utils.center_crop_image(obs, args.image_size)
                 else:
                     obs = obs_dict['state']
                 with utils.eval_mode(agent):
-                    if sample_stochastically:
+                    if args.no_train_policy:
+                        action = sim_env.action_space.sample()
+                    elif sample_stochastically:
                         action = agent.sample_action(obs)
                     else:
                         action = agent.select_action(obs)
@@ -407,7 +446,9 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
             else:
                 obs = obs_dict['state']
             with utils.eval_mode(agent):
-                if sample_stochastically:
+                if args.no_train_policy:
+                    action = sim_env.action_space.sample()
+                elif sample_stochastically:
                     action = agent.sample_action(obs)
                 else:
                     action = agent.select_action(obs)
@@ -420,8 +461,6 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
             dist_mean = obs_dict['distribution_mean']
             current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
             evaluate_sim_params(sim_param_model, args, [obs_traj_sim], step, L, "val", sim_params, current_sim_params)
-            if args.outer_loop_version == 3:
-                sim_param_model.train_classifier(obs_traj_sim, sim_params, dist_mean, L, step, True)
 
         video_sim.save('sim_%d.mp4' % step)
 
@@ -530,7 +569,8 @@ def main():
         prop_initial_range=args.prop_initial_range,
         state_concat=args.state_concat,
         real_dr_params=None,
-        time_limit=args.time_limit
+        time_limit=args.time_limit,
+        full_screen_square=args.full_screen_square,
     )
 
     real_env = env_wrapper.make(
@@ -554,6 +594,8 @@ def main():
         prop_range_scale=args.prop_range_scale,
         state_concat=args.state_concat,
         real_dr_params=args.real_dr_params,
+        time_limit=args.time_limit,
+        full_screen_square=args.full_screen_square,
     )
 
     # stack several consecutive frames together
@@ -583,18 +625,17 @@ def main():
             load_model = False
         else:
             agent_checkpoint = [f for f in checkpoints if 'curl' in f]
-            if args.outer_loop_version in [1,3]:
+            if args.outer_loop_version in [1, 3]:
                 sim_param_checkpoint = [f for f in checkpoints if 'sim_param' in f]
-
-
-
 
     utils.make_dir(args.work_dir)
     sim_video_dir = utils.make_dir(os.path.join(args.work_dir, 'sim_video'))
     real_video_dir = utils.make_dir(os.path.join(args.work_dir, 'real_video'))
     model_dir = utils.make_dir(os.path.join(args.work_dir, 'model'))
-    buffer_dir = utils.make_dir(os.path.join(args.work_dir, 'buffer'))
-
+    if args.train_offline_dir is None:
+        buffer_dir = utils.make_dir(os.path.join(args.work_dir, 'buffer'))
+    else:
+        buffer_dir = utils.make_dir(os.path.join(args.train_offline_dir, 'buffer'))
 
     video_real = VideoRecorder(real_video_dir if args.save_video else None, camera_id=args.cameras[0])
     video_sim = VideoRecorder(sim_video_dir if args.save_video else None, camera_id=args.cameras[0])
@@ -621,7 +662,8 @@ def main():
         batch_size=args.batch_size,
         device=device,
         image_size=args.image_size,
-        max_traj_length=args.time_limit
+        max_traj_length=args.time_limit,
+        val_split=args.val_split if (args.train_offline_dir is not None) else None,
     )
 
     agent = make_agent(
@@ -662,7 +704,15 @@ def main():
             clip_positive=args.clip_positive,
             action_space=sim_env.action_space,
             single_window=args.single_window,
+            share_encoder=args.share_encoder,
+            normalize_features=args.normalize_features,
+            use_layer_norm=args.use_layer_norm,
+            use_weight_init=args.weight_init,
+            frame_skip=args.frame_skip,
         ).to(device)
+        # Use the same encoder for the agent and the sim param model
+        if args.share_encoder:
+            sim_param_model.encoder.copy_conv_weights_from(agent.critic.encoder)
     else:
         sim_param_model = None
 
@@ -676,12 +726,16 @@ def main():
         if sim_param_model is not None:
             sim_param_step = 0
             for checkpoint in sim_param_checkpoint:
-                sim_param_step = max(sim_param_step,[int(x) for x in re.findall('\d+', checkpoint)][-1])
+                sim_param_step = max(sim_param_step, [int(x) for x in re.findall('\d+', checkpoint)][-1])
             sim_param_model.load(model_dir, sim_param_step)
-            start_step = min(start_step, sim_param_step)
-        replay_buffer.load(buffer_dir)  # TODO: do we have to save optimizer?
+            start_step = min(start_step, sim_param_step)  # TODO: do we have to save optimizer?
+    if load_model or args.train_offline_dir is not None:
+        replay_buffer.load(buffer_dir)
 
     L = Logger(args.work_dir, use_tb=args.save_tb)
+
+    if args.train_offline_dir is not None:
+        train_offline(args, L, real_env, sim_env, agent, sim_param_model, video_real, video_sim, replay_buffer)
 
     episode, episode_reward, done = 0, 0, True
     start_time = time.time()
@@ -719,7 +773,7 @@ def main():
         if done:
             if step > 0:
                 if (step > args.init_steps) and args.outer_loop_version != 0 and obs_traj is not None:
-                    should_log = step % args.eval_freq == 0
+                    should_log = step % (10 * args.eval_freq) == 0
                     start_sim_model = time.time()
                     for i in range(args.num_sim_param_updates):
                         should_log_i = should_log and i == 0
@@ -761,7 +815,7 @@ def main():
             if args.use_img:
                 obs_img = obs['image']
                 if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
-                        args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
+                    args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
                     obs_img = utils.center_crop_image(obs_img, args.image_size)
             else:
                 obs_img = obs['state']
@@ -776,7 +830,7 @@ def main():
 
         # sample action for data collection
         train_policy_start = time.time()
-        if step < args.init_steps:
+        if args.no_train_policy or step < args.init_steps:
             action = sim_env.action_space.sample()
         else:
             with utils.eval_mode(agent):
@@ -809,7 +863,7 @@ def main():
             obs_img = obs['state']
 
         if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
-                args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
+            args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
             obs_img = utils.center_crop_image(obs_img, args.image_size)
 
         episode_step += 1
