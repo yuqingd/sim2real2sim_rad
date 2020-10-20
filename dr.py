@@ -78,19 +78,19 @@ def config_dr_dmc(config):
             ]
     elif "walker" in config.domain_name:
         real_dr_values = {
-            "torso_mass": 10.3138485,
+            "torso_mass": 10.3138485,  # significant difference
             "right_thigh_mass": 3.9269907,
             "right_leg_mass": 2.7143362,
             "right_foot_mass": 1.9634954,
-            "left_thigh_mass": 3.9269907,
-            "left_leg_mass": 2.7143362,
-            "left_foot_mass": 1.9634954,
+            "left_thigh_mass": 3.9269907,  # negligible difference
+            "left_leg_mass": 2.7143362,  # small difference
+            "left_foot_mass": 1.9634954,  # small difference
             "right_hip": .1,
             "right_knee": .1,
             "right_ankle": .1,
-            "left_hip": .1,
-            "left_knee": .1,
-            "left_ankle": .1,
+            "left_hip": .1,  # negligible difference
+            "left_knee": .1,  # negligible difference
+            "left_ankle": .1,  # negligible difference
             "ground_r": ground_r,
             "ground_g": ground_g,
             "ground_b": ground_b,
@@ -131,12 +131,12 @@ def config_dr_dmc(config):
             ]
     elif "finger" in config.domain_name:
         real_dr_values = {
-            "proximal_mass": .805,
-            "distal_mass": .636,
-            "spinner_mass": 2.32,
-            "proximal_damping": 2.5,
-            "distal_damping": 2.5,
-            "hinge_damping": .5,
+            "proximal_mass": .805,  # no difference whatsoever
+            "distal_mass": .636,  # minor differnce
+            "spinner_mass": 2.32,  # significant difference
+            "proximal_damping": 2.5,  # significant difference
+            "distal_damping": 2.5,  # significant difference
+            "hinge_damping": .5,  # no difference whatsoever
             "ground_r": ground_r,
             "ground_g": ground_g,
             "ground_b": ground_b,
@@ -151,25 +151,24 @@ def config_dr_dmc(config):
             config.real_dr_list = list(real_dr_values.keys())
         elif dr_option == 'nonconflicting_dr':
             config.real_dr_list = [
-                "proximal_mass", "distal_mass", "spinner_mass", "ground_r", "ground_g", "ground_b", "finger_r",
-                "finger_g",
-                "finger_b", "hotdog_r", "hotdog_g", "hotdog_b",
+                "proximal_damping", "distal_damping", "spinner_mass", "ground_r", "ground_g", "ground_b", "finger_r",
+                "finger_g", "finger_b", "hotdog_r", "hotdog_g", "hotdog_b",
             ]
     elif "cheetah" in config.domain_name:
         real_dr_values = {
-            "torso_mass": 6.3603134,
-            "bthigh_mass": 1.535248,
-            "bshin_mass": 1.5809399,
-            "bfoot_mass": 1.0691906,
-            "fthigh_mass": 1.4255874,
-            "fshin_mass": 1.1788511,
-            "ffoot_mass": 0.84986943,
-            "bthigh_damping": 6.,
-            "bshin_damping": 4.5,
-            "bfoot_damping": 3.,
-            "fthigh_damping": 4.5,
-            "fshin_damping": 3.,
-            "ffoot_damping": 1.5,
+            "torso_mass": 6.3603134,  # decent difference
+            "bthigh_mass": 1.535248,  # decent difference
+            "bshin_mass": 1.5809399,  # decent difference
+            "bfoot_mass": 1.0691906,  # decent difference
+            "fthigh_mass": 1.4255874,  # decent difference
+            "fshin_mass": 1.1788511,  # decent difference
+            "ffoot_mass": 0.84986943,  # decent difference
+            "bthigh_damping": 6.,  # minor difference
+            "bshin_damping": 4.5,  # minor difference
+            "bfoot_damping": 3.,  # minor difference
+            "fthigh_damping": 4.5,  # minor difference
+            "fshin_damping": 3.,  # negligible difference
+            "ffoot_damping": 1.5,  # negligible difference
             "ground_r": ground_r,
             "ground_g": ground_g,
             "ground_b": ground_b,
@@ -177,7 +176,13 @@ def config_dr_dmc(config):
             "body_g": self_g,
             "body_b": self_b,
         }
-        config.real_dr_list = list(real_dr_values.keys())
+        if dr_option == 'all_dr':
+            config.real_dr_list = list(real_dr_values.keys())
+        elif dr_option == 'nonconflicting_dr':
+            config.real_dr_list = [
+                "torso_mass", "ffoot_mass", "bfoot_mass", "ground_r", "ground_g", "ground_b", "finger_r",
+                "finger_g", "finger_b", "hotdog_r", "hotdog_g", "hotdog_b",
+            ]
     config.real_dr_params = real_dr_values
 
     if config.simple_randomization:

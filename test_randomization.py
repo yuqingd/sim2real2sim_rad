@@ -5,15 +5,16 @@ import moviepy.editor as mpy
 import os
 
 # ====== ADJUST THESE ==========
-save_dir = 'videos_cup_catch'
-domain_name = 'dmc_ball_in_cup'
-task_name = 'catch'
+save_dir = 'videos_walker_realdr'
+domain_name = 'dmc_walker'
+task_name = 'walk'
 dr_option = 'all_dr'
 action_repeat = 4
 time_limit = 10
 mean_scale = 2
-range_scale = .5
+range_scale = 1
 seed = 7
+prop_range_scale = False
 # ========= END ==========
 
 # Source: https://goodcode.io/articles/python-dict-object/
@@ -73,8 +74,12 @@ for param in config.real_dr_list:
     r1 = config.real_dr_params[param]
     r2 = mean_scale
     r3 = (1 - range_scale)
-    low_val = config.real_dr_params[param] * (1 / mean_scale) * (1 - range_scale)
-    high_val = max(config.real_dr_params[param] * mean_scale * (1 + range_scale), 1e-2)
+    if prop_range_scale:
+        low_val = np.clip(config.real_dr_params[param] * (1 / mean_scale) * (1 - range_scale), 1e-2, float('inf'))
+        high_val = np.clip(config.real_dr_params[param] * mean_scale * (1 + range_scale), 1e-2, float('inf'))
+    else:
+        low_val = np.clip(config.real_dr_params[param] * (1 / mean_scale) - range_scale, 1e-2, float('inf'))
+        high_val = np.clip(config.real_dr_params[param] * mean_scale + range_scale, 1e-2, float('inf'))
     dr_low = {param: low_val}
     dr_high = {param: high_val}
     diff_traj_low = compute_diff_traj(dr_low)
