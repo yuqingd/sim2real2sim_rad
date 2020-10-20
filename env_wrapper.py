@@ -70,7 +70,7 @@ class DR_Env:
         value = self.real_dr_params[param_name]
         param[:] = value
 
-    def update_dr_param(self, param, param_name, eps=1e-3, indices=None):
+    def update_dr_param(self, param, param_name, eps=1e-3, indices=None, max_val=float('inf')):
         if param_name in self.dr:
             if self.initial_range is not None:
                 mean = self.dr[param_name]
@@ -84,7 +84,8 @@ class DR_Env:
             else:
                 mean, range = self.dr[param_name]
                 range = max(range, eps)  # TODO: consider re-adding anneal_range_scale
-            new_value = np.random.uniform(low=max(mean - range, eps), high=max(mean + range, 2 * eps))
+            new_value = np.random.uniform(low=np.clip(mean - range, eps, max_val - eps),
+                                          high=np.clip(mean + range, 2 * eps, max_val))
             if indices is None:
                 param[:] = new_value
             else:
@@ -314,7 +315,11 @@ class DR_MetaWorldEnv(DR_Env):  # TODO: consider passing through as kwargs
 
             for dr_param in self.dr_list:
                 arr, indices = dr_update_dict[dr_param]
-                self.update_dr_param(arr, dr_param, indices=indices)
+                if dr_param[-2:] in ['_r', '_g', '_b']:
+                    max_val = 1.
+                else:
+                    max_val = float('inf')
+                self.update_dr_param(arr, dr_param, indices=indices, max_val=max_val)
 
         elif 'basketball' in self.name:
             basket_goal_geom = [
@@ -356,7 +361,11 @@ class DR_MetaWorldEnv(DR_Env):  # TODO: consider passing through as kwargs
 
         for dr_param in self.dr_list:
             arr, indices = dr_update_dict[dr_param]
-            self.update_dr_param(arr, dr_param, indices=indices)
+            if dr_param[-2:] in ['_r', '_g', '_b']:
+                max_val = 1.
+            else:
+                max_val = float('inf')
+            self.update_dr_param(arr, dr_param, indices=indices, max_val=max_val)
 
     def get_dr(self):
         model = self._env._env.sim.model
@@ -614,7 +623,11 @@ class DR_Kitchen(DR_Env):
             }
             for dr_param in self.dr_list:
                 arr, indices = dr_update_dict[dr_param]
-                self.update_dr_param(arr, dr_param, indices=indices)
+                if dr_param[-2:] in ['_r', '_g', '_b']:
+                    max_val = 1.
+                else:
+                    max_val = float('inf')
+                self.update_dr_param(arr, dr_param, indices=indices, max_val=max_val)
 
         else:
             model = self._env._env.sim.model
@@ -691,7 +704,11 @@ class DR_Kitchen(DR_Env):
             # Actually Update
             for dr_param in self.dr_list:
                 arr, indices = dr_update_dict[dr_param]
-                self.update_dr_param(arr, dr_param, indices=indices)
+                if dr_param[-2:] in ['_r', '_g', '_b']:
+                    max_val = 1.
+                else:
+                    max_val = float('inf')
+                self.update_dr_param(arr, dr_param, indices=indices, max_val=max_val)
 
     def get_dr(self):
         model = self._env._env.sim.model
@@ -1001,7 +1018,11 @@ class DR_DMCEnv(DR_Env):
             if set_real:
                 self.set_real(arr, dr_param)
             else:
-                self.update_dr_param(arr, dr_param)
+                if dr_param[-2:] in ['_r', '_g', '_b'] and not dr_param in ['ground_r', 'ground_g', 'ground_b']:
+                    max_val = 1.
+                else:
+                    max_val = float('inf')
+                self.update_dr_param(arr, dr_param, max_val=max_val)
 
     def get_dr(self):
         model = self._env.physics.model
