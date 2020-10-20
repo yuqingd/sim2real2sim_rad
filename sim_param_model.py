@@ -56,9 +56,9 @@ class SimParamModel(nn.Module):
                 encoder_dims = encoder_feature_dim * num_frames
             else:
                 encoder_dims = encoder_feature_dim
-            trunk_input_dim = encoder_dims + pred_sim_param_dim + (state_dim + action_space_dim) * num_frames * frame_skip
+            trunk_input_dim = encoder_dims + pred_sim_param_dim + (state_dim  * num_frames) + action_space_dim * num_frames * frame_skip
         else:
-            trunk_input_dim = pred_sim_param_dim + (state_dim + action_space_dim) * num_frames * frame_skip
+            trunk_input_dim = pred_sim_param_dim + (state_dim * num_frames) + action_space_dim * num_frames * frame_skip
 
         # If each sim param has its own trunk, create a separate trunk for each
         num_sim_params = shape
