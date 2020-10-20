@@ -9,10 +9,15 @@ def tie_weights(src, trg):
     trg.bias = src.bias
 
 
-# for 84 x 84 inputs
+# NO MAX POOL
+# # for 84 x 84 inputs
 OUT_DIM = {2: 39, 4: 35, 6: 31}
-# for 64 x 64 inputs
-OUT_DIM_64 = {2: 29, 4: 25, 6: 21}
+# # for 64 x 64 inputs
+# OUT_DIM_64 = {2: 29, 4: 25, 6: 21}
+
+
+# for 84 x 84 inputs
+OUT_DIM = {2: 13, 4: 11, 6: 10}
 
 
 class PixelEncoder(nn.Module):
@@ -42,6 +47,7 @@ class PixelEncoder(nn.Module):
             fc_input_dim += embedding_dim * 2
         self.fc = nn.Linear(fc_input_dim, self.feature_dim)
         self.ln = nn.LayerNorm(self.feature_dim)
+        self.max_pool = torch.nn.MaxPool2d(3)
 
         self.outputs = dict()
         self.output_logits = output_logits
@@ -63,6 +69,8 @@ class PixelEncoder(nn.Module):
         for i in range(1, self.num_layers):
             conv = torch.relu(self.convs[i](conv))
             self.outputs['conv%s' % (i + 1)] = conv
+
+        conv = self.max_pool(conv)
 
         features = conv.reshape(conv.size(0), -1)
         if self.spatial_softmax:
