@@ -5,14 +5,15 @@ import moviepy.editor as mpy
 import os
 
 # ====== ADJUST THESE ==========
-save_dir = 'temp_videos'
-domain_name = 'dmc_walker'
-task_name = 'walk'
+save_dir = 'videos_cup_catch'
+domain_name = 'dmc_ball_in_cup'
+task_name = 'catch'
 dr_option = 'all_dr'
-action_repeat = 2
+action_repeat = 4
 time_limit = 10
 mean_scale = 2
 range_scale = .5
+seed = 7
 # ========= END ==========
 
 # Source: https://goodcode.io/articles/python-dict-object/
@@ -39,9 +40,9 @@ def get_traj(env, dr=None):
     return frames
 
 def compute_diff_traj(dr):
-    env1 = make(domain_name, task_name, 0, 480, 480, frame_skip=1, real_world=False, prop_range_scale=False,
+    env1 = make(domain_name, task_name, seed, 480, 480, frame_skip=action_repeat, real_world=False, prop_range_scale=False,
                 mean_only=True, dr=None, real_dr_params=config.real_dr_params, dr_list=config.real_dr_list, range_scale=0)
-    env2 = make(domain_name, task_name, 0, 480, 480, frame_skip=1, real_world=True, prop_range_scale=False,
+    env2 = make(domain_name, task_name, seed, 480, 480, frame_skip=action_repeat, real_world=True, prop_range_scale=False,
                 mean_only=True, real_dr_params=config.real_dr_params, dr_list=config.real_dr_list, range_scale=0)
 
     original_traj = get_traj(env1, dr)
@@ -72,8 +73,10 @@ for param in config.real_dr_list:
     r1 = config.real_dr_params[param]
     r2 = mean_scale
     r3 = (1 - range_scale)
-    dr_low = {param: config.real_dr_params[param] * (1 / mean_scale) * (1 - range_scale)}
-    dr_high = {param: config.real_dr_params[param] * mean_scale * (1 + range_scale)}
+    low_val = config.real_dr_params[param] * (1 / mean_scale) * (1 - range_scale)
+    high_val = max(config.real_dr_params[param] * mean_scale * (1 + range_scale), 1e-2)
+    dr_low = {param: low_val}
+    dr_high = {param: high_val}
     diff_traj_low = compute_diff_traj(dr_low)
     diff_traj_high = compute_diff_traj(dr_high)
 

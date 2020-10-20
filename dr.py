@@ -47,11 +47,11 @@ def config_dr_dmc(config):
     dr_option = config.dr_option
     if "ball_in_cup" in config.domain_name:
         real_dr_values = {
-            "cup_mass": .06247,
-            "ball_mass": .06545,
-            "cup_damping": 3.,
-            "ball_damping": 0.,
-            "actuator_gain": 1.,
+            "cup_mass": .06247,  # Significant changes
+            "ball_mass": .06545,  # Significant changes
+            "cup_damping": 3.,  # Significant changes
+            "ball_damping": 0.,  # Negligible changes
+            "actuator_gain": 1.,  # Significant changes
             "cup_r": self_r,
             "cup_g": self_g,
             "cup_b": self_b,
@@ -106,8 +106,12 @@ def config_dr_dmc(config):
             #     "ground_b", "body_r", "body_g", "body_b"
             # ]
             config.real_dr_list = [
-                "torso_mass", "right_thigh_mass", "right_leg_mass", "right_foot_mass", "left_thigh_mass", "left_leg_mass", "left_foot_mass",
-                "ground_b", "body_r", "body_g", "body_b"
+                "torso_mass", "right_thigh_mass", "right_leg_mass", "right_foot_mass", "left_thigh_mass",
+                "left_leg_mass", "left_foot_mass", "ground_r", "ground_g", "ground_b", "body_r", "body_g", "body_b"
+            ]
+        elif dr_option == 'simplified_randomization':
+            config.real_dr_list = [
+                "torso_mass", "left_foot_mass", "ground_r", "ground_g", "ground_b", "body_r", "body_g", "body_b"
             ]
         elif dr_option == 'visual_dr':
             config.real_dr_list = [
