@@ -510,7 +510,7 @@ class CurlSacAgent(object):
     def load_curl(self, model_dir, step):
         if self.encoder_type == 'pixel':
             self.CURL.load_state_dict(
-                torch.load('%s/curl_%s.pt' % (model_dir, step))
+                torch.load('%s/curl_%s.pt' % (model_dir, step), map_location=self.device)
             )
 
 

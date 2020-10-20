@@ -53,7 +53,7 @@ agent = make_agent(
     args=args,
     device=device
 )
-load_dir = './logdir/baseline_kitchen-rope-im84-b128-s0-curl_sac-pixel-crop'
+load_dir = './logdir/S0804_kitchen-rope-im84-b128-s2-curl_sac-pixel-crop'
 real_video_dir = utils.make_dir(os.path.join(load_dir, 'real_robot_video'))
 video = VideoRecorder(real_video_dir, camera_id=0)
 
@@ -96,7 +96,7 @@ def run_eval_loop(sample_stochastically=True):
             obs_dict, reward, done, _ = env.step(action)
             video.record(env)
             episode_reward += reward
-        video.save('real_episode_{}.mp4'.format(i))
+        video.save('oracle_real_episode_{}.mp4'.format(i))
 
 
 run_eval_loop()
