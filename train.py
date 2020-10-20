@@ -531,6 +531,7 @@ def main():
         prop_initial_range=args.prop_initial_range,
         state_concat=args.state_concat,
         real_dr_params=None,
+        time_limit=args.time_limit
     )
 
     real_env = env_wrapper.make(
