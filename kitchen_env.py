@@ -508,10 +508,11 @@ class Kitchen:
     reward, done = self.get_reward()
     info = {'discount': 1.0, 'success': done}
     done = False
-    state = self.goal
-    if self.state_type is not "none":
+    state = np.array([0])
+    if not self.state_type == "none":
         robot_state = self.get_state()
-        state = np.concatenate([state, robot_state])
+        state = robot_state
+        # state = np.concatenate([state, robot_state])
     return state, reward, done, info
 
 
@@ -534,10 +535,10 @@ class Kitchen:
 
   def reset(self):
     self._env.reset()
-    state_obs = self.goal
-    if self.state_type is not "none":
+    state_obs = np.array([0])  # self.goal
+    if not self.state_type == "none":
       robot_state = self.get_state()
-      state = robot_state
+      state_obs = robot_state
       # Current tasks do not nead goal
       # state_obs = np.concatenate([state_obs, robot_state])
     self.setup_task()
@@ -566,7 +567,7 @@ class Kitchen:
   def observation_space(self):
     spaces = {}
 
-    if self.state_type is not "none":
+    if not self.state_type == "none":
       state_shape = 4 if self.use_gripper else 3  # 2 for fingers, 3 for end effector position
       state_shape = self.goal.shape + state_shape
       if self.state_type == 'all':
