@@ -29,17 +29,21 @@ class Kitchen:
                control_version='mocap_ik', distance=2., azimuth=50, elevation=-40,
                initial_randomization_steps=1, minimal=False, dataset_step=None, grayscale=False, delay_steps=0):
     if 'rope' in task:
-      distance = 1.2
+      distance = 1.1
       azimuth = 35
       elevation = -48
+      lookat = [-.1,.35,.9]
+
     if 'cabinet' in task:
       distance = 2.5
       azimuth = 120
       elevation = -40
+      lookat = None
     if 'open_microwave' in task:
       distance = 1.5
       azimuth = 140
       elevation = -30
+      lookat = None
 
     if minimal:
       global XPOS_INDICES
@@ -52,8 +56,7 @@ class Kitchen:
 
       }
 
-
-    self._env = KitchenTaskRelaxV1(distance=distance, azimuth=azimuth, elevation=elevation, task_type=task, minimal=minimal)
+    self._env = KitchenTaskRelaxV1(distance=distance, azimuth=azimuth, elevation=elevation, task_type=task, minimal=minimal, lookat=lookat)
     self.task = task
     self._size = size
     self.early_termination = early_termination
