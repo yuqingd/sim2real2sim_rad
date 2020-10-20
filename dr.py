@@ -115,7 +115,7 @@ def config_dr_dmc(config):
             ]
         elif dr_option == 'minimass_dr':
             config.real_dr_list = [
-                "left_hip"
+                "left_foot_mass"
             ]
         elif dr_option == 'mass_dr':
             config.real_dr_list = [
