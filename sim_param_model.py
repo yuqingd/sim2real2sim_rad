@@ -152,18 +152,17 @@ class SimParamModel(nn.Module):
         for traj in full_traj:
             # TODO: previously, we were always taking the first window.  Now, we always take a random one.
             #   We could consider choosing multiple, or choosing a separate segmentation for each batch element.
-            if self.single_window or len(traj) == self.num_frames:
+            if self.single_window:
                 index = 0
             else:
                 if len(traj) <= self.num_frames * self.frame_skip:
                     continue
                 index = np.random.choice(len(traj) - self.num_frames * self.frame_skip + 1)
-            if len(traj) != self.num_frames:
-                traj = traj[index: index + self.num_frames * self.frame_skip]
+            traj = traj[index: index + self.num_frames * self.frame_skip]
             obs_traj, state_traj, action_traj = zip(*traj)
-            if len(traj) != self.num_frames:
-                obs_traj = obs_traj[::self.frame_skip]
-                state_traj = state_traj[::self.frame_skip]
+
+            obs_traj = obs_traj[::self.frame_skip]
+            state_traj = state_traj[::self.frame_skip]
             full_state_traj.append(torch.cat(state_traj))
             full_action_traj.append(torch.cat(action_traj))
             # If we're using images, only use the first of the stacked frames
