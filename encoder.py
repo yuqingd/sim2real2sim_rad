@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from positional_encoding import get_embedder
 
 
 def tie_weights(src, trg):
@@ -35,7 +36,10 @@ class PixelEncoder(nn.Module):
         out_dim = OUT_DIM_64[num_layers] if obs_shape[-1] == 64 else OUT_DIM[num_layers]
         fc_input_dim = num_filters * out_dim * out_dim  # TODO: this is huge (39,200)!! Do we want this?
         if spatial_softmax:
-            fc_input_dim += num_filters * 2
+            embedding_multires = 10
+            positional_encoding, embedding_dim = get_embedder(embedding_multires, num_filters, i=0, include_input=False)
+            self.positional_encoding = positional_encoding
+            fc_input_dim += embedding_dim * 2
         self.fc = nn.Linear(fc_input_dim, self.feature_dim)
         self.ln = nn.LayerNorm(self.feature_dim)
 
@@ -67,12 +71,18 @@ class PixelEncoder(nn.Module):
             weights = torch.softmax(conv_flat, dim=-1)
             # Gives positions as [-1,-1,-1, 0,0,0, 1,1,1]
             device = conv.device
-            y_pos = torch.linspace(-1, 1, steps=h).repeat_interleave(w).reshape(1, 1, h * w).to(device)
-            # Gives positions as [-1,0,1, -1,0,1, -1,0,1]
-            x_pos = torch.linspace(-1, 1, steps=w).repeat(h).reshape(1, 1, h * w).to(device)
+            # y_pos = torch.linspace(-1, 1, steps=h).repeat_interleave(w).reshape(1, 1, h * w).to(device)
+            # # Gives positions as [-1,0,1, -1,0,1, -1,0,1]
+            # x_pos = torch.linspace(-1, 1, steps=w).repeat(h).reshape(1, 1, h * w).to(device)
+
+            # NEW, now with positional encoding
+            y_pos = torch.arange(0, h).repeat_interleave(w).reshape(1, 1, h * w).to(device)
+            x_pos = torch.arange(0, w).repeat(h).reshape(1, 1, h * w).to(device)
 
             avg_x_pos = torch.sum(weights * x_pos, dim=-1)
             avg_y_pos = torch.sum(weights * y_pos, dim=-1)
+            avg_x_pos = self.positional_encoding(avg_x_pos)
+            avg_y_pos = self.positional_encoding(avg_y_pos)
 
             features = torch.cat([features, avg_x_pos, avg_y_pos], dim=-1)  # TODO: features_dim >> spatial_softmax_dim.  Consider reducing features_dim, repeating spatial_softmax, or concatenating it in later.
 
