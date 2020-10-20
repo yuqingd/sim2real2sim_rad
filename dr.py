@@ -203,14 +203,15 @@ def config_dr_dmc(config):
         real_val = config.real_dr_params[key]
         if real_val == 0:
             real_val = 5e-2
+        mean_val = real_val * cur_scale
+        # Clip all visual values except dmc ground, which uses a different color scaling scheme, presumably b/c it's
+        # a pattern not a single color.
+        if key[-2:] in ['_r', '_g', '_b'] and not key in ['ground_r', 'ground_g', 'ground_b']:
+            mean_val = min(real_val * cur_scale, 1.)
         if config.mean_only:
-            config.dr[key] = real_val * cur_scale
+            config.dr[key] = mean_val
         else:
-            if '_r' in key or '_g' in key or '_b' in key:
-                config.dr[key] = (
-                min(real_val * cur_scale, 1.), real_val * range_scale)  # clip to possible colour value
-            else:
-                config.dr[key] = (real_val * cur_scale, real_val * range_scale)
+            config.dr[key] = (mean_val, real_val * range_scale)
     np.random.set_state(rng_state)
     config.sim_params_size = len(config.real_dr_list)
     return config
@@ -519,14 +520,12 @@ def config_dr_metaworld(config):
                 cur_scale = 1/cur_scale
         if real_val == 0:
           real_val = 5e-2
+        if key[-2:] in ['_r', '_g', '_b']:
+            mean_val = min(real_val * cur_scale, 1.)
         if config.mean_only:
-          config.dr[key] = real_val * cur_scale
+            config.dr[key] = mean_val
         else:
-            if '_r' in key or '_g' in key or '_b' in key:
-                config.dr[key] = (min(real_val * cur_scale, 1.), real_val * range_scale)  # clip to possible colour value
-            else:
-                config.dr[key] = (real_val * cur_scale, real_val * range_scale)
-
+            config.dr[key] = (mean_val, real_val * range_scale)
       np.random.set_state(rng_state)
   return config
 
@@ -560,13 +559,12 @@ def config_dummy(config):
 
         if real_val == 0:
             real_val = 5e-2
+        if key[-2:] in ['_r', '_g', '_b']:
+            mean_val = min(real_val * cur_scale, 1.)
         if config.mean_only:
-            config.dr[key] = real_val * cur_scale
+            config.dr[key] = mean_val
         else:
-            if '_r' in key or '_g' in key or '_b' in key:
-                config.dr[key] = (min(real_val * cur_scale, 1.), real_val * range_scale)  # clip to possible colour value
-            else:
-                config.dr[key] = (real_val * cur_scale, real_val * range_scale)
+            config.dr[key] = (mean_val, real_val * range_scale)
 
     config.sim_params_size = len(config.real_dr_list)
     return config
