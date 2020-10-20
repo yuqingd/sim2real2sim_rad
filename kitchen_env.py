@@ -44,6 +44,8 @@ class Kitchen:
       azimuth = 140
       elevation = -30
       lookat = None
+    if 'push' in task:
+      lookat = None
 
     if minimal:
       global XPOS_INDICES
