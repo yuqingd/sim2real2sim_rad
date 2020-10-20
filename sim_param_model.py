@@ -13,7 +13,7 @@ from positional_encoding import get_embedder
 
 class SimParamModel(nn.Module):
     def __init__(self, shape, action_space, layers, units, device, obs_shape, encoder_type,
-                 encoder_feature_dim, encoder_num_layers, encoder_num_filters, agent, sim_param_lr=1e-3,
+                 encoder_feature_dim, encoder_num_layers, encoder_num_filters, sim_param_lr=1e-3,
                  sim_param_beta=0.9,
                  dist='normal', act=nn.ELU, batch_size=32, traj_length=200, num_frames=10,
                  embedding_multires=10, use_img=True, state_dim=0, separate_trunks=False, param_names=[],
@@ -33,11 +33,10 @@ class SimParamModel(nn.Module):
         self.encoder_feature_dim = encoder_feature_dim
         self.num_frames = num_frames
         self.use_img = use_img
-        self.state_dim = state_dim
         self.separate_trunks = separate_trunks
         positional_encoding, embedding_dim = get_embedder(embedding_multires, shape, i=0)
         self.positional_encoding = positional_encoding
-        additional = 0 if dist == 'normal' else embedding_dim
+        pred_sim_param_dim = 0 if dist == 'normal' else embedding_dim
         self.param_names = param_names
         self.train_range_scale = train_range_scale
         self.prop_train_range_scale = prop_train_range_scale
@@ -57,9 +56,9 @@ class SimParamModel(nn.Module):
                 encoder_dims = encoder_feature_dim * num_frames
             else:
                 encoder_dims = encoder_feature_dim
-            trunk_input_dim = encoder_dims + additional + action_space_dim * num_frames * frame_skip
+            trunk_input_dim = encoder_dims + pred_sim_param_dim + (state_dim + action_space_dim) * num_frames * frame_skip
         else:
-            trunk_input_dim = state_dim[-1] * self.num_frames + additional + action_space_dim * num_frames * frame_skip
+            trunk_input_dim = pred_sim_param_dim + (state_dim + action_space_dim) * num_frames * frame_skip
 
         # If each sim param has its own trunk, create a separate trunk for each
         num_sim_params = shape
@@ -116,31 +115,24 @@ class SimParamModel(nn.Module):
         )
 
     def get_features(self, obs_traj):
-        # detach_encoder allows to stop gradient propagation to encoder
-
-        if self.use_img:
-            # Share encoder case
-            if obs_traj[0][0].shape[0] == 9:
-                input = []
-                for i in range(len(obs_traj[0])):
-                    input.append(
-                        torch.FloatTensor([traj[i].detach().cpu().numpy() for traj in obs_traj]).to(self.device))
-            else:
-                input = torch.stack([torch.cat([o for o in traj], dim=0) for traj in obs_traj], dim=0)
-
-            if self.share_encoder:
-                features = [self.encoder(img, detach=True) for img in input]
-                features = torch.cat(features, dim=1)
-            else:
-                # Don't update the conv layers if we're sharing, otherwise to
-                features = self.encoder(input, detach=self.share_encoder)
-            self.feature_norm = torch.norm(features).detach()
-            if self.normalize_features:
-                features = features / torch.norm(features).detach()
-
+        # Share encoder case
+        if obs_traj[0][0].shape[0] == 9:
+            input = []
+            for i in range(len(obs_traj[0])):
+                input.append(
+                    torch.FloatTensor([traj[i].detach().cpu().numpy() for traj in obs_traj]).to(self.device))
         else:
-            features = torch.stack([torch.cat([o for o in traj], dim=0) for traj in obs_traj], dim=0)
+            input = torch.stack([torch.cat([o for o in traj], dim=0) for traj in obs_traj], dim=0)
 
+        if self.share_encoder:
+            features = [self.encoder(img, detach=True) for img in input]
+            features = torch.cat(features, dim=1)
+        else:
+            # Don't update the conv layers if we're sharing, otherwise to
+            features = self.encoder(input, detach=self.share_encoder)
+        self.feature_norm = torch.norm(features).detach()
+        if self.normalize_features:
+            features = features / torch.norm(features).detach()
         return features
 
 
@@ -148,11 +140,14 @@ class SimParamModel(nn.Module):
         """ obs traj list of lists, pred labels is array [B, num_sim_params] """
         # Turn np arrays into tensors
         if type(full_traj[0][0][0]) is np.ndarray:
-            full_traj = [[(torch.FloatTensor(o).to(self.device), torch.FloatTensor(a).to(self.device))
-                          for o, a in traj]
+            full_traj = [[(torch.FloatTensor(o).to(self.device),
+                           torch.FloatTensor(s).to(self.device),
+                           torch.FloatTensor(a).to(self.device))
+                          for o, s, a in traj]
                          for traj in full_traj]
 
         full_obs_traj = []
+        full_state_traj = []
         full_action_traj = []
         for traj in full_traj:
             # TODO: previously, we were always taking the first window.  Now, we always take a random one.
@@ -165,10 +160,16 @@ class SimParamModel(nn.Module):
                 index = np.random.choice(len(traj) - self.num_frames * self.frame_skip + 1)
 
             if len(traj) != self.num_frames:
+<<<<<<< Updated upstream
                 traj = traj[index: index + self.num_frames * self.frame_skip]
             obs_traj, action_traj = zip(*traj)
             if len(traj) != self.num_frames:
                 obs_traj = obs_traj[:: self.frame_skip]
+=======
+                traj = traj[index: index + self.num_frames * self.frame_skip: self.frame_skip]
+            obs_traj, state_traj, action_traj = zip(*traj)
+            full_state_traj.append(torch.cat(state_traj))
+>>>>>>> Stashed changes
             full_action_traj.append(torch.cat(action_traj))
             # If we're using images, only use the first of the stacked frames
             if self.use_img and not self.share_encoder:
@@ -181,14 +182,21 @@ class SimParamModel(nn.Module):
 
         encoded_pred_labels = self.positional_encoding(pred_labels)
         full_action_traj = torch.stack(full_action_traj)
-
-        feat = self.get_features(full_obs_traj)
+        full_state_traj = torch.stack(full_state_traj)
         B_label = len(pred_labels)
         B_traj = len(full_traj)
         assert B_label == 1 or B_traj == 1
-        fake_pred = torch.cat([encoded_pred_labels.repeat(B_traj, 1),
-                               feat.repeat(B_label, 1),
-                               full_action_traj.repeat(B_label, 1)], dim=-1)
+
+        if self.use_img:
+            feat = self.get_features(full_obs_traj)
+            fake_pred = torch.cat([encoded_pred_labels.repeat(B_traj, 1),
+                                   feat.repeat(B_label, 1),
+                                   full_action_traj.repeat(B_label, 1),
+                                   full_state_traj.repeat(B_label, 1)], dim=-1)
+        else:
+            fake_pred = torch.cat([encoded_pred_labels.repeat(B_traj, 1),
+                                   full_action_traj.repeat(B_label, 1),
+                                   full_state_traj.repeat(B_label, 1)], dim=-1)
 
         if self.separate_trunks:
             x = torch.cat([trunk(fake_pred) for trunk in self.trunk], dim=-1)
@@ -332,12 +340,12 @@ class SimParamModel(nn.Module):
                     for obs_traj, action_traj in zip(obs_list, actions_list):
                         if self.encoder_type == 'pixel':
                             loss, (full_loss, accuracy, error, norm) = self.train_classifier(
-                                list(zip(obs_traj['image'], action_traj)),
+                                list(zip(obs_traj['image'], obs_traj['state'], action_traj)),
                                 obs_traj['sim_params'][-1].to('cpu'),
                                 obs_traj['distribution_mean'][-1].to('cpu'))
                         else:
                             loss, (full_loss, accuracy, error, norm) = self.train_classifier(
-                                list(zip(obs_traj['state'], action_traj)),
+                                list(zip(obs_traj['state'], obs_traj['state'], action_traj)),  # TODO: do something better here!
                                 obs_traj['sim_params'][-1].to('cpu'),
                                 obs_traj['distribution_mean'][-1].to('cpu'))
                         losses.append(loss)

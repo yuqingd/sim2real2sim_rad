@@ -48,7 +48,7 @@ def weight_init(m):
 class Actor(nn.Module):
     """MLP for actor network."""
     def __init__(
-        self, obs_shape, action_shape, hidden_dim, encoder_type,
+        self, obs_shape, state_shape, action_shape, hidden_dim, encoder_type,
         encoder_feature_dim, log_std_min, log_std_max, num_layers, num_filters, spatial_softmax
     ):
         super().__init__()
@@ -62,7 +62,7 @@ class Actor(nn.Module):
         self.log_std_max = log_std_max
 
         self.trunk = nn.Sequential(
-            nn.Linear(self.encoder.feature_dim, hidden_dim), nn.ReLU(),
+            nn.Linear(self.encoder.feature_dim + state_shape, hidden_dim), nn.ReLU(),
             nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
             nn.Linear(hidden_dim, 2 * action_shape[0])
         )
@@ -71,11 +71,12 @@ class Actor(nn.Module):
         self.apply(weight_init)
 
     def forward(
-        self, obs, compute_pi=True, compute_log_pi=True, detach_encoder=False
+        self, obs_img, obs_state, compute_pi=True, compute_log_pi=True, detach_encoder=False
     ):
-        obs = self.encoder(obs, detach=detach_encoder)
+        obs_img = self.encoder(obs_img, detach=detach_encoder)
+        obs_combined = torch.cat([obs_img, obs_state], dim=-1)
 
-        mu, log_std = self.trunk(obs).chunk(2, dim=-1)
+        mu, log_std = self.trunk(obs_combined).chunk(2, dim=-1)
 
         # constrain log_std inside [log_std_min, log_std_max]
         log_std = torch.tanh(log_std)
@@ -135,7 +136,7 @@ class QFunction(nn.Module):
 class Critic(nn.Module):
     """Critic network, employes two q-functions."""
     def __init__(
-        self, obs_shape, action_shape, hidden_dim, encoder_type,
+        self, obs_shape, state_shape, action_shape, hidden_dim, encoder_type,
         encoder_feature_dim, num_layers, num_filters
     ):
         super().__init__()
@@ -146,21 +147,22 @@ class Critic(nn.Module):
         )
 
         self.Q1 = QFunction(
-            self.encoder.feature_dim, action_shape[0], hidden_dim
+            self.encoder.feature_dim + state_shape, action_shape[0], hidden_dim,
         )
         self.Q2 = QFunction(
-            self.encoder.feature_dim, action_shape[0], hidden_dim
+            self.encoder.feature_dim + state_shape, action_shape[0], hidden_dim,
         )
 
         self.outputs = dict()
         self.apply(weight_init)
 
-    def forward(self, obs, action, detach_encoder=False):
+    def forward(self, obs_img, obs_state, action, detach_encoder=False):
         # detach_encoder allows to stop gradient propagation to encoder
-        obs = self.encoder(obs, detach=detach_encoder)
+        obs_img = self.encoder(obs_img, detach=detach_encoder)
+        obs_combined = torch.cat([obs_img, obs_state], dim=-1)
 
-        q1 = self.Q1(obs, action)
-        q2 = self.Q2(obs, action)
+        q1 = self.Q1(obs_combined, action)
+        q2 = self.Q2(obs_combined, action)
 
         self.outputs['q1'] = q1
         self.outputs['q2'] = q2
@@ -232,6 +234,7 @@ class CurlSacAgent(object):
     def __init__(
         self,
         obs_shape,
+        state_shape,
         action_shape,
         device,
         hidden_dim=256,
@@ -296,19 +299,19 @@ class CurlSacAgent(object):
                 self.augs_funcs[aug_name] = aug_to_func[aug_name]
 
         self.actor = Actor(
-            obs_shape, action_shape, hidden_dim, encoder_type,
+            obs_shape, state_shape, action_shape, hidden_dim, encoder_type,
             encoder_feature_dim, actor_log_std_min, actor_log_std_max,
             num_layers, num_filters, spatial_softmax
         ).to(device)
 
         self.critic = Critic(
 
-            obs_shape, action_shape, hidden_dim, encoder_type,
+            obs_shape, state_shape, action_shape, hidden_dim, encoder_type,
             encoder_feature_dim, num_layers, num_filters
         ).to(device)
 
         self.critic_target = Critic(
-            obs_shape, action_shape, hidden_dim, encoder_type,
+            obs_shape, state_shape, action_shape, hidden_dim, encoder_type,
             encoder_feature_dim, num_layers, num_filters
         ).to(device)
 
@@ -373,27 +376,29 @@ class CurlSacAgent(object):
             )
             return mu.cpu().data.numpy().flatten()
 
-    def sample_action(self, obs):
-        if obs.shape[-1] != self.image_size:
-            obs = utils.center_crop_image(obs, self.image_size)
+    def sample_action(self, obs_img, obs_state):
+        if obs_img.shape[-1] != self.image_size:
+            obs = utils.center_crop_image(obs_img, self.image_size)
  
         with torch.no_grad():
-            obs = torch.FloatTensor(obs).to(self.device)
-            obs = obs.unsqueeze(0)
-            mu, pi, _, _ = self.actor(obs, compute_log_pi=False)
+            obs_img = torch.FloatTensor(obs_img).to(self.device)
+            obs_img = obs_img.unsqueeze(0)
+            obs_state = torch.FloatTensor(obs_state).to(self.device)
+            obs_state = obs_state.unsqueeze(0)
+            mu, pi, _, _ = self.actor(obs_img, obs_state, compute_log_pi=False)
             return pi.cpu().data.numpy().flatten()
 
-    def update_critic(self, obs, action, reward, next_obs, not_done, L, step):
+    def update_critic(self, obs_img, obs_state, action, reward, next_obs_img, next_obs_state, not_done, L, step):
         with torch.no_grad():
-            _, policy_action, log_pi, _ = self.actor(next_obs)
-            target_Q1, target_Q2 = self.critic_target(next_obs, policy_action)
+            _, policy_action, log_pi, _ = self.actor(next_obs_img, next_obs_state)
+            target_Q1, target_Q2 = self.critic_target(next_obs_img, next_obs_state, policy_action)
             target_V = torch.min(target_Q1,
                                  target_Q2) - self.alpha.detach() * log_pi
             target_Q = reward + (not_done * self.discount * target_V)
 
         # get current Q estimates
         current_Q1, current_Q2 = self.critic(
-            obs, action, detach_encoder=self.detach_encoder)
+            obs_img, obs_state, action, detach_encoder=self.detach_encoder)
         critic_loss = F.mse_loss(current_Q1,
                                  target_Q) + F.mse_loss(current_Q2, target_Q)
         if step % self.log_interval == 0:
@@ -406,10 +411,10 @@ class CurlSacAgent(object):
 
         self.critic.log(L, step)
 
-    def update_actor_and_alpha(self, obs, L, step):
+    def update_actor_and_alpha(self, obs_img, obs_state, L, step):
         # detach encoder, so we don't update it with the actor loss
-        _, pi, log_pi, log_std = self.actor(obs, detach_encoder=True)
-        actor_Q1, actor_Q2 = self.critic(obs, pi, detach_encoder=True)
+        _, pi, log_pi, log_std = self.actor(obs_img, obs_state, detach_encoder=True)
+        actor_Q1, actor_Q2 = self.critic(obs_img, pi, obs_state, detach_encoder=True)
 
         actor_Q = torch.min(actor_Q1, actor_Q2)
         actor_loss = (self.alpha.detach() * log_pi - actor_Q).mean()
@@ -458,17 +463,17 @@ class CurlSacAgent(object):
 
     def update(self, replay_buffer, L, step):
         if self.encoder_type == 'pixel':
-            obs, action, reward, next_obs, not_done, cpc_kwargs = replay_buffer.sample_cpc()
+            obs_img, obs_state, action, reward, next_obs, next_obs_state, not_done, cpc_kwargs = replay_buffer.sample_cpc()
         else:
-            obs, action, reward, next_obs, not_done = replay_buffer.sample_proprio()
+            obs_img, obs_state, action, reward, next_obs, next_obs_state, not_done = replay_buffer.sample_proprio()
     
         if step % self.log_interval == 0:
             L.log('train/batch_reward', reward.mean(), step)
 
-        self.update_critic(obs, action, reward, next_obs, not_done, L, step)
+        self.update_critic(obs_img, obs_state, action, reward, next_obs, next_obs_state, not_done, L, step)
 
         if step % self.actor_update_freq == 0:
-            self.update_actor_and_alpha(obs, L, step)
+            self.update_actor_and_alpha(obs_img, obs_state, L, step)
 
         if step % self.critic_target_update_freq == 0:
             utils.soft_update_params(
@@ -519,17 +524,17 @@ class RadSacAgent(CurlSacAgent):
     def update(self, replay_buffer, L, step):
         if self.encoder_type == 'pixel':
             # samples from augmented data rather than cpc
-            obs, action, reward, next_obs, not_done = replay_buffer.sample_rad(self.augs_funcs)
+            obs, state, action, reward, next_obs, not_done = replay_buffer.sample_rad(self.augs_funcs)
         else:
-            obs, action, reward, next_obs, not_done = replay_buffer.sample_proprio()
+            obs, state, action, reward, next_obs, next_state, not_done = replay_buffer.sample_proprio()
     
         if step % self.log_interval == 0:
             L.log('train/batch_reward', reward.mean(), step)
 
-        self.update_critic(obs, action, reward, next_obs, not_done, L, step)
+        self.update_critic(obs, state, action, reward, next_obs, next_state, not_done, L, step)
 
         if step % self.actor_update_freq == 0:
-            self.update_actor_and_alpha(obs, L, step)
+            self.update_actor_and_alpha(obs, state, L, step)
 
         if step % self.critic_target_update_freq == 0:
             utils.soft_update_params(
