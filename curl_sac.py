@@ -378,7 +378,7 @@ class CurlSacAgent(object):
 
     def sample_action(self, obs_img, obs_state):
         if obs_img.shape[-1] != self.image_size:
-            obs = utils.center_crop_image(obs_img, self.image_size)
+            obs_img = utils.center_crop_image(obs_img, self.image_size)
  
         with torch.no_grad():
             obs_img = torch.FloatTensor(obs_img).to(self.device)
@@ -414,7 +414,7 @@ class CurlSacAgent(object):
     def update_actor_and_alpha(self, obs_img, obs_state, L, step):
         # detach encoder, so we don't update it with the actor loss
         _, pi, log_pi, log_std = self.actor(obs_img, obs_state, detach_encoder=True)
-        actor_Q1, actor_Q2 = self.critic(obs_img, pi, obs_state, detach_encoder=True)
+        actor_Q1, actor_Q2 = self.critic(obs_img, obs_state, pi, detach_encoder=True)
 
         actor_Q = torch.min(actor_Q1, actor_Q2)
         actor_loss = (self.alpha.detach() * log_pi - actor_Q).mean()
