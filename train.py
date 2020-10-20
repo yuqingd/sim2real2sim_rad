@@ -137,6 +137,7 @@ def parse_args():
     parser.add_argument('--frame_skip', default=1, type=int)
     parser.add_argument('--spatial_softmax_agent', default=False, action='store_true')
     parser.add_argument('--spatial_softmax_sp', default=False, action='store_true')
+    parser.add_argument('--num_frames', default=10, type=int)
 
     # MISC
     parser.add_argument('--id', default='debug', type=str)
@@ -707,6 +708,7 @@ def main():
             use_weight_init=args.weight_init,
             frame_skip=args.frame_skip,
             spatial_softmax=args.spatial_softmax_sp,
+            num_frames=args.num_frames,
         ).to(device)
         # Use the same encoder for the agent and the sim param model
         if args.share_encoder:
