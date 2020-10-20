@@ -4,6 +4,7 @@ import os
 import utils
 from train import parse_args, make_agent
 import torch
+from train import parse_args
 # ENV = 'FetchPickAndPlace-v1'
 from mujoco_py import GlfwContext
 import mujoco_py
@@ -15,7 +16,7 @@ env_real = make('kitchen', real_world=True,
         seed=0,
         from_pixels=True,
         height=84,
-        width=84
+        width=84,
     )
 
 env_sim = make('kitchen', real_world=False,
@@ -27,8 +28,9 @@ env_sim = make('kitchen', real_world=False,
     )
 env_real.reset()
 env_sim.reset()
+
 num_episodes = 1
-time_limit = 60
+time_limit = 1
 image_size = 84
 real_video_dir = utils.make_dir(os.path.join('./logdir', 'debug_video'))
 
@@ -63,6 +65,7 @@ def run_eval_loop(env, name):
             episode_reward += reward
             print(reward)
         video.save('real_{}.mp4'.format(name))
+
 
 run_eval_loop(env_sim, 'sim')
 run_eval_loop(env_real, 'real')

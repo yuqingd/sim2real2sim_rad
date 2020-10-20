@@ -24,22 +24,26 @@ XPOS_INDICES = {
 
 class Kitchen:
   def __init__(self, task='reach_kettle', size=(100, 100), real_world=False, dr=None, mean_only=False,
-               early_termination=False, use_state="None", step_repeat=30, dr_list=[],
-               step_size=.03, simple_randomization=False, time_limit=200,
+               early_termination=False, state_type="none", step_repeat=30, dr_list=[],
+               step_size=0.03, simple_randomization=False, time_limit=200,
                control_version='mocap_ik', distance=2., azimuth=50, elevation=-40,
                initial_randomization_steps=1, minimal=False, dataset_step=None, grayscale=False, delay_steps=0):
     if 'rope' in task:
-      distance = 1.2
+      distance = 1.1
       azimuth = 35
       elevation = -48
+      lookat = [-.1,.35,.9]
+
     if 'cabinet' in task:
       distance = 2.5
       azimuth = 120
       elevation = -40
+      lookat = None
     if 'open_microwave' in task:
       distance = 1.5
       azimuth = 140
       elevation = -30
+      lookat = None
 
     if minimal:
       global XPOS_INDICES
@@ -52,15 +56,14 @@ class Kitchen:
 
       }
 
-
-    self._env = KitchenTaskRelaxV1(distance=distance, azimuth=azimuth, elevation=elevation, task_type=task, minimal=minimal)
+    self._env = KitchenTaskRelaxV1(distance=distance, azimuth=azimuth, elevation=elevation, task_type=task, minimal=minimal, lookat=lookat)
     self.task = task
     self._size = size
     self.early_termination = early_termination
     self.mean_only = mean_only
     self.cur_step_fraction = 0
     self.real_world = real_world
-    self.use_state = use_state
+    self.state_type = state_type
     self.dr = dr
     self.step_repeat = step_repeat
     self.step_size = step_size
@@ -505,10 +508,11 @@ class Kitchen:
     reward, done = self.get_reward()
     info = {'discount': 1.0, 'success': done}
     done = False
-    state = self.goal
-    if self.use_state is not "None":
+    state = np.array([0])
+    if not self.state_type == "none":
         robot_state = self.get_state()
-        state = np.concatenate([state, robot_state])
+        state = robot_state
+        # state = np.concatenate([state, robot_state])
     return state, reward, done, info
 
 
@@ -516,7 +520,7 @@ class Kitchen:
     state_list = [np.squeeze(self._env.sim.data.site_xpos[self._env.sim.model._site_name2id['end_effector']])]
     if self.use_gripper:
       state_list.append(np.squeeze(self._env.data.qpos[self.arm_njnts]))
-    if self.use_state == 'all':
+    if self.state_type == 'all':
       if 'rope' in self.task:
         state_list.append(np.squeeze(self._env.sim.data.site_xpos[self.cylinder_index]))
       elif 'open_microwave' in self.task:
@@ -531,10 +535,12 @@ class Kitchen:
 
   def reset(self):
     self._env.reset()
-    state_obs = self.goal
-    if self.use_state is not "None":
+    state_obs = np.array([0])  # self.goal
+    if not self.state_type == "none":
       robot_state = self.get_state()
-      state_obs = np.concatenate([state_obs, robot_state])
+      state_obs = robot_state
+      # Current tasks do not nead goal
+      # state_obs = np.concatenate([state_obs, robot_state])
     self.setup_task()
 
     if 'open_microwave' in self.task or 'open_cabinet' in self.task:
@@ -561,10 +567,10 @@ class Kitchen:
   def observation_space(self):
     spaces = {}
 
-    if self.use_state is not "None":
+    if not self.state_type == "none":
       state_shape = 4 if self.use_gripper else 3  # 2 for fingers, 3 for end effector position
       state_shape = self.goal.shape + state_shape
-      if self.use_state == 'all':
+      if self.state_type == 'all':
         state_shape += 3
       state_space = gym.spaces.Box(np.array([-float('inf')] * state_shape), np.array([-float('inf')] * state_shape))
     else:

@@ -101,21 +101,21 @@ def config_dr_dmc(config):
         if dr_option == 'all_dr':
             config.real_dr_list = list(real_dr_values.keys())
         elif dr_option == 'nonconflicting_dr':
+            # config.real_dr_list = [
+            #     "right_hip", "right_knee", "right_ankle", "left_hip", "left_knee", "left_ankle", "ground_r", "ground_g",
+            #     "ground_b", "body_r", "body_g", "body_b"
+            # ]
             config.real_dr_list = [
-                "right_hip", "right_knee", "right_ankle", "left_hip", "left_knee", "left_ankle", "ground_r", "ground_g",
+                "torso_mass", "right_thigh_mass", "right_leg_mass", "right_foot_mass", "left_thigh_mass", "left_leg_mass", "left_foot_mass",
                 "ground_b", "body_r", "body_g", "body_b"
             ]
         elif dr_option == 'visual_dr':
             config.real_dr_list = [
                 "ground_r", "ground_g", "ground_b", "body_r", "body_g", "body_b"
             ]
-        elif dr_option == 'mixed_visual_dr':
-            config.real_dr_list = [
-                "ground_r", "ground_g", "ground_b", "body_r", "body_g", "body_b"
-            ]
         elif dr_option == 'minimass_dr':
             config.real_dr_list = [
-                "left_hip"
+                "left_foot_mass"
             ]
         elif dr_option == 'mass_dr':
             config.real_dr_list = [
@@ -206,11 +206,12 @@ def config_dr_dmc(config):
         if config.mean_only:
             config.dr[key] = real_val * cur_scale
         else:
-            config.dr[key] = (real_val * cur_scale, real_val * range_scale)
+            if '_r' in key or '_g' in key or '_b' in key:
+                config.dr[key] = (
+                min(real_val * cur_scale, 1.), real_val * range_scale)  # clip to possible colour value
+            else:
+                config.dr[key] = (real_val * cur_scale, real_val * range_scale)
     np.random.set_state(rng_state)
-    if dr_option == 'mixed_visual_dr':
-        config.dr['ground_g'] = config.real_dr_params['ground_g'] * 2.0
-        config.dr['body_r'] = config.real_dr_params['body_r'] * 2.0
     config.sim_params_size = len(config.real_dr_list)
     return config
 
@@ -315,9 +316,9 @@ def config_dr_kitchen(config):
                 ]
             elif dr_option == 'nonconflicting_dr':
                 config.real_dr_list = [
-                    "joint7_damping", "robot_b", "robot_g", "robot_r", "cylinder_b", "cylinder_g",
-                    "cylinder_r", "cylinder_mass", "box1_r", "box1_g", "box1_b", "box2_r", "box2_g", "box2_b", "box3_r",
-                    "box3_g", "box3_b", "box4_r", "box4_g", "box4_b", "box5_r", "box5_g", "box5_b",
+                    "cylinder_b", "cylinder_g",
+                    "cylinder_r", "cylinder_mass", "box1_r", "box1_g", "box1_b",
+                    #"box2_r", "box2_g", "box2_b", "box3_r", "box3_g", "box3_b", "box4_r", "box4_g", "box4_b", "box5_r", "box5_g", "box5_b",
                     # "box6_r", "box6_g", "box6_b", "box7_r", "box7_g", "box7_b", "box8_r", "box8_g", "box8_b",
                     "rope_damping", "lighting",
                 ]
@@ -417,7 +418,10 @@ def config_dr_kitchen(config):
                     cur_scale = 1 / cur_scale
             if real_val == 0:
                 real_val = 5e-2
-            config.dr[key] = (real_val * cur_scale, real_val * range_scale)
+            if '_r' in key or '_g' in key or '_b' in key:
+                config.dr[key] = (min(real_val * cur_scale, 1.), real_val * range_scale) #clip to possible colour value
+            else:
+                config.dr[key] = (real_val * cur_scale, real_val * range_scale)
 
         np.random.set_state(rng_state)
 
@@ -518,30 +522,51 @@ def config_dr_metaworld(config):
         if config.mean_only:
           config.dr[key] = real_val * cur_scale
         else:
-          config.dr[key] = (real_val * cur_scale, real_val * range_scale)
+            if '_r' in key or '_g' in key or '_b' in key:
+                config.dr[key] = (min(real_val * cur_scale, 1.), real_val * range_scale)  # clip to possible colour value
+            else:
+                config.dr[key] = (real_val * cur_scale, real_val * range_scale)
 
       np.random.set_state(rng_state)
   return config
 
 def config_dummy(config):
     real_dr_values = {
-        "square_size": 4.,
-        "speed_multiplier": 3.,
+        "square_size": 6.,
+        "speed_multiplier": 5.,
         "square_r": .5,
         "square_g": .5,
         "square_b": 0.,
     }
+    dr_option = config.dr_option
+    if dr_option == 'all_dr':
+        config.real_dr_list = list(real_dr_values.keys())
+    elif dr_option == 'red':
+        config.real_dr_list = ['square_r']
+    elif dr_option == 'visual_dr':
+        config.real_dr_list = ['square_r', 'square_g', 'square_b']
+    elif dr_option == 'speed':
+        config.real_dr_list = ['speed_multiplier']
+    elif dr_option == 'size':
+        config.real_dr_list = ['square_size']
     config.real_dr_params = real_dr_values
-    config.real_dr_list = list(config.real_dr_params.keys())
-    mean_scale = config.mean_scale
+    cur_scale = config.mean_scale
     range_scale = config.range_scale
     config.dr = {}  # (mean, range)
+
     for key, real_val in config.real_dr_params.items():
+        if config.scale_large_and_small:
+            cur_scale = 1 / cur_scale #alternate scaling
+
         if real_val == 0:
             real_val = 5e-2
         if config.mean_only:
-            config.dr[key] = real_val * mean_scale
+            config.dr[key] = real_val * cur_scale
         else:
-            config.dr[key] = (real_val * mean_scale, real_val * range_scale)
+            if '_r' in key or '_g' in key or '_b' in key:
+                config.dr[key] = (min(real_val * cur_scale, 1.), real_val * range_scale)  # clip to possible colour value
+            else:
+                config.dr[key] = (real_val * cur_scale, real_val * range_scale)
+
     config.sim_params_size = len(config.real_dr_list)
     return config

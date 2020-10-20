@@ -10,76 +10,106 @@ from dm_control import suite
 from kitchen_env import Kitchen
 import cv2
 
+
 class DR_Env:
-  def __init__(self, env, cameras, height=64, width=64, mean_only=False, dr_list=[], simple_randomization=False, dr_shape=None,
-               real_world=False, dr=None, use_state="None", use_img=True, name="task_name",
-               grayscale=False, dataset_step=None, range_scale=.1, prop_range_scale=False, state_concat=False,
-               prop_initial_range=False):
+    def __init__(self, env, cameras, height=64, width=64, mean_only=False, dr_list=[], simple_randomization=False,
+                 dr_shape=None,
+                 real_world=False, dr=None, state_type="none", name="task_name",
+                 grayscale=False, dataset_step=None, range_scale=.1, prop_range_scale=False, state_concat=False,
+                 prop_initial_range=False):
 
-    self._env = env
+        self._env = env
 
-    self._size = (height, width)
+        self._size = (height, width)
 
-    self.mean_only = mean_only
-    self.dr_list = dr_list
-    self.simple_randomization = simple_randomization
-    self.dr_shape = dr_shape
-    self.real_world = real_world
-    self.use_state = use_state
-    self.use_img = use_img
-    self.dr = dr
-    self.grayscale = grayscale
-    self.name = name
-    self.dataset_step = dataset_step
-    self.range_scale = range_scale
-    self.prop_range_scale = prop_range_scale
-    self.state_concat = state_concat
+        self.mean_only = mean_only
+        self.dr_list = dr_list
+        self.simple_randomization = simple_randomization
+        self.dr_shape = dr_shape
+        self.real_world = real_world
+        self.state_type = state_type
+        self.dr = dr
+        self.grayscale = grayscale
+        self.name = name
+        self.dataset_step = dataset_step
+        self.range_scale = range_scale
+        self.prop_range_scale = prop_range_scale
+        self.state_concat = state_concat
 
-    if prop_initial_range:
-        self.initial_range = {}
-        for param in dr_list:
-            eps = 1e-3
-            self.initial_range[param] = max(dr[param] * range_scale, eps)
-    else:
-        self.initial_range = None
-    self.apply_dr()
-
-
-  def __getattr__(self, attr):
-    orig_attr = self._env.__getattribute__(attr)
-
-    if callable(orig_attr):
-      def hooked(*args, **kwargs):
-        result = orig_attr(*args, **kwargs)
-        return result
-      return hooked
-    else:
-      return orig_attr
-
-  def set_dataset_step(self, step):
-    self.dataset_step = step
-
-  def set_dr(self, dr):
-    self.dr = dr
-
-
-  def seed(self, seed=None):
-      self._env.seed(seed)
-
-  def set_real(self, param, param_name):
-      value = self.real_dr_params[param_name]
-      param[:] = value
-
-  def update_dr_param(self, param, param_name, eps=1e-3, indices=None):
-    if param_name in self.dr:
-      if self.initial_range is not None:
-          mean = self.dr[param_name]
-          range = self.initial_range[param_name]
-      elif self.mean_only:
-        mean = self.dr[param_name]
-        if self.prop_range_scale:
-            range = max(self.range_scale * mean, eps)
+        if prop_initial_range:
+            self.initial_range = {}
+            for param in dr_list:
+                eps = 1e-3
+                self.initial_range[param] = max(dr[param] * range_scale, eps)
         else:
+            self.initial_range = None
+        self.apply_dr()
+
+    def __getattr__(self, attr):
+        orig_attr = self._env.__getattribute__(attr)
+
+        if callable(orig_attr):
+            def hooked(*args, **kwargs):
+                result = orig_attr(*args, **kwargs)
+                return result
+
+            return hooked
+        else:
+            return orig_attr
+
+    def set_dataset_step(self, step):
+        self.dataset_step = step
+
+    def set_dr(self, dr):
+        self.dr = dr
+
+    def seed(self, seed=None):
+        self._env.seed(seed)
+
+    def set_real(self, param, param_name):
+        value = self.real_dr_params[param_name]
+        param[:] = value
+
+    def update_dr_param(self, param, param_name, eps=1e-3, indices=None):
+        if param_name in self.dr:
+            if self.initial_range is not None:
+                mean = self.dr[param_name]
+                range = self.initial_range[param_name]
+            elif self.mean_only:
+                mean = self.dr[param_name]
+                if self.prop_range_scale:
+                    range = max(self.range_scale * mean, eps)
+                else:
+                    range = self.range_scale
+            else:
+                mean, range = self.dr[param_name]
+                range = max(range, eps)  # TODO: consider re-adding anneal_range_scale
+            new_value = np.random.uniform(low=max(mean - range, eps), high=max(mean + range, 2 * eps))
+            if indices is None:
+                param[:] = new_value
+            else:
+                try:
+                    for i in indices:
+                        param[i:i + 1] = new_value
+                except:
+                    param[indices:indices + 1] = new_value
+
+            self.sim_params += [new_value]
+            self.distribution_mean += [mean]
+            self.distribution_range += [range]
+
+    def apply_dr(self):
+        self.sim_params = []
+        self.distribution_mean = []
+        self.distribution_range = []
+
+    @property
+    def observation_space(self):
+        spaces = {}
+        if self.state_type == 'none':
+            spaces['state'] = gym.spaces.Box(-1, 1, (1,), dtype=np.uint8)
+        else:
+<<<<<<< HEAD
             range = self.range_scale
       else:
         mean, range = self.dr[param_name]
@@ -140,70 +170,95 @@ class DR_Env:
     obs_dict = {}
 
     if self.use_img:
+=======
+            spaces['state'] = self._env.observation_space
+        # spaces['state'] = gym.spaces.Discrete(spaces['state'])
+        spaces['image'] = gym.spaces.Box(
+            0, 255, self._size + (3,), dtype=np.uint8)
+        # spaces['image'] = self._env.observation_space
+        return gym.spaces.Dict(spaces)
+
+    @property
+    def action_space(self):
+        return self._env.action_space
+
+    def env_step(self, action):
+        obs, reward, done, info = self._env.step(action)
+        if len(obs.shape) == 3:
+            state = np.array([0])
+        else:
+            state = obs
+            obs = self.render(mode='rgb_array')
+        return obs, state, reward, done, info
+
+    def step(self, action):
+
+        obs, state, reward, done, info = self.env_step(action)
+        obs_dict = {}
+
         obs_dict['image'] = obs
-    if self.use_state:
         if self.state_concat:
             obs_dict['state'] = np.concatenate([state, self.get_dr()])
         else:
             obs_dict['state'] = state
-    obs_dict['real_world'] = 1.0 if self.real_world else 0.0
-    obs_dict['sim_params'] = np.array(self.sim_params, dtype=np.float32)
-    if not (self.dr is None) and not self.real_world:
-      obs_dict['dr_params'] = self.get_dr()
-    if 'success' in info:
-        obs_dict['success'] = 1.0 if info['success'] else 0.0
-    obs_dict['distribution_mean'] = np.array(self.distribution_mean, dtype=np.float32)
-    obs_dict['distribution_range'] = np.array(self.distribution_range, dtype=np.float32)
+        obs_dict['real_world'] = 1.0 if self.real_world else 0.0
+        obs_dict['sim_params'] = np.array(self.sim_params, dtype=np.float32)
+        if not (self.dr is None) and not self.real_world:
+            obs_dict['dr_params'] = self.get_dr()
+        if 'success' in info:
+            obs_dict['success'] = 1.0 if info['success'] else 0.0
+        obs_dict['distribution_mean'] = np.array(self.distribution_mean, dtype=np.float32)
+        obs_dict['distribution_range'] = np.array(self.distribution_range, dtype=np.float32)
 
-    return obs_dict, reward, done, info
+        return obs_dict, reward, done, info
 
-  def get_dr(self):
-    return np.array([], dtype=np.float32)
+    def get_dr(self):
+        return np.array([], dtype=np.float32)
 
-  def env_reset(self):
-      state_obs = self._env.reset()
-      img_obs = self.render(mode='rgb_array')
-      return state_obs, img_obs
+    def env_reset(self):
+        state_obs = self._env.reset()
+        if self.state_type == 'none':
+            state_obs = np.array([0])
+        img_obs = self.render(mode='rgb_array')
+        return state_obs, img_obs
 
-  def reset(self):
-    self.apply_dr()
-    state_obs, img_obs = self.env_reset()
+    def reset(self):
+        self.apply_dr()
+        state_obs, img_obs = self.env_reset()
 
-    obs_dict = {}
+        obs_dict = {}
 
-    if self.use_img:
-      obs_dict['image'] = img_obs
-    if self.use_state:
+        obs_dict['image'] = img_obs
         if self.state_concat:
             obs_dict['state'] = np.concatenate([state_obs, self.get_dr()])
         else:
             obs_dict['state'] = state_obs
 
-    obs_dict['real_world'] = 1.0 if self.real_world else 0.0
-    if not (self.dr is None) and not self.real_world:
-      obs_dict['dr_params'] = self.get_dr()
-    obs_dict['success'] = 0.0
-    obs_dict['sim_params'] = np.array(self.sim_params, dtype=np.float32)
-    obs_dict['distribution_mean'] = np.array(self.distribution_mean, dtype=np.float32)
-    obs_dict['distribution_range'] = np.array(self.distribution_range, dtype=np.float32)
-    return obs_dict
+        obs_dict['real_world'] = 1.0 if self.real_world else 0.0
+        if not (self.dr is None) and not self.real_world:
+            obs_dict['dr_params'] = self.get_dr()
+        obs_dict['success'] = 0.0
+        obs_dict['sim_params'] = np.array(self.sim_params, dtype=np.float32)
+        obs_dict['distribution_mean'] = np.array(self.distribution_mean, dtype=np.float32)
+        obs_dict['distribution_range'] = np.array(self.distribution_range, dtype=np.float32)
+        return obs_dict
 
-  def get_state(self, state_obs):
-    return state_obs
+    def get_state(self, state_obs):
+        return state_obs
 
-  def render(self, size=None, *args, **kwargs):
-    if kwargs.get('mode', 'rgb_array') != 'rgb_array':
-      raise ValueError("Only render mode 'rgb_array' is supported.")
-    kwargs['mode'] = 'rgb_array'
-    height, width = self._size
-    return self._env.render(width=width, height=height, **kwargs)
+    def render(self, size=None, *args, **kwargs):
+        if kwargs.get('mode', 'rgb_array') != 'rgb_array':
+            raise ValueError("Only render mode 'rgb_array' is supported.")
+        kwargs['mode'] = 'rgb_array'
+        height, width = self._size
+        return self._env.render(width=width, height=height, **kwargs)
 
 
 class DR_MetaWorldEnv(DR_Env):  # TODO: consider passing through as kwargs
     def __init__(self, env, cameras, height=64, width=64, mean_only=False, dr_list=[], simple_randomization=False,
-                 dr_shape=None, real_world=False, dr=None, use_state="None", use_img=True, name="task_name",
+                 dr_shape=None, real_world=False, dr=None, state_type="none", name="task_name",
                  grayscale=False, delay_steps=0, range_scale=.1, **kwargs):
-        env = MetaWorldEnv(env, from_pixels=use_img, cameras=cameras, height=height, width=width)
+        env = MetaWorldEnv(env, from_pixels=True, cameras=cameras, height=height, width=width)
         super().__init__(env, cameras,
                          height=height, width=width,
                          mean_only=mean_only,
@@ -212,8 +267,7 @@ class DR_MetaWorldEnv(DR_Env):  # TODO: consider passing through as kwargs
                          dr_shape=dr_shape,
                          real_world=real_world,
                          dr=dr,
-                         use_state=use_state,
-                         use_img=use_img,
+                         state_type=state_type,
                          name=name,
                          grayscale=grayscale,
                          range_scale=range_scale,
@@ -223,13 +277,12 @@ class DR_MetaWorldEnv(DR_Env):  # TODO: consider passing through as kwargs
         obs = super().render(mode, camera_id=camera_id, **kwargs)
         return obs
 
-
     @property
     def observation_space(self):
         spaces = {}
-        if self.use_state is not "None":
-            if self.use_state == 'all':
-                spaces['state'] = self._env.observation_space
+        if self.state_type is not "none":
+            if self.state_type == 'all':
+                spaces['state'] = self._env.observation_space  # TODO: doesn't work!
             else:
                 spaces['state'] = 3
         spaces['state'] = gym.spaces.Discrete(spaces['state'])
@@ -238,12 +291,12 @@ class DR_MetaWorldEnv(DR_Env):  # TODO: consider passing through as kwargs
         return gym.spaces.Dict(spaces)
 
     def get_state(self, state_obs):
-        if self.use_state == 'robot':
+        if self.state_type == 'robot':
             return state_obs[:3]  # Only include robot state (endeffector pos)
-        elif self.use_state == 'all':
+        elif self.state_type == 'all':
             return state_obs
         else:
-            raise NotImplementedError(self.use_state)
+            return np.array([0])
 
     def apply_dr(self):
         self.sim_params = []
@@ -495,10 +548,11 @@ class DR_MetaWorldEnv(DR_Env):  # TODO: consider passing through as kwargs
         arr = arr.astype(np.float32)
         return arr
 
+
 class DR_Kitchen(DR_Env):
     def __init__(self, env, cameras, height=100, width=100, mean_only=False, dr_list=[], simple_randomization=False,
-                 dr_shape=None, real_world=False, dr=None, use_state="None", use_img=True, name="task_name",
-                 grayscale=False, domain_name="", range_scale=.1, **kwargs):
+                 dr_shape=None, real_world=False, dr=None, state_type="none", name="task_name",
+                 grayscale=False, range_scale=.1, **kwargs):
         super().__init__(env, cameras,
                          height=height, width=width,
                          mean_only=mean_only,
@@ -507,8 +561,7 @@ class DR_Kitchen(DR_Env):
                          dr_shape=dr_shape,
                          real_world=real_world,
                          dr=dr,
-                         use_state=use_state,
-                         use_img=use_img,
+                         state_type=state_type,
                          name=name,
                          grayscale=grayscale,
                          range_scale=range_scale,
@@ -530,10 +583,10 @@ class DR_Kitchen(DR_Env):
     def observation_space(self):
         spaces = {}
 
-        if self.use_state is not "None":
+        if self.state_type is not "none":
             state_shape = 4 if self.use_gripper else 3  # 2 for fingers, 3 for end effector position
             state_shape = self.goal.shape[0] + state_shape
-            if self.use_state == 'all':
+            if self.state_type == 'all':
                 state_shape += 3
             spaces['state'] = gym.spaces.Box(np.array([-float('inf')] * state_shape),
                                              np.array([-float('inf')] * state_shape))
@@ -543,7 +596,6 @@ class DR_Kitchen(DR_Env):
         spaces['image'] = gym.spaces.Box(
             0, 255, self._size + (3,), dtype=np.uint8)
         return gym.spaces.Dict(spaces)
-
 
     def apply_dr(self):
         self.sim_params = []
@@ -591,21 +643,21 @@ class DR_Kitchen(DR_Env):
                 'cylinder_b': (model.geom_rgba[:, 2], cylinder_viz),
                 'cylinder_mass': (model.body_mass[cylinder_body:cylinder_body + 1], None),
 
-                'box1_r': (model.geom_rgba[:, 0], box_viz_1),
-                'box1_g': (model.geom_rgba[:, 1], box_viz_1),
-                'box1_b': (model.geom_rgba[:, 2], box_viz_1),
-                'box2_r': (model.geom_rgba[:, 0], box_viz_2),
-                'box2_g': (model.geom_rgba[:, 1], box_viz_2),
-                'box2_b': (model.geom_rgba[:, 2], box_viz_2),
-                'box3_r': (model.geom_rgba[:, 0], box_viz_3),
-                'box3_g': (model.geom_rgba[:, 1], box_viz_3),
-                'box3_b': (model.geom_rgba[:, 2], box_viz_3),
-                'box4_r': (model.geom_rgba[:, 0], box_viz_4),
-                'box4_g': (model.geom_rgba[:, 1], box_viz_4),
-                'box4_b': (model.geom_rgba[:, 2], box_viz_4),
-                'box5_r': (model.geom_rgba[:, 0], box_viz_5),
-                'box5_g': (model.geom_rgba[:, 1], box_viz_5),
-                'box5_b': (model.geom_rgba[:, 2], box_viz_5),
+                'box1_r': (model.geom_rgba[:, 0], [box_viz_1, box_viz_2, box_viz_3, box_viz_4, box_viz_5]),
+                'box1_g': (model.geom_rgba[:, 1],  [box_viz_1, box_viz_2, box_viz_3, box_viz_4, box_viz_5]),
+                'box1_b': (model.geom_rgba[:, 2],  [box_viz_1, box_viz_2, box_viz_3, box_viz_4, box_viz_5]),
+                # 'box2_r': (model.geom_rgba[:, 0], box_viz_2),
+                # 'box2_g': (model.geom_rgba[:, 1], box_viz_2),
+                # 'box2_b': (model.geom_rgba[:, 2], box_viz_2),
+                # 'box3_r': (model.geom_rgba[:, 0], box_viz_3),
+                # 'box3_g': (model.geom_rgba[:, 1], box_viz_3),
+                # 'box3_b': (model.geom_rgba[:, 2], box_viz_3),
+                # 'box4_r': (model.geom_rgba[:, 0], box_viz_4),
+                # 'box4_g': (model.geom_rgba[:, 1], box_viz_4),
+                # 'box4_b': (model.geom_rgba[:, 2], box_viz_4),
+                # 'box5_r': (model.geom_rgba[:, 0], box_viz_5),
+                # 'box5_g': (model.geom_rgba[:, 1], box_viz_5),
+                # 'box5_b': (model.geom_rgba[:, 2], box_viz_5),
                 # 'box6_r': (model.geom_rgba[:, 0], box_viz_6),
                 # 'box6_g': (model.geom_rgba[:, 1], box_viz_6),
                 # 'box6_b': (model.geom_rgba[:, 2], box_viz_6),
@@ -751,18 +803,18 @@ class DR_Kitchen(DR_Env):
                 'box1_r': model.geom_rgba[box_viz_1, 0],
                 'box1_g': model.geom_rgba[box_viz_1, 1],
                 'box1_b': model.geom_rgba[box_viz_1, 2],
-                'box2_r': model.geom_rgba[box_viz_2, 0],
-                'box2_g': model.geom_rgba[box_viz_2, 1],
-                'box2_b': model.geom_rgba[box_viz_2, 2],
-                'box3_r': model.geom_rgba[box_viz_3, 0],
-                'box3_g': model.geom_rgba[box_viz_3, 1],
-                'box3_b': model.geom_rgba[box_viz_3, 2],
-                'box4_r': model.geom_rgba[box_viz_4, 0],
-                'box4_g': model.geom_rgba[box_viz_4, 1],
-                'box4_b': model.geom_rgba[box_viz_4, 2],
-                'box5_r': model.geom_rgba[box_viz_5, 0],
-                'box5_g': model.geom_rgba[box_viz_5, 1],
-                'box5_b': model.geom_rgba[box_viz_5, 2],
+                # 'box2_r': model.geom_rgba[box_viz_2, 0],
+                # 'box2_g': model.geom_rgba[box_viz_2, 1],
+                # 'box2_b': model.geom_rgba[box_viz_2, 2],
+                # 'box3_r': model.geom_rgba[box_viz_3, 0],
+                # 'box3_g': model.geom_rgba[box_viz_3, 1],
+                # 'box3_b': model.geom_rgba[box_viz_3, 2],
+                # 'box4_r': model.geom_rgba[box_viz_4, 0],
+                # 'box4_g': model.geom_rgba[box_viz_4, 1],
+                # 'box4_b': model.geom_rgba[box_viz_4, 2],
+                # 'box5_r': model.geom_rgba[box_viz_5, 0],
+                # 'box5_g': model.geom_rgba[box_viz_5, 1],
+                # 'box5_b': model.geom_rgba[box_viz_5, 2],
                 # 'box6_r': model.geom_rgba[box_viz_6, 0],
                 # 'box6_g': model.geom_rgba[box_viz_6, 1],
                 # 'box6_b': model.geom_rgba[box_viz_6, 2],
@@ -817,7 +869,7 @@ class DR_Kitchen(DR_Env):
                 cabinet_index = model.body_name2id('slidelink')
                 cabinet_viz_indices = [geom_dict[name] for name in geom_dict.keys() if "cabinet_viz" in name][0]
                 cabinet_collision_indices = \
-                [geom_dict[name] for name in geom_dict.keys() if "cabinet_collision" in name][0]
+                    [geom_dict[name] for name in geom_dict.keys() if "cabinet_collision" in name][0]
                 dr_update_dict_k = {
                     'cabinet_r': model.geom_rgba[cabinet_viz_indices, 0],
                     'cabinet_g': model.geom_rgba[cabinet_viz_indices, 1],
@@ -832,7 +884,7 @@ class DR_Kitchen(DR_Env):
                 microwave_index = model.body_name2id('microdoorroot')
                 microwave_viz_indices = [geom_dict[name] for name in geom_dict.keys() if "microwave_viz" in name][0]
                 microwave_collision_indices = \
-                [geom_dict[name] for name in geom_dict.keys() if "microwave_collision" in name][0]
+                    [geom_dict[name] for name in geom_dict.keys() if "microwave_collision" in name][0]
                 dr_update_dict_k = {
                     'microwave_r': model.geom_rgba[microwave_viz_indices, 0],
                     'microwave_g': model.geom_rgba[microwave_viz_indices, 1],
@@ -866,7 +918,7 @@ class DR_Kitchen(DR_Env):
 
 class DR_DMCEnv(DR_Env):
     def __init__(self, env, cameras, height=64, width=64, mean_only=False, dr_list=[], simple_randomization=False,
-                 dr_shape=None, real_world=False, dr=None, use_state="None", use_img=True, name="task_name",
+                 dr_shape=None, real_world=False, dr=None, state_type="none", name="task_name",
                  grayscale=False, domain_name="", range_scale=.1, real_dr_params=None, **kwargs):
         self.domain_name = domain_name
         super().__init__(env, cameras,
@@ -877,8 +929,7 @@ class DR_DMCEnv(DR_Env):
                          dr_shape=dr_shape,
                          real_world=real_world,
                          dr=dr,
-                         use_state=use_state,
-                         use_img=use_img,
+                         state_type=state_type,
                          name=name,
                          grayscale=grayscale,
                          range_scale=range_scale, **kwargs)
@@ -886,6 +937,20 @@ class DR_DMCEnv(DR_Env):
         if real_dr_params is not None:
             self.real_dr_params = real_dr_params
             self.apply_dr(set_real=True)
+
+    def env_step(self, action):
+        state, reward, done, info = self._env.step(action)
+        if self.state_type is not 'all':
+            state = np.array([0])
+        obs = self.render(mode='rgb_array')
+        return obs, state, reward, done, info
+
+    def env_reset(self):
+        state_obs = self._env.reset()
+        if self.state_type is not 'all':
+            state_obs = np.array([0])
+        img_obs = self.render(mode='rgb_array')
+        return state_obs, img_obs
 
     def render(self, mode, **kwargs):
         obs = super().render(mode, **kwargs)
@@ -1090,20 +1155,25 @@ class DR_DMCEnv(DR_Env):
         arr = arr.astype(np.float32)
         return arr
 
+
 class DR_Dummy(DR_Env):
-    def __init__(self, env, cameras, **kwargs):
-        self.square_size = 4.
-        self.speed_multiplier = 3.
+    def __init__(self, env, cameras, full_screen_square=False, **kwargs):
+        self.square_size = 6.
+        self.speed_multiplier = 5.
         self.square_r = 0.5
         self.square_g = 0.5
         self.square_b = 0.0
+        self.margin = 16  # based on how much we crop the image
         self.reward_range = (-float('inf'), float('inf'))
         self.metadata = {'render.modes': []}
         self.timestep = 1
         self._max_episode_steps = 200
+        self.full_screen_square = full_screen_square
         super().__init__(env, cameras, **kwargs)
 
     def get_state(self):
+        if self.state_type is not 'all':
+            return np.array([0])
         return np.array([self.square_size, self.square_r, self.square_g, self.square_b, self.square_x, self.square_y])
 
     def seed(self, seed=None):
@@ -1113,7 +1183,7 @@ class DR_Dummy(DR_Env):
     def get_dr(self):
         return np.array([self.square_size, self.speed_multiplier, self.square_r, self.square_g, self.square_b])
 
-    def update_dr_param(self, param_name, eps=1e-3):
+    def update_dr_param(self, param_name, min_val=1e-3, max_val=float('inf'), eps=1e-3):
         if self.mean_only:
             mean = self.dr[param_name]
             if self.prop_range_scale:
@@ -1123,7 +1193,8 @@ class DR_Dummy(DR_Env):
         else:
             mean, range = self.dr[param_name]
             range = max(range, eps)
-        new_value = np.random.uniform(low=max(mean - range, eps), high=max(mean + range, 2 * eps))
+        new_value = np.random.uniform(low=np.clip(mean - range, min_val, max_val),
+                                      high=np.clip(mean + range, min_val, max_val))
         self.sim_params += [new_value]
         self.distribution_mean += [mean]
         self.distribution_range += [range]
@@ -1138,18 +1209,22 @@ class DR_Dummy(DR_Env):
             self.distribution_mean = self.get_dr()
             self.distribution_range = np.zeros(self.dr_shape, dtype=np.float32)
             return
-        self.square_size = np.clip(self.update_dr_param('square_size'), 0, 30)
-        self.speed_multiplier = np.clip(self.update_dr_param('speed_multiplier'), 0, float('inf'))
-        self.square_r = np.clip(self.update_dr_param('square_r'), 0, 1)
-        self.square_g = np.clip(self.update_dr_param('square_g'), 0, 1)
-        self.square_b = np.clip(self.update_dr_param('square_b'), 0, 1)
-
+        if 'square_size' in self.dr_list:
+            self.square_size = self.update_dr_param('square_size', 0, 30)
+        if 'speed_multiplier' in self.dr_list:
+            self.speed_multiplier = self.update_dr_param('speed_multiplier', 0, 20)
+        if 'square_r' in self.dr_list:
+            self.square_r = self.update_dr_param('square_r', 0, 1)
+        if 'square_g' in self.dr_list:
+            self.square_g = self.update_dr_param('square_g', 0, 1)
+        if 'square_b' in self.dr_list:
+            self.square_b = self.update_dr_param('square_b', 0, 1)
 
     @property
     def observation_space(self):
         spaces = {}
         spaces['image'] = gym.spaces.Box(
-            0, 255,  (3,) + self._size, dtype=np.uint8)
+            0, 255, (3,) + self._size, dtype=np.uint8)
         return gym.spaces.Dict(spaces)
 
     @property
@@ -1161,10 +1236,10 @@ class DR_Dummy(DR_Env):
         y_update = action[0] * self.speed_multiplier
         self.square_x += x_update
         self.square_y += y_update
-        self.square_x = max(self.square_x, 0)
-        self.square_y = max(self.square_y, 0)
-        self.square_x = min(self.square_x, 63)
-        self.square_y = min(self.square_y, 63)
+        self.square_x = max(self.square_x, 0 + self.margin)
+        self.square_y = max(self.square_y, 0 + self.margin)
+        self.square_x = min(self.square_x, 100 - self.margin)
+        self.square_y = min(self.square_y, 100 - self.margin)
         obs = self.render()
         reward = - (np.abs(self.square_x) + np.abs(self.square_y))
         done = self.timestep >= self._max_episode_steps
@@ -1174,9 +1249,9 @@ class DR_Dummy(DR_Env):
         return obs, state, reward, done, info
 
     def env_reset(self):
-        self.square_x = np.random.uniform(low=10., high=50.)
-        self.square_y = np.random.uniform(low=10., high=50.)
-        obs =  self.render()
+        self.square_x = np.random.uniform(low=20., high=80.)
+        self.square_y = np.random.uniform(low=20., high=80.)
+        obs = self.render()
         state = self.get_state()
         self.timestep = 1
         return state, obs
@@ -1184,44 +1259,48 @@ class DR_Dummy(DR_Env):
     def render(self, mode='rgb_array', size=None, *args, **kwargs):
         if size is None:
             size = self._size
-        rgb_array = np.zeros((64, 64, 3))
+        rgb_array = np.zeros((100, 100, 3))
         x_start = max(0, int(np.floor(self.square_x - self.square_size)))
         y_start = max(0, int(np.floor(self.square_y - self.square_size)))
-        x_end = min(63, int(np.floor(self.square_x + self.square_size)))
-        y_end = min(63, int(np.floor(self.square_y + self.square_size)))
-        rgb_array[y_start:y_end, x_start:x_end] = np.clip(np.array([self.square_r, self.square_g, self.square_b]), 0, 1)
-        if size is not None:
+        x_end = min(100, int(np.floor(self.square_x + self.square_size)))
+        y_end = min(100, int(np.floor(self.square_y + self.square_size)))
+        if self.full_screen_square:
+            rgb_array[:] = np.clip(np.array([self.square_r, self.square_g, self.square_b]), 0, 1)
+        else:
+            rgb_array[y_start:y_end, x_start:x_end] = np.clip(np.array([self.square_r, self.square_g, self.square_b]),
+                                                              0, 1)
+        if not size == (100, 100):
             rgb_array = cv2.resize(rgb_array, size)
         rgb_array = (rgb_array * 255).astype(np.uint8)
         return np.transpose(rgb_array, (2, 0, 1))
 
 
-def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range(1),
-         visualize_reward=False, frame_skip=None, mean_only=False,  dr_list=[], simple_randomization=False, dr_shape=None,
-               real_world=False, dr=None, use_state="None", use_img=True,
-                grayscale=False, delay_steps=0, range_scale=.1, prop_range_scale=False, state_concat=False,
-         real_dr_params=None, prop_initial_range=False, time_limit=200):
+def make(domain_name, task_name, seed, height, width, cameras=range(1),
+         frame_skip=None, mean_only=False, dr_list=[], simple_randomization=False,
+         dr_shape=None, real_world=False, dr=None, state_type="none",
+         grayscale=False, delay_steps=0, range_scale=.1, prop_range_scale=False, state_concat=False,
+         real_dr_params=None, prop_initial_range=False, time_limit=200, full_screen_square=False):
     # DMC
     if 'dmc' in domain_name:
         domain_name_root = domain_name[4:]  # Task name is formatted as dmc_walker.  Now just walker
         import dmc2gym
-        # env = suite.load(domain_name_root, task_name, task_kwargs={'random': seed})
         env = dmc2gym.make(
             domain_name=domain_name_root,
             task_name=task_name,
             seed=seed,
-            visualize_reward=visualize_reward,
+            visualize_reward=False,
             from_pixels=False,
             height=height,
             width=width,
             frame_skip=frame_skip
         )
         env = DR_DMCEnv(env, cameras=cameras, height=height, width=width, mean_only=mean_only,
-                              dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape,
-                              name=task_name, domain_name=domain_name_root,
-                              real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
-                              range_scale=range_scale, prop_range_scale=prop_range_scale, state_concat=state_concat,
-                              real_dr_params=real_dr_params, prop_initial_range=prop_initial_range)  # TODO: apply these to all envs
+                        dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape,
+                        name=task_name, domain_name=domain_name_root,
+                        real_world=real_world, dr=dr, state_type=state_type, grayscale=grayscale,
+                        range_scale=range_scale, prop_range_scale=prop_range_scale, state_concat=state_concat,
+                        real_dr_params=real_dr_params,
+                        prop_initial_range=prop_initial_range)  # TODO: apply these to all envs
         return env
     elif 'metaworld' in domain_name:
         if task_name + '-v1' in ed.ALL_V1_ENVIRONMENTS.keys():
@@ -1237,9 +1316,10 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
         env.set_task(task)
         env.seed(seed)
         env = DR_MetaWorldEnv(env, cameras=cameras, height=height, width=width, mean_only=mean_only,
-                   dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape, name=task_name,
-                   real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
-                   range_scale=range_scale, prop_initial_range=prop_initial_range)
+                              dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape,
+                              name=task_name,
+                              real_world=real_world, dr=dr, state_type=state_type, grayscale=grayscale,
+                              range_scale=range_scale, prop_initial_range=prop_initial_range)
         return env
     elif 'kitchen' in domain_name:
         if real_world:
@@ -1267,14 +1347,16 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
                        dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape, name=task_name,
                        real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
                        range_scale=range_scale, prop_initial_range=prop_initial_range)
+
         return env
     elif 'dummy' in domain_name:
         inner_env = None
         env = DR_Dummy(inner_env, cameras=cameras, height=height, width=width, mean_only=mean_only,
-                        dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape,
-                        name=task_name,
-                        real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
-                        range_scale=range_scale, prop_range_scale=prop_range_scale, state_concat=state_concat,)
+                       dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape,
+                       name=task_name,
+                       real_world=real_world, dr=dr, state_type=state_type, grayscale=grayscale,
+                       range_scale=range_scale, prop_range_scale=prop_range_scale, state_concat=state_concat,
+                       full_screen_square=full_screen_square)
         return env
     else:
         raise KeyError("Domain name not found. " + str(domain_name))
@@ -1316,6 +1398,8 @@ def generate_shell_commands(domain_name, task_name, cameras, observation_type, e
 
 
 from abc import ABC
+
+
 class EnvWrapper(gym.Env, ABC):
     def __init__(self, env, cameras, from_pixels=True, height=100, width=100, channels_first=True):
         camera_0 = {'trackbodyid': -1, 'distance': 1.5, 'lookat': np.array((0.0, 0.6, 0)),
