@@ -262,7 +262,7 @@ def predict_sim_params(sim_param_model, traj, current_sim_params, args, step=10,
     windows = []
     index = 0
     while index < len(traj) - segment_length * args.frame_skip:
-        windows.append(traj[index: index + segment_length * args.frame_skip: args.frame_skip])
+        windows.append(traj[index: index + segment_length * args.frame_skip])
         index += step
     if args.single_window:
         windows = [windows[0]]
