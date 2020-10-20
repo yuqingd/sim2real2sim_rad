@@ -101,15 +101,15 @@ def config_dr_dmc(config):
         if dr_option == 'all_dr':
             config.real_dr_list = list(real_dr_values.keys())
         elif dr_option == 'nonconflicting_dr':
+            # config.real_dr_list = [
+            #     "right_hip", "right_knee", "right_ankle", "left_hip", "left_knee", "left_ankle", "ground_r", "ground_g",
+            #     "ground_b", "body_r", "body_g", "body_b"
+            # ]
             config.real_dr_list = [
-                "right_hip", "right_knee", "right_ankle", "left_hip", "left_knee", "left_ankle", "ground_r", "ground_g",
+                "torso_mass", "right_thigh_mass", "right_leg_mass", "right_foot_mass", "left_thigh_mass", "left_leg_mass", "left_foot_mass",
                 "ground_b", "body_r", "body_g", "body_b"
             ]
         elif dr_option == 'visual_dr':
-            config.real_dr_list = [
-                "ground_r", "ground_g", "ground_b", "body_r", "body_g", "body_b"
-            ]
-        elif dr_option == 'mixed_visual_dr':
             config.real_dr_list = [
                 "ground_r", "ground_g", "ground_b", "body_r", "body_g", "body_b"
             ]
@@ -208,9 +208,6 @@ def config_dr_dmc(config):
         else:
             config.dr[key] = (real_val * cur_scale, real_val * range_scale)
     np.random.set_state(rng_state)
-    if dr_option == 'mixed_visual_dr':
-        config.dr['ground_g'] = config.real_dr_params['ground_g'] * 2.0
-        config.dr['body_r'] = config.real_dr_params['body_r'] * 2.0
     config.sim_params_size = len(config.real_dr_list)
     return config
 
