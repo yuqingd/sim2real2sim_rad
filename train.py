@@ -365,7 +365,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
         real_sim_params = real_env.reset()['sim_params']
         for i in range(num_episodes):
             obs_dict = real_env.reset()
-            video_real.init(enabled=(i == 0))
+            video_real.init()
             done = False
             episode_reward = 0
             obs_traj = []
@@ -388,7 +388,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
                 video_real.record(real_env)
                 episode_reward += reward
 
-            video_real.save('real_%d.mp4' % step)
+            video_real.save('real_s{}_{}.mp4'.format(step, i))
             L.log('eval/' + prefix + 'episode_reward', episode_reward, step)
             if 'success' in obs_dict.keys():
                 L.log('eval/' + prefix + 'episode_success', obs_dict['success'], step)

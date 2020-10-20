@@ -12,11 +12,15 @@ import re
 
 args = parse_args()
 
+from mujoco_py import GlfwContext
+import mujoco_py
+
+GlfwContext(offscreen=True)
+os.environ['MUJOCO_GL'] = 'glfw'
+
 env = make('kitchen', real_world=True,
         task_name='rope',
         seed=args.seed,
-        visualize_reward=False,
-        from_pixels=True,
         height=args.pre_transform_image_size,
         width=args.pre_transform_image_size,
         frame_skip=1,
@@ -25,8 +29,8 @@ env = make('kitchen', real_world=True,
         simple_randomization=args.dr_option == 'simple',
         dr_shape=args.sim_params_size,
         dr=args.dr,
-        use_state=args.use_state,
-        use_img=args.use_img,
+        state_type=args.state_type,
+        time_limit=args.time_limit,
         grayscale=args.grayscale,
         delay_steps=args.delay_steps,
         range_scale=args.range_scale,
@@ -46,18 +50,21 @@ cpf = 3 * len(args.cameras)
 obs_shape = (cpf * args.frame_stack, image_size, image_size)
 action_shape = env.action_space.shape
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+state_shape = env.reset()['state'].shape[0]
+
 
 agent = make_agent(
     obs_shape=obs_shape,
     action_shape=action_shape,
     args=args,
-    device=device
+    device=device,
+    state_shape=state_shape
 )
-load_dir = './logdir/S0804_kitchen-rope-im84-b128-s2-curl_sac-pixel-crop'
+load_dir = './logdir/S01001_kitchen-rope-im84-b128-s0-curl_sac-pixel-crop'
 real_video_dir = utils.make_dir(os.path.join(load_dir, 'real_robot_video'))
 video = VideoRecorder(real_video_dir, camera_id=0)
 
-agent_checkpoint = -1
+agent_checkpoint = 60000
 model_dir = utils.make_dir(os.path.join(load_dir, 'model'))
 if os.path.exists(os.path.join(load_dir, 'model')):
     print("Loading checkpoint...")
@@ -87,11 +94,13 @@ def run_eval_loop(sample_stochastically=True):
         obs_traj = []
         while not done and len(obs_traj) < time_limit:
             obs = obs_dict['image']
+            obs_state = np.zeros(3,)#obs_dict['state']
             # center crop image
             obs = utils.center_crop_image(obs, image_size)
 
             with utils.eval_mode(agent):
-                action = agent.sample_action(obs)
+                action = agent.sample_action(obs, obs_state)
+                print(action)
             obs_traj.append(obs)
             obs_dict, reward, done, _ = env.step(action)
             video.record(env)

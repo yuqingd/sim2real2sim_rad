@@ -451,8 +451,9 @@ class Kitchen:
 
   def step(self, action):
     output = self.single_step(action)
-    for _ in range(self.delay_steps):
-      output = self.single_step(np.zeros(3, ))
+    if not self.real_world:
+      for _ in range(self.delay_steps):
+        output = self.single_step(np.zeros(3, ))
     return output
 
   def single_step(self, action):

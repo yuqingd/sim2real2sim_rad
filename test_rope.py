@@ -14,23 +14,23 @@ os.environ['MUJOCO_GL'] = 'glfw'
 env_real = make('kitchen', real_world=True,
         task_name='rope',
         seed=0,
-        from_pixels=True,
         height=84,
         width=84,
+        state_type="robot"
     )
 
 env_sim = make('kitchen', real_world=False,
         task_name='rope',
         seed=0,
-        from_pixels=True,
         height=84,
-        width=84
+        width=84,
+        state_type="robot"
     )
 env_real.reset()
 env_sim.reset()
 
 num_episodes = 1
-time_limit = 1
+time_limit = 60
 image_size = 84
 real_video_dir = utils.make_dir(os.path.join('./logdir', 'debug_video'))
 

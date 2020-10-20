@@ -13,7 +13,8 @@ import cv2
 
 class DR_Env:
     def __init__(self, env, cameras, height=64, width=64, mean_only=False, dr_list=[], simple_randomization=False,
-                 dr_shape=None, real_world=False, dr=None, state_type="none", name="task_name",
+                 dr_shape=None,
+                 real_world=False, dr=None, state_type="none", name="task_name",
                  grayscale=False, dataset_step=None, range_scale=.1, prop_range_scale=False, state_concat=False,
                  prop_initial_range=False):
 
@@ -120,6 +121,11 @@ class DR_Env:
         return self._env.action_space
 
     def env_step(self, action):
+        if self.real_world:
+            x = action[1]
+            action[1] = -action[0]
+            action[0] = x
+
         obs, reward, done, info = self._env.step(action)
         if self.real_world:
             state = info["arm"]["position"][:3]
@@ -137,13 +143,11 @@ class DR_Env:
         obs, state, reward, done, info = self.env_step(action)
         obs_dict = {}
 
-        if self.use_img:
-            obs_dict['image'] = obs
-        if self.use_state:
-            if self.state_concat:
-                obs_dict['state'] = np.concatenate([state, self.get_dr()])
-            else:
-                obs_dict['state'] = state
+        obs_dict['image'] = obs
+        if self.state_concat:
+            obs_dict['state'] = np.concatenate([state, self.get_dr()])
+        else:
+            obs_dict['state'] = state
         obs_dict['real_world'] = 1.0 if self.real_world else 0.0
         obs_dict['sim_params'] = np.array(self.sim_params, dtype=np.float32)
         if not (self.dr is None) and not self.real_world:
@@ -159,7 +163,11 @@ class DR_Env:
         return np.array([], dtype=np.float32)
 
     def env_reset(self):
-        state_obs = self._env.reset()
+        if self.real_world:
+            img_obs = self._env.reset()
+            state_obs = np.asarray(self._env._env.pos[:3])
+        else:
+            state_obs = self._env.reset()
         if self.state_type == 'none':
             state_obs = np.array([0])
         img_obs = self.render(mode='rgb_array')
@@ -1218,11 +1226,11 @@ class DR_Dummy(DR_Env):
         return np.transpose(rgb_array, (2, 0, 1))
 
 
-def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range(1),
-         visualize_reward=False, frame_skip=None, mean_only=False,  dr_list=[], simple_randomization=False, dr_shape=None,
-               real_world=False, dr=None, use_state="None", use_img=True,
-                grayscale=False, delay_steps=0, range_scale=.1, prop_range_scale=False, state_concat=False,
-         real_dr_params=None, prop_initial_range=False, time_limit=200):
+def make(domain_name, task_name, seed, height, width, cameras=range(1),
+         frame_skip=None, mean_only=False, dr_list=[], simple_randomization=False,
+         dr_shape=None, real_world=False, dr=None, state_type="none",
+         grayscale=False, delay_steps=0, range_scale=.1, prop_range_scale=False, state_concat=False,
+         real_dr_params=None, prop_initial_range=False, time_limit=200, full_screen_square=False):
     # DMC
     if 'dmc' in domain_name:
         domain_name_root = domain_name[4:]  # Task name is formatted as dmc_walker.  Now just walker
@@ -1238,11 +1246,12 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
             frame_skip=frame_skip
         )
         env = DR_DMCEnv(env, cameras=cameras, height=height, width=width, mean_only=mean_only,
-                              dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape,
-                              name=task_name, domain_name=domain_name_root,
-                              real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
-                              range_scale=range_scale, prop_range_scale=prop_range_scale, state_concat=state_concat,
-                              real_dr_params=real_dr_params, prop_initial_range=prop_initial_range)  # TODO: apply these to all envs
+                        dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape,
+                        name=task_name, domain_name=domain_name_root,
+                        real_world=real_world, dr=dr, state_type=state_type, grayscale=grayscale,
+                        range_scale=range_scale, prop_range_scale=prop_range_scale, state_concat=state_concat,
+                        real_dr_params=real_dr_params,
+                        prop_initial_range=prop_initial_range)  # TODO: apply these to all envs
         return env
     elif 'metaworld' in domain_name:
         if task_name + '-v1' in ed.ALL_V1_ENVIRONMENTS.keys():
@@ -1258,20 +1267,21 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
         env.set_task(task)
         env.seed(seed)
         env = DR_MetaWorldEnv(env, cameras=cameras, height=height, width=width, mean_only=mean_only,
-                   dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape, name=task_name,
-                   real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
-                   range_scale=range_scale, prop_initial_range=prop_initial_range)
+                              dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape,
+                              name=task_name,
+                              real_world=real_world, dr=dr, state_type=state_type, grayscale=grayscale,
+                              range_scale=range_scale, prop_initial_range=prop_initial_range)
         return env
     elif 'kitchen' in domain_name:
         if real_world:
             import gym_xarm
             env = gym.make('RealArmRope-v0', num_cameras=1)
-            env = RealEnvWrapper(env, from_pixels=use_img, cameras=[0], height=height, width=width)
-            env = DR_Env(env, use_state=use_state, cameras=cameras, height=height, width=width, real_world=True, dr_shape=dr_shape)
+            env = RealEnvWrapper(env, from_pixels=True, cameras=[0], height=height, width=width)
+            env = DR_Env(env, state_type=state_type, cameras=cameras, height=height, width=width, real_world=True, dr_shape=dr_shape)
         else:
             env = Kitchen(dr=dr, mean_only=mean_only,
                           early_termination=False,
-                          use_state=use_state,
+                          state_type=state_type,
                           real_world=real_world,
                           dr_list=dr_list,
                           task=task_name,
@@ -1285,18 +1295,19 @@ def make(domain_name, task_name, seed, from_pixels, height, width, cameras=range
                           time_limit=time_limit,
                           delay_steps=delay_steps)
             env = DR_Kitchen(env, cameras=cameras, height=height, width=width, mean_only=mean_only,
-                       dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape, name=task_name,
-                       real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
-                       range_scale=range_scale, prop_initial_range=prop_initial_range)
-
+                             dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape,
+                             name=task_name,
+                             real_world=real_world, dr=dr, state_type=state_type, grayscale=grayscale,
+                             range_scale=range_scale, prop_initial_range=prop_initial_range)
         return env
     elif 'dummy' in domain_name:
         inner_env = None
         env = DR_Dummy(inner_env, cameras=cameras, height=height, width=width, mean_only=mean_only,
-                        dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape,
-                        name=task_name,
-                        real_world=real_world, dr=dr, use_state=use_state, use_img=use_img, grayscale=grayscale,
-                        range_scale=range_scale, prop_range_scale=prop_range_scale, state_concat=state_concat,)
+                       dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape,
+                       name=task_name,
+                       real_world=real_world, dr=dr, state_type=state_type, grayscale=grayscale,
+                       range_scale=range_scale, prop_range_scale=prop_range_scale, state_concat=state_concat,
+                       full_screen_square=full_screen_square)
         return env
     else:
         raise KeyError("Domain name not found. " + str(domain_name))
