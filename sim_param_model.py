@@ -158,18 +158,10 @@ class SimParamModel(nn.Module):
                 if len(traj) <= self.num_frames * self.frame_skip:
                     continue
                 index = np.random.choice(len(traj) - self.num_frames * self.frame_skip + 1)
-
             if len(traj) != self.num_frames:
-<<<<<<< Updated upstream
                 traj = traj[index: index + self.num_frames * self.frame_skip]
-            obs_traj, action_traj = zip(*traj)
-            if len(traj) != self.num_frames:
-                obs_traj = obs_traj[:: self.frame_skip]
-=======
-                traj = traj[index: index + self.num_frames * self.frame_skip: self.frame_skip]
             obs_traj, state_traj, action_traj = zip(*traj)
             full_state_traj.append(torch.cat(state_traj))
->>>>>>> Stashed changes
             full_action_traj.append(torch.cat(action_traj))
             # If we're using images, only use the first of the stacked frames
             if self.use_img and not self.share_encoder:
