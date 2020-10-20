@@ -121,11 +121,15 @@ class DR_Env:
 
     def env_step(self, action):
         obs, reward, done, info = self._env.step(action)
-        if len(obs.shape) == 3:
-            state = np.array([0])
+        if self.real_world:
+            state = info["arm"]["position"][:3]
+            obs = obs
         else:
-            state = obs
-            obs = self.render(mode='rgb_array')
+            if len(obs.shape) == 3:
+                state = np.array([0])
+            else:
+                state = obs
+                obs = self.render(mode='rgb_array')
         return obs, state, reward, done, info
 
     def step(self, action):
