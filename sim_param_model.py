@@ -57,9 +57,9 @@ class SimParamModel(nn.Module):
                 encoder_dims = encoder_feature_dim * num_frames
             else:
                 encoder_dims = encoder_feature_dim
-            trunk_input_dim = encoder_dims + additional + action_space_dim * num_frames
+            trunk_input_dim = encoder_dims + additional + action_space_dim * num_frames * frame_skip
         else:
-            trunk_input_dim = state_dim[-1] * self.num_frames + additional + action_space_dim * num_frames
+            trunk_input_dim = state_dim[-1] * self.num_frames + additional + action_space_dim * num_frames * frame_skip
 
         # If each sim param has its own trunk, create a separate trunk for each
         num_sim_params = shape
@@ -160,13 +160,15 @@ class SimParamModel(nn.Module):
             if self.single_window or len(traj) == self.num_frames:
                 index = 0
             else:
-                if len(traj) < self.num_frames * self.frame_skip + 1:
+                if len(traj) <= self.num_frames * self.frame_skip:
                     continue
                 index = np.random.choice(len(traj) - self.num_frames * self.frame_skip + 1)
 
             if len(traj) != self.num_frames:
-                traj = traj[index: index + self.num_frames * self.frame_skip: self.frame_skip]
+                traj = traj[index: index + self.num_frames * self.frame_skip]
             obs_traj, action_traj = zip(*traj)
+            if len(traj) != self.num_frames:
+                obs_traj = obs_traj[:: self.frame_skip]
             full_action_traj.append(torch.cat(action_traj))
             # If we're using images, only use the first of the stacked frames
             if self.use_img and not self.share_encoder:

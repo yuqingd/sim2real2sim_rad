@@ -50,7 +50,7 @@ class KitchenV0(robot_env.RobotEnv):
     N_DOF_ROBOT = 13
     N_DOF_OBJECT = 21
 
-    def __init__(self, robot_params={}, frame_skip=1, distance=2.5, azimuth=60, elevation=-30,
+    def __init__(self, robot_params={}, frame_skip=1, distance=2.5, azimuth=60, elevation=-30, lookat=None,
                  task_type='reach_microwave', init_range=.2, minimal=False):
         self.goal_concat = True
         self.obs_dict = {}
@@ -75,6 +75,11 @@ class KitchenV0(robot_env.RobotEnv):
                 **robot_params),
             frame_skip=frame_skip,
             camera_settings=dict(
+                distance=distance,
+                azimuth=azimuth,
+                elevation=elevation,
+                lookat=lookat
+            ) if lookat is not None else dict(
                 distance=distance,
                 azimuth=azimuth,
                 elevation=elevation,
@@ -189,10 +194,10 @@ class KitchenV0(robot_env.RobotEnv):
 class KitchenTaskRelaxV1(KitchenV0):
     """Kitchen environment with proper camera and goal setup"""
 
-    def __init__(self, task_type='reach_microwave', distance=2.5, azimuth=60, elevation=-30, minimal=False):
+    def __init__(self, task_type='reach_microwave', distance=2.5, azimuth=60, elevation=-30, lookat=None, minimal=False):
         self.task_type = task_type
         super(KitchenTaskRelaxV1, self).__init__(distance=distance, azimuth=azimuth, elevation=elevation,
-                                                 task_type=task_type, minimal=minimal)
+                                                 task_type=task_type, minimal=minimal, lookat=lookat)
 
 
     def _get_reward_n_score(self, obs_dict):

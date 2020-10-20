@@ -24,7 +24,7 @@ env = make('kitchen', real_world=False,
 env.reset()
 env.apply_dr()
 num_episodes = 1
-time_limit = 60
+time_limit = 1
 image_size = 84
 real_video_dir = utils.make_dir(os.path.join('./logdir', 'debug_video'))
 
