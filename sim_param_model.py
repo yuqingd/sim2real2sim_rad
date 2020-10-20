@@ -17,7 +17,7 @@ class SimParamModel(nn.Module):
                  dist='normal', act=nn.ELU, batch_size=32, traj_length=200, num_frames=10,
                  embedding_multires=10, use_img=True, state_dim=0, separate_trunks=False, param_names=[],
                  train_range_scale=1, prop_train_range_scale=False, clip_positive=False, dropout=0.5,
-                 initial_range=None):
+                 initial_range=None, single_window=False):
         super(SimParamModel, self).__init__()
         self._shape = shape
         self._layers = layers
@@ -41,6 +41,7 @@ class SimParamModel(nn.Module):
         self.prop_train_range_scale = prop_train_range_scale
         self.clip_positive = clip_positive
         self.initial_range = initial_range
+        self.single_window = single_window
         action_space_dim = np.prod(action_space.shape)
 
         if self.use_img:
@@ -80,10 +81,9 @@ class SimParamModel(nn.Module):
             obs_shape = (3 * self.num_frames, h, w)
             self.encoder = make_encoder(
                 encoder_type, obs_shape, encoder_feature_dim, encoder_num_layers,
-                encoder_num_filters, output_logits=True
+                encoder_num_filters, output_logits=True, use_layer_norm=False
             )
 
-        self.apply(weight_init)
 
         parameters = list(self.trunk.parameters())
         if self.use_img:
@@ -95,26 +95,27 @@ class SimParamModel(nn.Module):
     def get_features(self, obs_traj):
         # detach_encoder allows to stop gradient propagation to encoder
 
-        with torch.no_grad():
-            if self.use_img:
-                if type(obs_traj[0][0]) is np.ndarray:
-                    input = torch.FloatTensor(obs_traj).to(self.device)
-                    B, num_frames, C, H, W = input.shape
-                    input = input.view(B, num_frames * C, H, W)
-                elif type(obs_traj[0][0]) is torch.Tensor:
-                    input = torch.stack([torch.cat([o for o in traj], dim=0) for traj in obs_traj], dim=0)
-                else:
-                    raise NotImplementedError(type(obs_traj[0][0]))
-
-                features = self.encoder(input, detach=True)
-                features = features / torch.norm(features)
+        if self.use_img:
+            if type(obs_traj[0][0]) is np.ndarray:
+                input = torch.FloatTensor(obs_traj).to(self.device)
+                B, num_frames, C, H, W = input.shape
+                input = input.view(B, num_frames * C, H, W)
+            elif type(obs_traj[0][0]) is torch.Tensor:
+                input = torch.stack([torch.cat([o for o in traj], dim=0) for traj in obs_traj], dim=0)
             else:
-                if type(obs_traj[0][0]) is torch.Tensor:
-                    features = torch.stack([torch.cat([o for o in traj], dim=0) for traj in obs_traj], dim=0)
-                elif type(obs_traj[0][0]) is np.ndarray:
-                    features = torch.FloatTensor([np.concatenate([o for o in traj], axis=0) for traj in obs_traj]).to(self.device)
-                else:
-                    raise NotImplementedError(type(obs_traj[0][0]))
+                raise NotImplementedError(type(obs_traj[0][0]))
+
+            if torch.max(input).item() > 1:
+                input = input / 255
+            features = self.encoder(input, detach=False)
+            features = features / torch.norm(features)
+        else:
+            if type(obs_traj[0][0]) is torch.Tensor:
+                features = torch.stack([torch.cat([o for o in traj], dim=0) for traj in obs_traj], dim=0)
+            elif type(obs_traj[0][0]) is np.ndarray:
+                features = torch.FloatTensor([np.concatenate([o for o in traj], axis=0) for traj in obs_traj]).to(self.device)
+            else:
+                raise NotImplementedError(type(obs_traj[0][0]))
 
         return features
 
@@ -139,10 +140,13 @@ class SimParamModel(nn.Module):
         full_obs_traj = []
         full_action_traj = []
         for traj in full_traj:
-            index = 0
-            while index < len(traj) - self.num_frames:
-                traj = traj[index: index + self.num_frames]
-                index += step
+            # TODO: previously, we were always taking the first window.  Now, we always take a random one.
+            #   We could consider choosing multiple, or choosing a separate segmentation for each batch element.
+            if self.single_window:
+                index = 0
+            else:
+                index = np.random.choice(len(traj) - self.num_frames + 1)
+            traj = traj[index: index + self.num_frames]
             obs_traj, action_traj = zip(*traj)
             if type(action_traj[0]) is np.ndarray:
                 full_action_traj.append(torch.FloatTensor(np.concatenate(action_traj)).to(self.device))
@@ -191,7 +195,7 @@ class SimParamModel(nn.Module):
         else:
             low_val = sim_params - dist_range
 
-        num_low = np.random.randint(0, self.batch * 4)
+        num_low = np.random.randint(0, self.batch * 4)  # TODO: figure out why x4
         low = torch.FloatTensor(
             np.random.uniform(size=(num_low, len(sim_params)), low=low_val,
                               high=sim_params)).to(self.device)
@@ -233,8 +237,6 @@ class SimParamModel(nn.Module):
         dist_loss_mean = np.mean(full_loss[-1])
         dist_loss_individual = full_loss[-1]
 
-
-
         if should_log:
             L.log('train_sim_params/loss', loss, step)
             L.log('train_sim_params/accuracy', accuracy_mean, step)
@@ -256,7 +258,6 @@ class SimParamModel(nn.Module):
         self.sim_param_optimizer.step()
 
     def update(self, obs_list, sim_params, dist_mean, L, step, should_log, replay_buffer=None):
-        obs_list_og = obs_list
         if replay_buffer is not None:
             if self.encoder_type == 'pixel':
                 obs_list, actions_list, rewards_list, next_obses_list, not_dones_list, cpc_kwargs_list = replay_buffer.sample_cpc_traj(1)

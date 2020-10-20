@@ -16,7 +16,7 @@ OUT_DIM_64 = {2: 29, 4: 25, 6: 21}
 
 class PixelEncoder(nn.Module):
     """Convolutional encoder of pixels observations."""
-    def __init__(self, obs_shape, feature_dim, num_layers=2, num_filters=32, output_logits=False):
+    def __init__(self, obs_shape, feature_dim, num_layers=2, num_filters=32, output_logits=False, use_layer_norm=True):
         super().__init__()
 
         assert len(obs_shape) == 3
@@ -36,6 +36,7 @@ class PixelEncoder(nn.Module):
 
         self.outputs = dict()
         self.output_logits = output_logits
+        self.use_layer_norm = use_layer_norm
 
     def reparameterize(self, mu, logstd):
         std = torch.exp(logstd)
@@ -66,7 +67,10 @@ class PixelEncoder(nn.Module):
         h_fc = self.fc(h)
         self.outputs['fc'] = h_fc
 
-        h_norm = self.ln(h_fc)
+        if self.use_layer_norm:
+            h_norm = self.ln(h_fc)
+        else:
+            h_norm = h_fc
         self.outputs['ln'] = h_norm
 
         if self.output_logits:
@@ -119,9 +123,9 @@ _AVAILABLE_ENCODERS = {'pixel': PixelEncoder, 'identity': IdentityEncoder}
 
 
 def make_encoder(
-    encoder_type, obs_shape, feature_dim, num_layers, num_filters, output_logits=False
+    encoder_type, obs_shape, feature_dim, num_layers, num_filters, output_logits=False, use_layer_norm=True,
 ):
     assert encoder_type in _AVAILABLE_ENCODERS
     return _AVAILABLE_ENCODERS[encoder_type](
-        obs_shape, feature_dim, num_layers, num_filters, output_logits
+        obs_shape, feature_dim, num_layers, num_filters, output_logits, use_layer_norm,
     )

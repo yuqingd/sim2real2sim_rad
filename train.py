@@ -76,7 +76,7 @@ def parse_args():
     parser.add_argument('--save_tb', default=False, action='store_true')
     parser.add_argument('--save_buffer', default=False, action='store_true')
     parser.add_argument('--save_video', default=False, action='store_true')
-    parser.add_argument('--save_model', default=True, action='store_true')
+    parser.add_argument('--save_model', default=False, action='store_true')
     parser.add_argument('--detach_encoder', default=False, action='store_true')
 
     parser.add_argument('--data_augs', default='crop', type=str)
@@ -129,6 +129,7 @@ def parse_args():
     parser.add_argument('--momentum', default=0, type=float)
     parser.add_argument('--round_predictions', default=True,  action='store_true')
     parser.add_argument('--single_window', default=False,  action='store_true')
+    parser.add_argument('--no_train_policy', default=False,  action='store_true')
 
 
     # MISC
@@ -229,10 +230,11 @@ def predict_sim_params(sim_param_model, traj, current_sim_params, args, step=10,
         windows = [windows[0]]
 
     if args.round_predictions:
-        preds = sim_param_model.forward_classifier(windows, current_sim_params).cpu().numpy()
-        mask = (preds > confidence_level) & (preds < 1 - confidence_level)
-        preds = np.round(preds)
-        preds[mask] = 0.5
+        with torch.no_grad():
+            preds = sim_param_model.forward_classifier(windows, current_sim_params).cpu().numpy()
+            mask = (preds > confidence_level) & (preds < 1 - confidence_level)
+            preds = np.round(preds)
+            preds[mask] = 0.5
 
     # Round to the nearest integer so each prediction is voting up or down
     # Alternatively, we could just take a mean of their probabilities
@@ -662,6 +664,7 @@ def main():
             initial_range=initial_range,
             clip_positive=args.clip_positive,
             action_space=sim_env.action_space,
+            single_window=args.single_window,
         ).to(device)
     else:
         sim_param_model = None
@@ -719,16 +722,16 @@ def main():
 
         if done:
             if step > 0:
-                if args.outer_loop_version != 0 and obs_traj is not None:
+                if (step > args.init_steps) and args.outer_loop_version != 0 and obs_traj is not None:
                     should_log = step % args.eval_freq == 0
                     start_sim_model = time.time()
                     for i in range(args.num_sim_param_updates):
                         should_log_i = should_log and i == 0
                         if args.update_sim_param_from in ['latest', 'both']:
-                            sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean,
+                            sim_param_model.update(obs_traj, sim_params, sim_env.distribution_mean,
                                                    L, step, should_log_i)
                         if args.update_sim_param_from in ['buffer', 'both']:
-                            sim_param_model.update(obs_traj, sim_env.sim_params, sim_env.distribution_mean,
+                            sim_param_model.update(obs_traj, sim_params, sim_env.distribution_mean,
                                                    L, step, should_log_i, replay_buffer)
                     train_sim_model_time += time.time() - start_sim_model
 
@@ -758,6 +761,7 @@ def main():
 
             collect_data_start = time.time()
             obs = sim_env.reset()
+            sim_params = obs['sim_params']
             if args.use_img:
                 obs_img = obs['image']
                 if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
@@ -783,7 +787,7 @@ def main():
                 action = agent.sample_action(obs_img)
 
         # run training update
-        if step >= args.init_steps:
+        if (not args.no_train_policy) and step >= args.init_steps:
             num_updates = 1
             for _ in range(num_updates):
                 agent.update(replay_buffer, L, step)

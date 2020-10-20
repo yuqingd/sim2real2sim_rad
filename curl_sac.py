@@ -55,7 +55,7 @@ class Actor(nn.Module):
 
         self.encoder = make_encoder(
             encoder_type, obs_shape, encoder_feature_dim, num_layers,
-            num_filters, output_logits=True
+            num_filters, output_logits=True, use_layer_norm=True,
         )
 
         self.log_std_min = log_std_min
@@ -142,7 +142,7 @@ class Critic(nn.Module):
 
         self.encoder = make_encoder(
             encoder_type, obs_shape, encoder_feature_dim, num_layers,
-            num_filters, output_logits=True
+            num_filters, output_logits=True, use_layer_norm=True,
         )
 
         self.Q1 = QFunction(
