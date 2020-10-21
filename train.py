@@ -717,6 +717,7 @@ def main():
         agent_step = 0
         for checkpoint in agent_checkpoint:
             agent_step = max(agent_step, [int(x) for x in re.findall('\d+', checkpoint)][-1])
+        agent.load(model_dir, agent_step)
         agent.load_curl(model_dir, agent_step)
         start_step = agent_step
         if sim_param_model is not None:
@@ -760,6 +761,7 @@ def main():
                      args.num_eval_episodes, L, step, args)
             eval_time += time.time() - start_eval
             if args.save_model:
+                agent.save(model_dir, step)
                 agent.save_curl(model_dir, step)
                 if sim_param_model is not None:
                     sim_param_model.save(model_dir, step)
