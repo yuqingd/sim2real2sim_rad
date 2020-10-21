@@ -47,11 +47,11 @@ def config_dr_dmc(config):
     dr_option = config.dr_option
     if "ball_in_cup" in config.domain_name:
         real_dr_values = {
-            "cup_mass": .06247,
-            "ball_mass": .06545,
-            "cup_damping": 3.,
-            "ball_damping": 0.,
-            "actuator_gain": 1.,
+            "cup_mass": .06247,  # Significant changes
+            "ball_mass": .06545,  # Significant changes
+            "cup_damping": 3.,  # Significant changes
+            "ball_damping": 0.,  # Negligible changes
+            "actuator_gain": 1.,  # Significant changes
             "cup_r": self_r,
             "cup_g": self_g,
             "cup_b": self_b,
@@ -78,19 +78,19 @@ def config_dr_dmc(config):
             ]
     elif "walker" in config.domain_name:
         real_dr_values = {
-            "torso_mass": 10.3138485,
+            "torso_mass": 10.3138485,  # significant difference
             "right_thigh_mass": 3.9269907,
             "right_leg_mass": 2.7143362,
             "right_foot_mass": 1.9634954,
-            "left_thigh_mass": 3.9269907,
-            "left_leg_mass": 2.7143362,
-            "left_foot_mass": 1.9634954,
+            "left_thigh_mass": 3.9269907,  # negligible difference
+            "left_leg_mass": 2.7143362,  # small difference
+            "left_foot_mass": 1.9634954,  # small difference
             "right_hip": .1,
             "right_knee": .1,
             "right_ankle": .1,
-            "left_hip": .1,
-            "left_knee": .1,
-            "left_ankle": .1,
+            "left_hip": .1,  # negligible difference
+            "left_knee": .1,  # negligible difference
+            "left_ankle": .1,  # negligible difference
             "ground_r": ground_r,
             "ground_g": ground_g,
             "ground_b": ground_b,
@@ -101,13 +101,13 @@ def config_dr_dmc(config):
         if dr_option == 'all_dr':
             config.real_dr_list = list(real_dr_values.keys())
         elif dr_option == 'nonconflicting_dr':
-            # config.real_dr_list = [
-            #     "right_hip", "right_knee", "right_ankle", "left_hip", "left_knee", "left_ankle", "ground_r", "ground_g",
-            #     "ground_b", "body_r", "body_g", "body_b"
-            # ]
             config.real_dr_list = [
-                "torso_mass", "right_thigh_mass", "right_leg_mass", "right_foot_mass", "left_thigh_mass", "left_leg_mass", "left_foot_mass",
-                "ground_b", "body_r", "body_g", "body_b"
+                "torso_mass", "right_thigh_mass", "right_leg_mass", "right_foot_mass", "left_thigh_mass",
+                "left_leg_mass", "left_foot_mass", "ground_r", "ground_g", "ground_b", "body_r", "body_g", "body_b"
+            ]
+        elif dr_option == 'simplified_randomization':
+            config.real_dr_list = [
+                "torso_mass", "left_foot_mass", "ground_r", "ground_g", "ground_b", "body_r", "body_g", "body_b"
             ]
         elif dr_option == 'visual_dr':
             config.real_dr_list = [
@@ -127,12 +127,12 @@ def config_dr_dmc(config):
             ]
     elif "finger" in config.domain_name:
         real_dr_values = {
-            "proximal_mass": .805,
-            "distal_mass": .636,
-            "spinner_mass": 2.32,
-            "proximal_damping": 2.5,
-            "distal_damping": 2.5,
-            "hinge_damping": .5,
+            "proximal_mass": .805,  # no difference whatsoever
+            "distal_mass": .636,  # minor differnce
+            "spinner_mass": 2.32,  # significant difference
+            "proximal_damping": 2.5,  # significant difference
+            "distal_damping": 2.5,  # significant difference
+            "hinge_damping": .5,  # no difference whatsoever
             "ground_r": ground_r,
             "ground_g": ground_g,
             "ground_b": ground_b,
@@ -147,25 +147,24 @@ def config_dr_dmc(config):
             config.real_dr_list = list(real_dr_values.keys())
         elif dr_option == 'nonconflicting_dr':
             config.real_dr_list = [
-                "proximal_mass", "distal_mass", "spinner_mass", "ground_r", "ground_g", "ground_b", "finger_r",
-                "finger_g",
-                "finger_b", "hotdog_r", "hotdog_g", "hotdog_b",
+                "proximal_damping", "distal_damping", "spinner_mass", "ground_r", "ground_g", "ground_b", "finger_r",
+                "finger_g", "finger_b", "hotdog_r", "hotdog_g", "hotdog_b",
             ]
     elif "cheetah" in config.domain_name:
         real_dr_values = {
-            "torso_mass": 6.3603134,
-            "bthigh_mass": 1.535248,
-            "bshin_mass": 1.5809399,
-            "bfoot_mass": 1.0691906,
-            "fthigh_mass": 1.4255874,
-            "fshin_mass": 1.1788511,
-            "ffoot_mass": 0.84986943,
-            "bthigh_damping": 6.,
-            "bshin_damping": 4.5,
-            "bfoot_damping": 3.,
-            "fthigh_damping": 4.5,
-            "fshin_damping": 3.,
-            "ffoot_damping": 1.5,
+            "torso_mass": 6.3603134,  # decent difference
+            "bthigh_mass": 1.535248,  # decent difference
+            "bshin_mass": 1.5809399,  # decent difference
+            "bfoot_mass": 1.0691906,  # decent difference
+            "fthigh_mass": 1.4255874,  # decent difference
+            "fshin_mass": 1.1788511,  # decent difference
+            "ffoot_mass": 0.84986943,  # decent difference
+            "bthigh_damping": 6.,  # minor difference
+            "bshin_damping": 4.5,  # minor difference
+            "bfoot_damping": 3.,  # minor difference
+            "fthigh_damping": 4.5,  # minor difference
+            "fshin_damping": 3.,  # negligible difference
+            "ffoot_damping": 1.5,  # negligible difference
             "ground_r": ground_r,
             "ground_g": ground_g,
             "ground_b": ground_b,
@@ -173,7 +172,13 @@ def config_dr_dmc(config):
             "body_g": self_g,
             "body_b": self_b,
         }
-        config.real_dr_list = list(real_dr_values.keys())
+        if dr_option == 'all_dr':
+            config.real_dr_list = list(real_dr_values.keys())
+        elif dr_option == 'nonconflicting_dr':
+            config.real_dr_list = [
+                "torso_mass", "ffoot_mass", "bfoot_mass", "ground_r", "ground_g", "ground_b", "finger_r",
+                "finger_g", "finger_b", "hotdog_r", "hotdog_g", "hotdog_b",
+            ]
     config.real_dr_params = real_dr_values
 
     if config.simple_randomization:
@@ -203,14 +208,15 @@ def config_dr_dmc(config):
         real_val = config.real_dr_params[key]
         if real_val == 0:
             real_val = 5e-2
+        mean_val = real_val * cur_scale
+        # Clip all visual values except dmc ground, which uses a different color scaling scheme, presumably b/c it's
+        # a pattern not a single color.
+        if key[-2:] in ['_r', '_g', '_b'] and not key in ['ground_r', 'ground_g', 'ground_b']:
+            mean_val = min(real_val * cur_scale, 1.)
         if config.mean_only:
-            config.dr[key] = real_val * cur_scale
+            config.dr[key] = mean_val
         else:
-            if '_r' in key or '_g' in key or '_b' in key:
-                config.dr[key] = (
-                min(real_val * cur_scale, 1.), real_val * range_scale)  # clip to possible colour value
-            else:
-                config.dr[key] = (real_val * cur_scale, real_val * range_scale)
+            config.dr[key] = (mean_val, real_val * range_scale)
     np.random.set_state(rng_state)
     config.sim_params_size = len(config.real_dr_list)
     return config
@@ -325,39 +331,43 @@ def config_dr_kitchen(config):
 
         else:
             config.real_dr_params = {
-                "cabinet_b": 0.5,
-                "cabinet_friction": 1,
-                "cabinet_g": 0.5,
-                "cabinet_mass": 3.4,
-                "cabinet_r": 0.5,
-                "joint1_damping": 10,
-                "joint2_damping": 10,
-                "joint3_damping": 5,
-                "joint4_damping": 5,
-                "joint5_damping": 5,
-                "joint6_damping": 2,
-                "joint7_damping": 2,
-                "kettle_b": 0.5,
-                "kettle_friction": 1.0,
-                "kettle_g": 0.5,
-                "kettle_mass": 1.08,
-                "kettle_r": 0.5,
-                "knob_mass": 0.02,
-                "lighting": 0.3,
-                "microwave_b": 0.5,
-                "microwave_friction": 1,
-                "microwave_g": 0.5,
-                "microwave_mass": .26,
-                "microwave_r": 0.5,
-                "robot_b": 0.92,
-                "robot_g": .99,
-                "robot_r": 0.95,
-                "stove_b": 0.5,
-                "stove_friction": 1.,
-                "stove_g": 0.5,
-                "stove_r": 0.5,
+                "cabinet_b": 0.5,  # OK
+                "cabinet_friction": 1,  # hard 2 tell
+                "cabinet_g": 0.5,  # OK
+                "cabinet_mass": 3.4,  # hard 2 tell
+                "cabinet_r": 0.5,  # OK
+                "joint1_damping": 10,  # negligible
+                "joint2_damping": 10,  # negligible
+                "joint3_damping": 5,  # negligible
+                "joint4_damping": 5,  # negligible
+                "joint5_damping": 5,  # negligible
+                "joint6_damping": 2,  # negligible
+                "joint7_damping": 2,  # negligible
+                "kettle_b": 0.5,  # OK
+                "kettle_friction": 1.0,  # No change
+                "kettle_g": 0.5,  # OK
+                "kettle_mass": 1.08,  # Making mass SMALLEER make a minor difference, making mass bigger does not
+                "kettle_r": 0.5,  # OK
+                "knob_mass": 0.02,  # unlearnable
+                "lighting": 0.3,  # great
+                "microwave_b": 0.5,  # OK
+                "microwave_friction": 1,  # probably unlearnable
+                "microwave_g": 0.5,  # OK
+                "microwave_mass": .26,  # probably unlearnable
+                "microwave_r": 0.5,  # OK
+                "robot_b": 0.92,  # OK
+                "robot_g": .99,  # OK
+                "robot_r": 0.95,  # OK
+                "stove_b": 0.5,  # OK
+                "stove_friction": 1.,  # minor change
+                "stove_g": 0.5,  # OK
+                "stove_r": 0.5,  # OK
             }
-            if dr_option == 'partial_dr':
+            if dr_option == 'test_dr':
+                config.real_dr_list = [
+                    "lighting", "kettle_mass", "kettle_friction", "stove_friction",
+                ]
+            elif dr_option == 'partial_dr':
                 config.real_dr_list = [
                     "cabinet_b", "cabinet_g", "cabinet_mass", "cabinet_r", "joint7_damping", "kettle_b",
                     "kettle_g", "kettle_mass", "kettle_r", "lighting", "microwave_b", "kettle_friction",
@@ -381,7 +391,8 @@ def config_dr_kitchen(config):
             elif dr_option == 'dynamics_nonconflicting_dr':
                 config.real_dr_list = ["cabinet_mass", "joint7_damping", "kettle_mass"]
             elif dr_option == 'nonconflicting_dr':
-                config.real_dr_list = ["cabinet_mass", "joint7_damping", "kettle_mass", "cabinet_b", "cabinet_g",
+                # would be cool if we could get stove_friction in here, but I think it interacts
+                config.real_dr_list = ["cabinet_mass", "kettle_mass", "cabinet_b", "cabinet_g",
                                        "cabinet_r",
                                        "kettle_b", "kettle_g", "kettle_r", "lighting", "microwave_b", "microwave_g",
                                        "microwave_r", "robot_b", "robot_g", "robot_r", "stove_b", "stove_g", "stove_r"]
@@ -519,14 +530,12 @@ def config_dr_metaworld(config):
                 cur_scale = 1/cur_scale
         if real_val == 0:
           real_val = 5e-2
+        if key[-2:] in ['_r', '_g', '_b']:
+            mean_val = min(real_val * cur_scale, 1.)
         if config.mean_only:
-          config.dr[key] = real_val * cur_scale
+            config.dr[key] = mean_val
         else:
-            if '_r' in key or '_g' in key or '_b' in key:
-                config.dr[key] = (min(real_val * cur_scale, 1.), real_val * range_scale)  # clip to possible colour value
-            else:
-                config.dr[key] = (real_val * cur_scale, real_val * range_scale)
-
+            config.dr[key] = (mean_val, real_val * range_scale)
       np.random.set_state(rng_state)
   return config
 
@@ -560,13 +569,12 @@ def config_dummy(config):
 
         if real_val == 0:
             real_val = 5e-2
+        if key[-2:] in ['_r', '_g', '_b']:
+            mean_val = min(real_val * cur_scale, 1.)
         if config.mean_only:
-            config.dr[key] = real_val * cur_scale
+            config.dr[key] = mean_val
         else:
-            if '_r' in key or '_g' in key or '_b' in key:
-                config.dr[key] = (min(real_val * cur_scale, 1.), real_val * range_scale)  # clip to possible colour value
-            else:
-                config.dr[key] = (real_val * cur_scale, real_val * range_scale)
+            config.dr[key] = (mean_val, real_val * range_scale)
 
     config.sim_params_size = len(config.real_dr_list)
     return config
