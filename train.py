@@ -610,19 +610,22 @@ def main():
     args.work_dir = args.work_dir + '/' + args.id + '_' + exp_name
 
     load_model = False
+    load_buffer = False
     if os.path.exists(os.path.join(args.work_dir, 'model')):
         print("Loading checkpoint...")
         load_model = True
         checkpoints = os.listdir(os.path.join(args.work_dir, 'model'))
         buffer = os.listdir(os.path.join(args.work_dir, 'buffer'))
-        if len(checkpoints) == 0 or len(buffer) == 0:
+        if len(buffer) == 0:
+            print("No buffer found")
+            load_buffer = False
+        if len(checkpoints) == 0:
             print("No checkpoints found")
             load_model = False
         else:
             agent_checkpoint = [f for f in checkpoints if 'curl' in f]
             if args.outer_loop_version in [1, 3]:
                 sim_param_checkpoint = [f for f in checkpoints if 'sim_param' in f]
-
     utils.make_dir(args.work_dir)
     sim_video_dir = utils.make_dir(os.path.join(args.work_dir, 'sim_video'))
     real_video_dir = utils.make_dir(os.path.join(args.work_dir, 'real_video'))
@@ -720,6 +723,7 @@ def main():
         agent_step = 0
         for checkpoint in agent_checkpoint:
             agent_step = max(agent_step, [int(x) for x in re.findall('\d+', checkpoint)][-1])
+
         agent.load_curl(model_dir, agent_step)
         start_step = agent_step
         if sim_param_model is not None:
@@ -728,8 +732,11 @@ def main():
                 sim_param_step = max(sim_param_step, [int(x) for x in re.findall('\d+', checkpoint)][-1])
             sim_param_model.load(model_dir, sim_param_step)
             start_step = min(start_step, sim_param_step)  # TODO: do we have to save optimizer?
-    if load_model or args.train_offline_dir is not None:
+    if load_buffer or args.train_offline_dir is not None:
         replay_buffer.load(buffer_dir)
+    else:
+        args.init_steps += start_step
+
 
     L = Logger(args.work_dir, use_tb=args.save_tb)
 

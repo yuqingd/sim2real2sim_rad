@@ -18,7 +18,7 @@ import mujoco_py
 GlfwContext(offscreen=True)
 os.environ['MUJOCO_GL'] = 'glfw'
 
-env = make('kitchen', real_world=True,
+env = make('kitchen', real_world=False,
         task_name='rope',
         seed=args.seed,
         height=args.pre_transform_image_size,
@@ -60,11 +60,11 @@ agent = make_agent(
     device=device,
     state_shape=state_shape
 )
-load_dir = './logdir/S01001_kitchen-rope-im84-b128-s0-curl_sac-pixel-crop'
+load_dir = './logdir/S01002_kitchen-rope-im84-b128-s0-curl_sac-pixel-crop'
 real_video_dir = utils.make_dir(os.path.join(load_dir, 'real_robot_video'))
 video = VideoRecorder(real_video_dir, camera_id=0)
 
-agent_checkpoint = 60000
+agent_checkpoint = -1
 model_dir = utils.make_dir(os.path.join(load_dir, 'model'))
 if os.path.exists(os.path.join(load_dir, 'model')):
     print("Loading checkpoint...")
@@ -82,6 +82,7 @@ if os.path.exists(os.path.join(load_dir, 'model')):
     else:
         agent_step = agent_checkpoint
 
+print("Loading ", agent_step)
 agent.load_curl(model_dir, agent_step)
 
 
@@ -94,12 +95,11 @@ def run_eval_loop(sample_stochastically=True):
         obs_traj = []
         while not done and len(obs_traj) < time_limit:
             obs = obs_dict['image']
-            obs_state = np.zeros(3,)#obs_dict['state']
             # center crop image
             obs = utils.center_crop_image(obs, image_size)
 
             with utils.eval_mode(agent):
-                action = agent.sample_action(obs, obs_state)
+                action = agent.sample_action(obs)
                 print(action)
             obs_traj.append(obs)
             obs_dict, reward, done, _ = env.step(action)
