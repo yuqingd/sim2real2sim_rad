@@ -101,10 +101,6 @@ def config_dr_dmc(config):
         if dr_option == 'all_dr':
             config.real_dr_list = list(real_dr_values.keys())
         elif dr_option == 'nonconflicting_dr':
-            # config.real_dr_list = [
-            #     "right_hip", "right_knee", "right_ankle", "left_hip", "left_knee", "left_ankle", "ground_r", "ground_g",
-            #     "ground_b", "body_r", "body_g", "body_b"
-            # ]
             config.real_dr_list = [
                 "torso_mass", "right_thigh_mass", "right_leg_mass", "right_foot_mass", "left_thigh_mass",
                 "left_leg_mass", "left_foot_mass", "ground_r", "ground_g", "ground_b", "body_r", "body_g", "body_b"
@@ -335,39 +331,43 @@ def config_dr_kitchen(config):
 
         else:
             config.real_dr_params = {
-                "cabinet_b": 0.5,
-                "cabinet_friction": 1,
-                "cabinet_g": 0.5,
-                "cabinet_mass": 3.4,
-                "cabinet_r": 0.5,
-                "joint1_damping": 10,
-                "joint2_damping": 10,
-                "joint3_damping": 5,
-                "joint4_damping": 5,
-                "joint5_damping": 5,
-                "joint6_damping": 2,
-                "joint7_damping": 2,
-                "kettle_b": 0.5,
-                "kettle_friction": 1.0,
-                "kettle_g": 0.5,
-                "kettle_mass": 1.08,
-                "kettle_r": 0.5,
-                "knob_mass": 0.02,
-                "lighting": 0.3,
-                "microwave_b": 0.5,
-                "microwave_friction": 1,
-                "microwave_g": 0.5,
-                "microwave_mass": .26,
-                "microwave_r": 0.5,
-                "robot_b": 0.92,
-                "robot_g": .99,
-                "robot_r": 0.95,
-                "stove_b": 0.5,
-                "stove_friction": 1.,
-                "stove_g": 0.5,
-                "stove_r": 0.5,
+                "cabinet_b": 0.5,  # OK
+                "cabinet_friction": 1,  # hard 2 tell
+                "cabinet_g": 0.5,  # OK
+                "cabinet_mass": 3.4,  # hard 2 tell
+                "cabinet_r": 0.5,  # OK
+                "joint1_damping": 10,  # negligible
+                "joint2_damping": 10,  # negligible
+                "joint3_damping": 5,  # negligible
+                "joint4_damping": 5,  # negligible
+                "joint5_damping": 5,  # negligible
+                "joint6_damping": 2,  # negligible
+                "joint7_damping": 2,  # negligible
+                "kettle_b": 0.5,  # OK
+                "kettle_friction": 1.0,  # No change
+                "kettle_g": 0.5,  # OK
+                "kettle_mass": 1.08,  # Making mass SMALLEER make a minor difference, making mass bigger does not
+                "kettle_r": 0.5,  # OK
+                "knob_mass": 0.02,  # unlearnable
+                "lighting": 0.3,  # great
+                "microwave_b": 0.5,  # OK
+                "microwave_friction": 1,  # probably unlearnable
+                "microwave_g": 0.5,  # OK
+                "microwave_mass": .26,  # probably unlearnable
+                "microwave_r": 0.5,  # OK
+                "robot_b": 0.92,  # OK
+                "robot_g": .99,  # OK
+                "robot_r": 0.95,  # OK
+                "stove_b": 0.5,  # OK
+                "stove_friction": 1.,  # minor change
+                "stove_g": 0.5,  # OK
+                "stove_r": 0.5,  # OK
             }
-            if dr_option == 'partial_dr':
+            if dr_option == 'test_dr':
+                config.real_dr_list = [
+                    "lighting", "kettle_mass", "kettle_friction", "stove_friction",
+                ]
+            elif dr_option == 'partial_dr':
                 config.real_dr_list = [
                     "cabinet_b", "cabinet_g", "cabinet_mass", "cabinet_r", "joint7_damping", "kettle_b",
                     "kettle_g", "kettle_mass", "kettle_r", "lighting", "microwave_b", "kettle_friction",
@@ -391,7 +391,8 @@ def config_dr_kitchen(config):
             elif dr_option == 'dynamics_nonconflicting_dr':
                 config.real_dr_list = ["cabinet_mass", "joint7_damping", "kettle_mass"]
             elif dr_option == 'nonconflicting_dr':
-                config.real_dr_list = ["cabinet_mass", "joint7_damping", "kettle_mass", "cabinet_b", "cabinet_g",
+                # would be cool if we could get stove_friction in here, but I think it interacts
+                config.real_dr_list = ["cabinet_mass", "kettle_mass", "cabinet_b", "cabinet_g",
                                        "cabinet_r",
                                        "kettle_b", "kettle_g", "kettle_r", "lighting", "microwave_b", "microwave_g",
                                        "microwave_r", "robot_b", "robot_g", "robot_r", "stove_b", "stove_g", "stove_r"]
