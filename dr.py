@@ -76,6 +76,14 @@ def config_dr_dmc(config):
             config.real_dr_list = [
                 'ball_mass'
             ]
+        elif dr_option == 'cup_mass_dr':
+            config.real_dr_list = [
+                'cup_mass'
+            ]
+        elif dr_option == 'ball_mass_dr':
+            config.real_dr_list = [
+                'ball_mass'
+            ]
     elif "walker" in config.domain_name:
         real_dr_values = {
             "torso_mass": 10.3138485,  # significant difference
