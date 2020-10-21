@@ -776,6 +776,35 @@ def main():
             if args.save_buffer:
                 replay_buffer.save(buffer_dir)
 
+            real_env.close()
+            del real_env #need to close real env and remake it to stop xarm errors accumulating
+            time.sleep(1)
+            real_env = env_wrapper.make(
+                domain_name=args.domain_name,
+                task_name=args.task_name,
+                seed=args.seed,
+                height=args.pre_transform_image_size,
+                width=args.pre_transform_image_size,
+                frame_skip=args.action_repeat,
+                dr_list=args.real_dr_list,
+                dr_shape=args.sim_params_size,
+                mean_only=args.mean_only,
+                real_world=True,
+                state_type=args.state_type,
+                grayscale=args.grayscale,
+                delay_steps=args.delay_steps,
+                range_scale=args.range_scale,
+                prop_range_scale=args.prop_range_scale,
+                state_concat=args.state_concat,
+                real_dr_params=args.real_dr_params,
+                time_limit=args.time_limit,
+                full_screen_square=args.full_screen_square,
+            )
+
+            # stack several consecutive frames together
+            if args.encoder_type == 'pixel':
+                real_env = utils.FrameStack(real_env, k=args.frame_stack)
+
         if done:
             if step > 0:
                 if (step > args.init_steps) and args.outer_loop_version != 0 and obs_traj is not None:

@@ -118,7 +118,7 @@ class Kitchen:
       #box_loc[2] += np.random.normal(0, .0) #move box height only
       self._env.sim.model.body_pos[body_id] = box_loc
 
-      self._env.data.set_mocap_pos('mocap', self._env.data.mocap_pos + np.array([0,0,.1]))
+      self._env.data.set_mocap_pos('mocap', self._env.data.mocap_pos + np.array([0,0,.05]))
 
       self._env.sim.forward()
 
