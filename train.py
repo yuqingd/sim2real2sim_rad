@@ -380,9 +380,9 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
                     if args.no_train_policy:
                         action = sim_env.action_space.sample()
                     elif sample_stochastically:
-                        action = agent.sample_action(obs_img, obs_state)
+                        action = agent.sample_action(obs_img)
                     else:
-                        action = agent.select_action(obs_img, obs_state)
+                        action = agent.select_action(obs_img)
                 obs_traj.append((obs_img, obs_state, action))
                 obs_dict, reward, done, _ = real_env.step(action)
                 video_real.record(real_env)
@@ -448,9 +448,9 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
                 if args.no_train_policy:
                     action = sim_env.action_space.sample()
                 elif sample_stochastically:
-                    action = agent.sample_action(obs_img, obs_state)
+                    action = agent.sample_action(obs_img)
                 else:
-                    action = agent.select_action(obs_img, obs_state)
+                    action = agent.select_action(obs_img)
             obs_traj_sim.append((obs_img, obs_state, action))
             obs_dict, reward, done, _ = sim_env.step(action)
 
@@ -470,7 +470,6 @@ def make_agent(obs_shape, state_shape, action_shape, args, device):
     if args.agent == 'curl_sac':
         return CurlSacAgent(
             obs_shape=obs_shape,
-            state_shape=state_shape,
             action_shape=action_shape,
             device=device,
             hidden_dim=args.hidden_dim,
@@ -496,12 +495,10 @@ def make_agent(obs_shape, state_shape, action_shape, args, device):
             log_interval=args.log_interval,
             detach_encoder=args.detach_encoder,
             latent_dim=args.latent_dim,
-            spatial_softmax=args.spatial_softmax_agent,
         )
     elif args.agent == 'rad_sac':
         return RadSacAgent(
             obs_shape=obs_shape,
-            state_shape=state_shape,
             action_shape=action_shape,
             device=device,
             hidden_dim=args.hidden_dim,
@@ -528,7 +525,6 @@ def make_agent(obs_shape, state_shape, action_shape, args, device):
             detach_encoder=args.detach_encoder,
             latent_dim=args.latent_dim,
             data_augs=args.data_augs,
-            spatial_softmax=args.spatial_softmax_agent,
         )
     else:
         assert 'agent is not supported: %s' % args.agent
@@ -832,7 +828,7 @@ def main():
             action = sim_env.action_space.sample()
         else:
             with utils.eval_mode(agent):
-                action = agent.sample_action(obs_img, obs_state)
+                action = agent.sample_action(obs_img)
 
         # run training update
         if (not args.no_train_policy) and step >= args.init_steps:
