@@ -553,13 +553,14 @@ class Kitchen:
 
     return state_obs
 
-  def render(self, size=None, *args, **kwargs):
+  def render(self, size=None, height=None, width=None, *args, **kwargs):
     if kwargs.get('mode', 'rgb_array') != 'rgb_array':
       raise ValueError("Only render mode 'rgb_array' is supported.")
-    if size is None:
+    if size is None and height is None:
         size = self._size
-    h, w = size
-    img = self._env.render(width=w, height=h, mode='rgb_array')
+    if height is None:
+      height, width = size
+    img = self._env.render(width=width, height=height, mode='rgb_array')
     if self.grayscale:
       img = img[:, :, 0] * 0.2989 + img[:, :, 1] * 0.5870 * img[:, :, 2] + 0.1140
       img = np.expand_dims(img, 2)

@@ -158,7 +158,9 @@ class ReplayBuffer(Dataset):
 
     def sample_proprio(self, use_img=False, val=False):
         idxs = self.get_idxs(val)
-        return self._sample_proprio(idxs, obs_vec_only=True)
+        results = self._sample_proprio(idxs, obs_vec_only=True)
+        obses_img, obses_state, actions, rewards, next_obses_img, next_obses_state, not_dones = results
+        return obses_img, actions, rewards, next_obses_img, not_dones
 
     def _sample_proprio(self, idxs, obs_vec_only=True):
         if obs_vec_only:
@@ -220,7 +222,9 @@ class ReplayBuffer(Dataset):
 
     def sample_cpc(self, val=False):
         idxs = self.get_idxs(val)
-        return self._sample_cpc(idxs, obs_vec_only=True)
+        results = self._sample_cpc(idxs, obs_vec_only=True)
+        obses_img, obses_state, actions, rewards, next_obses_img, next_obses_state, not_dones, cpc_kwargs = results
+        return obses_img, actions, rewards, next_obses_img, not_dones, cpc_kwargs
 
     def _sample_cpc(self, idxs, obs_vec_only=True, random_crop_img=True):
 
@@ -299,7 +303,9 @@ class ReplayBuffer(Dataset):
 
     def sample_rad(self, aug_funcs, val=False):
         idxs = self.get_idxs(val)
-        return self._sample_rad(aug_funcs, idxs, obs_vec_only=True)
+        results = self._sample_rad(aug_funcs, idxs, obs_vec_only=True)
+        obses_img, obses_state, actions, rewards, next_obses_img, next_obses_state, not_dones = results
+        return obses_img, actions, rewards, next_obses_img, not_dones
 
     def _sample_rad(self, aug_funcs, idxs, obs_vec_only=True):
         # augs specified as flags
