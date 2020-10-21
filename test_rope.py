@@ -11,22 +11,23 @@ import mujoco_py
 
 GlfwContext(offscreen=True)
 os.environ['MUJOCO_GL'] = 'glfw'
-env_real = make('kitchen', real_world=True,
-        task_name='rope',
-        seed=0,
-        height=84,
-        width=84,
-        state_type="robot"
-    )
+# env_real = make('kitchen', real_world=True,
+#         task_name='rope',
+#         seed=0,
+#         height=84,
+#         width=84,
+#         state_type="robot"
+#     )
 
 env_sim = make('kitchen', real_world=False,
         task_name='rope',
         seed=0,
         height=84,
         width=84,
-        state_type="robot"
+        state_type="robot",
+        delay_steps=3
     )
-env_real.reset()
+# env_real.reset()
 env_sim.reset()
 
 num_episodes = 1
@@ -67,5 +68,5 @@ def run_eval_loop(env, name):
         video.save('real_{}.mp4'.format(name))
 
 
-run_eval_loop(env_sim, 'sim')
-run_eval_loop(env_real, 'real')
+run_eval_loop(env_sim, 'sim_testdelay')
+# run_eval_loop(env_real, 'real')
