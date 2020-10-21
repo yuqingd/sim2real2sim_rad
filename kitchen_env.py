@@ -537,7 +537,7 @@ class Kitchen:
 
   def reset(self):
     self._env.reset()
-    state_obs = np.array([0])  # self.goal
+    state_obs = self.goal
     if not self.state_type == "none":
       robot_state = self.get_state()
       state_obs = robot_state
