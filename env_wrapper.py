@@ -9,6 +9,7 @@ from dm_control.rl.control import PhysicsError
 from dm_control import suite
 from kitchen_env import Kitchen
 import cv2
+import pickle as pkl
 
 
 class DR_Env:
@@ -56,6 +57,15 @@ class DR_Env:
             return hooked
         else:
             return orig_attr
+
+    def save(self, save_file):
+        with open(save_file, 'wb') as f:
+            pkl.dump(self.dr, f)
+
+    def load(self, save_file):
+        with open(save_file, 'rb') as f:
+            self.dr = pkl.load(f)
+        self.reset()
 
     def set_dataset_step(self, step):
         self.dataset_step = step

@@ -624,6 +624,8 @@ def main():
     sim_video_dir = utils.make_dir(os.path.join(args.work_dir, 'sim_video'))
     real_video_dir = utils.make_dir(os.path.join(args.work_dir, 'real_video'))
     model_dir = utils.make_dir(os.path.join(args.work_dir, 'model'))
+    sim_env_dir = os.path.join(args.work_dir, "sim_env_data.pkl")
+    real_env_dir = os.path.join(args.work_dir, "real_env_data.pkl")
     if args.train_offline_dir is None:
         buffer_dir = utils.make_dir(os.path.join(args.work_dir, 'buffer'))
     else:
@@ -719,6 +721,9 @@ def main():
             agent_step = max(agent_step, [int(x) for x in re.findall('\d+', checkpoint)][-1])
         agent.load(model_dir, agent_step)
         agent.load_curl(model_dir, agent_step)
+        print("LOADING MODEL!")
+        sim_env.load(sim_env_dir)
+        real_env.load(real_env_dir)
         start_step = agent_step
         if sim_param_model is not None:
             sim_param_step = 0
@@ -761,8 +766,11 @@ def main():
                      args.num_eval_episodes, L, step, args)
             eval_time += time.time() - start_eval
             if args.save_model:
+                print("SAVING MODEL!")
                 agent.save(model_dir, step)
                 agent.save_curl(model_dir, step)
+                sim_env.save(sim_env_dir)
+                real_env.save(real_env_dir)
                 if sim_param_model is not None:
                     sim_param_model.save(model_dir, step)
             if args.save_buffer:
