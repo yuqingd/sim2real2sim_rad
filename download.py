@@ -7,10 +7,13 @@ parser = argparse.ArgumentParser(description="Download last video to Olivia's co
 parser.add_argument('pattern', type=str, help='subset of the filename to match')
 args = parser.parse_args()
 
+log_dir = 'logdir'
+
 def copy_last_video(file_name, prefix):
-    videos = os.listdir(os.path.join('logdir', file_name, f'{prefix}_video'))
-    videos = [os.path.join('logdir', file_name, f'{prefix}_video', v) for v in videos]
+    videos = os.listdir(os.path.join(log_dir, file_name, f'{prefix}_video'))
+    videos = [os.path.join(log_dir, file_name, f'{prefix}_video', v) for v in videos]
     videos.sort(key=os.path.getmtime, reverse=True)
+    print("TOTAL VIDS", len(videos))
 
     # Find the most recent video
     try:
@@ -24,7 +27,7 @@ def copy_last_video(file_name, prefix):
         print(e)
 
 # Find relevant filenames
-files = os.listdir('logdir')
+files = os.listdir(log_dir)
 files = [f for f in files if args.pattern in f]
 print(f"found {len(files)} files")
 
