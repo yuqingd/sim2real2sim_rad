@@ -148,7 +148,8 @@ def parse_args():
     parser.add_argument('--train_offline_dir', default=None, type=str)
     parser.add_argument('--val_split', default=.2, type=float,
                         help='validation split; currently only for offline training but we should fix this.')
-
+    parser.add_argument('--continue_train', default=False, action='store_true')
+    
     args = parser.parse_args()
     if args.dr:
         args = config_dr(args)
@@ -612,9 +613,9 @@ def main():
         load_model = True
         checkpoints = os.listdir(os.path.join(args.work_dir, 'model'))
         buffer = os.listdir(os.path.join(args.work_dir, 'buffer'))
-        if len(checkpoints) == 0 or len(buffer) == 0:
+        if len(checkpoints) == 0 or (len(buffer) == 0 and not args.continue_train):
             print("No checkpoints found")
-            load_model = False
+            load_model = False  # if we're continuing training, we can load model even w/o buffer
         else:
             agent_checkpoint = [f for f in checkpoints if 'curl' in f]
             if args.outer_loop_version in [1, 3]:
@@ -730,7 +731,10 @@ def main():
             for checkpoint in sim_param_checkpoint:
                 sim_param_step = max(sim_param_step, [int(x) for x in re.findall('\d+', checkpoint)][-1])
             sim_param_model.load(model_dir, sim_param_step)
-            start_step = min(start_step, sim_param_step)  # TODO: do we have to save optimizer?
+            if args.continue_train:
+                start_step = 0
+            else:
+                start_step = min(start_step, sim_param_step)  # TODO: do we have to save optimizer?
     if load_model or args.train_offline_dir is not None:
         replay_buffer.load(buffer_dir)
 
