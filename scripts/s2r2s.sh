@@ -6,7 +6,7 @@ CUDA_VISIBLE_DEVICES=3 python train.py --domain_name kitchen --action_repeat 1 -
 
 #Oracle
 
-    python train.py --domain_name kitchen --action_repeat 1 --task_name rope --seed 0 --id S01002 --save_tb --save_video --eval_freq 10000 --num_train_steps 1000000 --delay_steps 2 --num_eval_episodes 2 --gpudevice 0 --dr_option nonconflicting_dr --mean_scale 1 --dr --outer_loop_version 0 --save_model --save_buffer  --range_scale .5  --use_img --encoder_type pixel --time_limit 60 --prop_range_scale --state_type robot
+    python train.py --domain_name kitchen --action_repeat 1 --task_name rope --seed 0 --id S01003 --save_tb --save_video --eval_freq 2000 --num_train_steps 1000000 --delay_steps 2 --num_eval_episodes 2 --gpudevice 0 --dr_option nonconflicting_dr --mean_scale 1 --dr --outer_loop_version 0 --save_model --save_buffer  --range_scale .5  --use_img --encoder_type pixel --time_limit 60 --prop_range_scale --state_type robot
 
 CUDA_VISIBLE_DEVICES=6 python train.py --domain_name kitchen --action_repeat 1 --task_name rope --seed 1 \
 --batch_size 128 --id S0267 --save_tb --save_video --eval_freq 1000 --num_train_steps 1000000 --num_eval_episodes 3 \

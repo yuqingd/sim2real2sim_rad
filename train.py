@@ -724,7 +724,15 @@ def main():
         for checkpoint in agent_checkpoint:
             agent_step = max(agent_step, [int(x) for x in re.findall('\d+', checkpoint)][-1])
 
+        rand_params = copy.deepcopy(agent.actor.state_dict()).items()
         agent.load_curl(model_dir, agent_step)
+        agent.load(model_dir, agent_step)
+        loaded_params = agent.actor.state_dict().items()
+
+        for p1, p2 in zip(rand_params, loaded_params):
+            if p1[1].eq(p2[1]).sum() > 0 and 'encoder' not in p1[0]:
+                import pdb; pdb.set_trace()
+
         start_step = agent_step
         if sim_param_model is not None:
             sim_param_step = 0
@@ -755,7 +763,7 @@ def main():
     for step in range(start_step, args.num_train_steps):
         # evaluate agent periodically
 
-        if step % args.eval_freq == 0:
+        if step % args.eval_freq == 0 or step == start_step:
             total_time = train_policy_time + train_sim_model_time + eval_time + collect_data_time
             if total_time > 0:
                 L.log('eval_time/train_policy', train_policy_time / total_time, step)
@@ -771,6 +779,7 @@ def main():
             eval_time += time.time() - start_eval
             if args.save_model:
                 agent.save_curl(model_dir, step)
+                agent.save(model_dir, step)
                 if sim_param_model is not None:
                     sim_param_model.save(model_dir, step)
             if args.save_buffer:
