@@ -86,6 +86,11 @@
             <site name="box" pos="0 0 0" rgba="0.0 0.5 0.5 1" size="0.01" type="sphere"></site>
         </body>
 
+        <body name="goal" pos="-.2 .4 .65" euler="0 0 0">
+            <geom type='box' size='.05 .05 .001' rgba="1 0 0 1"  class='xarm_viz'/>
+            <site name="goal" pos="0 0 0" rgba="0.0 0.5 0.5 1" size="0.01" type="sphere"></site>
+        </body>
+
 
     </worldbody>
 
