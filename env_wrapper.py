@@ -1003,6 +1003,7 @@ class DR_DMCEnv(DR_Env):
                 "body_r": model.geom_rgba[1:9, 0],
                 "body_g": model.geom_rgba[1:9, 1],
                 "body_b": model.geom_rgba[1:9, 2],
+                "full_mass": model.body_mass[1:8],
             }
         elif "finger" in self.domain_name:
             dr_update_dict = {
@@ -1096,6 +1097,7 @@ class DR_DMCEnv(DR_Env):
                 "body_r": model.geom_rgba[1, 0],
                 "body_g": model.geom_rgba[1, 1],
                 "body_b": model.geom_rgba[1, 2],
+                "full_mass": model.body_mass[1],
             }
         elif "finger" in self.domain_name:
             dr_update_dict = {
