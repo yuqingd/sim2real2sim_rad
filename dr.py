@@ -66,7 +66,8 @@ def config_dr_dmc(config):
             config.real_dr_list = list(real_dr_values.keys())
         elif dr_option == 'nonconflicting_dr':
             config.real_dr_list = [
-                "cup_mass", "ball_mass", "cup_r", "cup_g", "cup_b", "ball_r", "ball_g", "ball_b",
+                "cup_mass", "ball_mass", "cup_r", "cup_g", "cup_b", "ball_r", "ball_g", "ball_b" "ground_r",
+                "ground_g", "ground_b",
             ]
         elif dr_option == 'visual_dr':
             config.real_dr_list = [
