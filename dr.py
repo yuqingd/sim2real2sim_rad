@@ -357,7 +357,11 @@ def config_dr_kitchen(config):
                     # "box6_r", "box6_g", "box6_b", "box7_r", "box7_g", "box7_b", "box8_r", "box8_g", "box8_b",
                     "rope_damping", "lighting",
                 ]
+        elif 'real' in config.task_name:
+            config.real_dr_params = {
 
+            }
+            config.real_dr_list = list(config.real_dr_params.keys())  # TODO: add visual/dynamics/all randomization
         else:
             config.real_dr_params = {
                 "cabinet_b": 0.5,  # OK

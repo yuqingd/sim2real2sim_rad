@@ -47,6 +47,12 @@ class KitchenV0(robot_env.RobotEnv):
     ROPE_MODEL = os.path.join(
         os.path.dirname(__file__),
         'xarm/assets/rope_xarm_real.xml')
+    CABINET_REAL_MODEL = os.path.join(
+        os.path.dirname(__file__),
+        'xarm/assets/cabinet_xarm_real.xml')
+    PUSH_REAL_MODEL = os.path.join(
+        os.path.dirname(__file__),
+        'xarm/assets/push_xarm_real.xml')
     N_DOF_ROBOT = 13
     N_DOF_OBJECT = 21
 
@@ -64,6 +70,10 @@ class KitchenV0(robot_env.RobotEnv):
             MODEL = self.ROPE_MODEL
         elif 'open_microwave' in task_type:
             MODEL = self.KITCHEN_MODEl_NOKETTLE
+        elif 'real_c' in task_type:
+            MODEL = self.CABINET_REAL_MODEL
+        elif 'real_p' in task_type:
+            MODEL = self.PUSH_REAL_MODEL
         else:
             MODEL = self.KITCHEN_MODEl
 

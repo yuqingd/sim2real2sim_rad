@@ -638,7 +638,15 @@ class DR_Kitchen(DR_Env):
                 else:
                     max_val = float('inf')
                 self.update_dr_param(arr, dr_param, indices=indices, max_val=max_val)
-
+        elif 'real' in self.task:
+            dr_update_dict = {}
+            for dr_param in self.dr_list:
+                arr, indices = dr_update_dict[dr_param]
+                if dr_param[-2:] in ['_r', '_g', '_b']:
+                    max_val = 1.
+                else:
+                    max_val = float('inf')
+                self.update_dr_param(arr, dr_param, indices=indices, max_val=max_val)
         else:
             model = self._env._env.sim.model
             geom_dict = model._geom_name2id
@@ -801,7 +809,12 @@ class DR_Kitchen(DR_Env):
             for dr_param in self.dr_list:
                 dr_list.append(dr_update_dict[dr_param])
             arr = np.array(dr_list)
-
+        elif 'real' in self.task:
+            dr_update_dict = {}
+            dr_list = []
+            for dr_param in self.dr_list:
+                dr_list.append(dr_update_dict[dr_param])
+            arr = np.array(dr_list)
         else:
             geom_dict = model._geom_name2id
             stove_collision_indices = [geom_dict[name] for name in geom_dict.keys() if

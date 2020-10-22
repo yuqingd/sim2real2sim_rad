@@ -34,17 +34,27 @@ class Kitchen:
       elevation = -48
       lookat = [-.1,.35,.9]
 
-    if 'cabinet' in task:
+    elif 'cabinet' in task:
       distance = 2.5
       azimuth = 120
       elevation = -40
       lookat = None
-    if 'open_microwave' in task:
+    elif 'open_microwave' in task:
       distance = 1.5
       azimuth = 140
       elevation = -30
       lookat = None
-    if 'push' in task:
+    elif 'real_p' in task:
+      distance = 1.5
+      azimuth = 220
+      elevation = -30
+      lookat = None
+    elif 'real_c' in task:
+      distance = 1.5
+      azimuth = 300
+      elevation = -30
+      lookat = None
+    else:
       lookat = None
 
     if minimal:
@@ -134,7 +144,9 @@ class Kitchen:
         self.goal[-1] += 0.1  # goal in middle of kettle
       else:
         raise NotImplementedError
-
+    elif 'real' in self.task:
+      self.set_workspace_bounds('stove_area')
+      self.goal = np.array([0])
     elif 'push' in self.task:
       self.set_workspace_bounds('stove_area')
 
@@ -205,7 +217,9 @@ class Kitchen:
         self.step(diff)
 
     else:
-      raise NotImplementedError(self.task)
+      self.goal = np.array([0])
+      print("NO task seti[")  # TODO: fix this!
+      # raise NotImplementedError(self.task)
 
 
     # self.randomize_start()
@@ -361,6 +375,11 @@ class Kitchen:
 
       done = dist_to_goal < 0.05
 
+    elif 'real_c' in self.task:
+      cabinet_pos = self._env.sim.data.site_xpos[self._env.sim.model._site_name2id['cabinet_door']]
+      dist_to_goal = np.abs(cabinet_pos[0] - 0.15)
+      done = dist_to_goal < 0.05
+      reward = -dist_to_goal
     else:
       raise NotImplementedError
 
@@ -532,7 +551,8 @@ class Kitchen:
       elif 'kettle' in self.task:
         state_list.append(np.squeeze(self._env.sim.data.body_xpos[XPOS_INDICES['kettle']]))
       else:
-        raise NotImplementedError("Unrecognized task" + self.task)
+        print("OK")
+        # raise NotImplementedError("Unrecognized task" + self.task)  # TODO: fix!
     return np.concatenate(state_list)
 
   def reset(self):
