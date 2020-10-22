@@ -163,7 +163,7 @@ class Kitchen:
       self._env.sim.model.body_pos[goal_id] = goal_loc
       self.goal = goal_loc
 
-    if 'reach' in self.task:
+    elif 'reach' in self.task:
       self.set_workspace_bounds('full_workspace')
 
       if self.task == 'reach_microwave':
@@ -404,8 +404,19 @@ class Kitchen:
     elif 'real_c' in self.task:
       cabinet_pos = self._env.sim.data.site_xpos[self._env.sim.model._site_name2id['cabinet_door']]
       dist_to_goal = np.abs(cabinet_pos[0] - 0.15)
-      done = dist_to_goal < 0.05
+      done = dist_to_goal < 0.01
       reward = -dist_to_goal
+
+    elif 'real_p' in self.task:
+      end_effector = np.squeeze(xpos[XPOS_INDICES['end_effector']])
+      # two stage reward, first get to box, then kettle to goal
+      box_pos = self._env.sim.data.site_xpos[self._env.sim.model._site_name2id['box']]
+
+      d1 = np.linalg.norm(end_effector - box_pos)
+      d2 = np.linalg.norm(box_pos - self.goal)
+      done = np.abs(d2) < 0.05 #TODO: tune this if needed
+
+      reward = -(d1 + d2)
     else:
       raise NotImplementedError
 
@@ -428,13 +439,13 @@ class Kitchen:
       z_high = 2.1
     elif bounds == 'push_workspace':
       x_low = -.4  # Left of box
-      x_high = .4  # Right of Box
+      x_high = .2  # Right of Box
       y_low = 0  # Right in front of the robot's pedestal
       y_high = .35  # behind box
       z_low = 0  # Tabletop
       z_high = 2.1
     elif bounds == 'slide_cabinet_workspace':
-      x_low = -.2  # Left of box
+      x_low = -.4  # Left of box
       x_high = .2  # Right of Box
       y_low = 0  # Right in front of the robot's pedestal
       y_high = .35  # behind box
