@@ -45,15 +45,15 @@ class Kitchen:
       elevation = -30
       lookat = None
     elif 'real_p' in task:
-      distance = 1.5
-      azimuth = 220
-      elevation = -30
-      lookat = None
+      distance = 1.1
+      azimuth = 35
+      elevation = -48
+      lookat = [-.1,.35,.9]
     elif 'real_c' in task:
-      distance = 1.5
-      azimuth = 300
-      elevation = -30
-      lookat = None
+      distance = 1.1
+      azimuth = 35
+      elevation = -48
+      lookat = [-.1,.35,.9]
     else:
       lookat = None
 
