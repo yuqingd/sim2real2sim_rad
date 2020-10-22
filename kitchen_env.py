@@ -155,13 +155,14 @@ class Kitchen:
     elif 'real_p' in self.task:
       self.set_workspace_bounds('push_workspace')
       goal_id = self._env.sim.model.body_name2id('goal')
-      goal_loc = self._env.sim.model.body_pos[goal_id]
+      goal_loc = self._env.sim.model.body_pos[goal_id].copy()
 
       #randomize goal location
-      goal_loc[:2] = np.random.uniform(self.end_effector_bound_low[:2], self.end_effector_bound_high[:2])
+      goal_loc[:2] += np.random.normal(0, 0.05) #add noise to init position
+      goal_loc[:2] = np.clip(goal_loc[:2],  self.end_effector_bound_low[:2], self.end_effector_bound_high[:2])
 
-      self._env.sim.model.body_pos[goal_id] = goal_loc
-      self.goal = goal_loc
+      self._env.sim.model.body_pos[goal_id][:2] = goal_loc[:2]
+      self.goal = self._env.sim.model.body_pos[goal_id]
 
     elif 'reach' in self.task:
       self.set_workspace_bounds('full_workspace')
