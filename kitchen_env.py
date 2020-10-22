@@ -158,7 +158,7 @@ class Kitchen:
       goal_loc = self._env.sim.model.body_pos[goal_id].copy()
 
       #randomize goal location
-      goal_loc[:2] += np.random.normal(0, 0.05) #add noise to init position
+      goal_loc[:2] += np.random.normal(0, 0.07) #add noise to init position
       goal_loc[:2] = np.clip(goal_loc[:2],  self.end_effector_bound_low[:2], self.end_effector_bound_high[:2])
 
       self._env.sim.model.body_pos[goal_id][:2] = goal_loc[:2]
