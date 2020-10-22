@@ -110,6 +110,7 @@ def config_dr_dmc(config):
             "body_r": self_r,
             "body_g": self_g,
             "body_b": self_b,
+            "full_mass": 10.3138485,
         }
         if dr_option == 'all_dr':
             config.real_dr_list = list(real_dr_values.keys())
@@ -120,7 +121,7 @@ def config_dr_dmc(config):
             ]
         elif dr_option == 'simplified_randomization':
             config.real_dr_list = [
-                "torso_mass", "left_foot_mass", "ground_r", "ground_g", "ground_b", "body_r", "body_g", "body_b"
+                "full_mass", "left_foot_mass", "ground_r", "ground_g", "ground_b", "body_r", "body_g", "body_b"
             ]
         elif dr_option == 'visual_dr':
             config.real_dr_list = [
