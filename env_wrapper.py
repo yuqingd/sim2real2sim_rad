@@ -99,7 +99,7 @@ class DR_Env:
 
             if 'rope_len' in param_name: #clip rope length
                 rope_len_min = self._env._env.sim.model.tendon_range[0,0]
-                new_value = max(rope_len_min + eps, new_value)
+                new_value = np.clip(new_value, a_min=rope_len_min + eps, a_max=16.)
 
             if indices is None:
                 param[:] = new_value
