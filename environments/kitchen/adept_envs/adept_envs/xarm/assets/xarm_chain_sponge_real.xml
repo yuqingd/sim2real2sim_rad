@@ -44,7 +44,7 @@
 
                                 <body name="sponge" pos="0 0 .15" euler="0 0 1.57">
                                     <geom name="sponge_viz" class="xarm_viz" rgba="1 .8 0 1" type="capsule" size=".005 0.005" />
-                                    <composite type="box" count="5 8 12" spacing="0.01">
+                                    <composite type="box" count="5 8 13" spacing="0.01">
                                         <skin texcoord="true"  rgba="1 .8 0 1" />
                                         <geom type="capsule" size=".005 0.005" rgba="1 .8 0 1" />
                                     </composite>
