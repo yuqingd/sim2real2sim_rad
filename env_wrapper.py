@@ -629,7 +629,7 @@ class DR_Kitchen(DR_Env):
                 # 'box8_g': (model.geom_rgba[:, 1], box_viz_8),
                 # 'box8_b': (model.geom_rgba[:, 2], box_viz_8),
 
-                'rope_len_max': (model.tendon_range[0,1], None),
+                'rope_len_max': (model.tendon_range[:,1], None),
                 'rope_damping': (model.tendon_damping, None),
                 'rope_friction': (model.tendon_frictionloss, None),
                 'rope_stiffness': (model.tendon_stiffness, None),
