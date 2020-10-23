@@ -366,6 +366,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
         for i in range(num_episodes):
             obs_dict = real_env.reset()
             video_real.init(enabled=(i == 0))
+            video_real.record(real_env)
             done = False
             episode_reward = 0
             obs_traj = []
@@ -437,6 +438,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
         done = False
         obs_traj_sim = []
         video_sim.init(enabled=True)
+        video_sim.record(sim_env)
         while not done and len(obs_traj_sim) < args.time_limit:
             obs_img = obs_dict['image']
             # center crop image
