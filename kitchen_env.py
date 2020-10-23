@@ -98,8 +98,8 @@ class Kitchen:
     if 'push_kettle' in task:
       self.initial_randomization_steps += 3
 
-    self.has_kettle = False if 'open_microwave' in task else True
-    self.has_microwave = False if minimal else True
+    self.has_kettle = False if ('open_microwave' in task or 'real' in task) else True
+    self.has_microwave = False if (minimal or 'real' in task) else True
     self.has_cabinet = False if minimal else True
     self.dataset_step = dataset_step
     self.grayscale = grayscale
@@ -155,13 +155,13 @@ class Kitchen:
     elif 'real_p' in self.task:
       self.set_workspace_bounds('push_workspace')
       goal_id = self._env.sim.model.body_name2id('goal')
-      goal_loc = self._env.sim.model.body_pos[goal_id].copy()
-
-      #randomize goal location
-      goal_loc[:2] += np.random.normal(0, 0.07) #add noise to init position
-      goal_loc[:2] = np.clip(goal_loc[:2],  self.end_effector_bound_low[:2], self.end_effector_bound_high[:2])
-
-      self._env.sim.model.body_pos[goal_id][:2] = goal_loc[:2]
+      # goal_loc = self._env.sim.model.body_pos[goal_id].copy()
+      #
+      # #randomize goal location
+      # goal_loc[:2] += np.random.normal(0, 0.07) #add noise to init position
+      # goal_loc[:2] = np.clip(goal_loc[:2],  self.end_effector_bound_low[:2], self.end_effector_bound_high[:2])
+      #
+      # self._env.sim.model.body_pos[goal_id][:2] = goal_loc[:2]
       self.goal = self._env.sim.model.body_pos[goal_id]
 
     elif 'reach' in self.task:
@@ -419,7 +419,9 @@ class Kitchen:
 
       reward = -(d1 + d2)
     else:
-      raise NotImplementedError
+      done = False
+      reward = 3
+      # raise NotImplementedError
 
     self.timesteps += 1
     return reward, done

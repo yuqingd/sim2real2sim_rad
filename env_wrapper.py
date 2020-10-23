@@ -509,7 +509,7 @@ class DR_MetaWorldEnv(DR_Env):  # TODO: consider passing through as kwargs
 class DR_Kitchen(DR_Env):
     def __init__(self, env, cameras, height=100, width=100, mean_only=False, dr_list=[], simple_randomization=False,
                  dr_shape=None, real_world=False, dr=None, state_type="none", name="task_name",
-                 grayscale=False, range_scale=.1, **kwargs):
+                 grayscale=False, range_scale=.1, real_dr_params=None, **kwargs):
         super().__init__(env, cameras,
                          height=height, width=width,
                          mean_only=mean_only,
@@ -523,6 +523,10 @@ class DR_Kitchen(DR_Env):
                          grayscale=grayscale,
                          range_scale=range_scale,
                          **kwargs)
+        # Set sim params to the desired value.
+        if real_dr_params is not None:
+            self.real_dr_params = real_dr_params
+            self.apply_dr(set_real=True)
 
     def __getattr__(self, attr):
         orig_attr = self._env.__getattribute__(attr)
@@ -554,15 +558,15 @@ class DR_Kitchen(DR_Env):
             0, 255, self._size + (3,), dtype=np.uint8)
         return gym.spaces.Dict(spaces)
 
-    def apply_dr(self):
+    def apply_dr(self, set_real=False):
         self.sim_params = []
         self.distribution_mean = []
         self.distribution_range = []
-        if self.dr is None or self.real_world:
+        if (not set_real) and (self.dr is None or self.real_world):
             self.sim_params = self.get_dr()
             self.distribution_mean = self.get_dr()
             self.distribution_range = np.zeros(self.dr_shape, dtype=np.float32)
-            return  # TODO: start using XPOS_INDICES or equivalent for joints.
+            return
 
         if 'rope' in self.task:
             xarm_viz_indices = 2
@@ -638,8 +642,19 @@ class DR_Kitchen(DR_Env):
                 else:
                     max_val = float('inf')
                 self.update_dr_param(arr, dr_param, indices=indices, max_val=max_val)
-        elif 'real' in self.task:
-            dr_update_dict = {}
+        elif 'real_p' in self.task:
+            model = self._env._env.sim.model
+            box_index = model.body_name2id('box')
+            dr_update_dict = {
+                'box_r': (model.geom_rgba[model.geom_name2id('box_viz'), 0:1], None),
+                'box_g': (model.geom_rgba[model.geom_name2id('box_viz'), 1:2], None),
+                'box_b': (model.geom_rgba[model.geom_name2id('box_viz'), 2:3], None),
+                'box_mass': (model.body_mass[box_index: box_index + 1], None),
+                'table_r': (model.geom_rgba[model.geom_name2id('table_viz'), 0:1], None),
+                'table_g': (model.geom_rgba[model.geom_name2id('table_viz'), 1:2], None),
+                'table_b': (model.geom_rgba[model.geom_name2id('table_viz'), 2:3], None),
+                'table_friction': (model.geom_friction[model.geom_name2id('table_col'), 0:1], None),
+            }
             for dr_param in self.dr_list:
                 arr, indices = dr_update_dict[dr_param]
                 if dr_param[-2:] in ['_r', '_g', '_b']:
@@ -647,6 +662,36 @@ class DR_Kitchen(DR_Env):
                 else:
                     max_val = float('inf')
                 self.update_dr_param(arr, dr_param, indices=indices, max_val=max_val)
+        elif 'real_c' in self.task:
+            model = self._env._env.sim.model
+            geom_dict = model._geom_name2id
+            cabinet_index = model.body_name2id('slidelink')
+            cabinet_viz_indices = [geom_dict[name] for name in geom_dict.keys() if "cabinet_viz" in name]
+            cabinet_collision_indices = [geom_dict[name] for name in geom_dict.keys() if "cabinet_collision" in name]
+            cabinet_handle_indices = [geom_dict[name] for name in geom_dict.keys() if "cabinet_handle_viz" in name]
+            dr_update_dict = {
+                'cabinet_r': (model.geom_rgba[:, 0], cabinet_viz_indices),
+                'cabinet_g': (model.geom_rgba[:, 1], cabinet_viz_indices),
+                'cabinet_b': (model.geom_rgba[:, 2], cabinet_viz_indices),
+                'cabinet_handle_r': (model.geom_rgba[:, 0:1], cabinet_handle_indices),
+                'cabinet_handle_g': (model.geom_rgba[:, 1:2], cabinet_handle_indices),
+                'cabinet_handle_b': (model.geom_rgba[:, 2:3], cabinet_handle_indices),
+                'cabinet_mass': (model.body_mass[cabinet_index: cabinet_index + 1], None),
+                'cabinet_friction': (model.geom_friction[:, 0], cabinet_collision_indices),
+                'table_r': (model.geom_rgba[model.geom_name2id('table_viz'), 0:1], None),
+                'table_g': (model.geom_rgba[model.geom_name2id('table_viz'), 1:2], None),
+                'table_b': (model.geom_rgba[model.geom_name2id('table_viz'), 2:3], None),
+            }
+            for dr_param in self.dr_list:
+                arr, indices = dr_update_dict[dr_param]
+                if dr_param[-2:] in ['_r', '_g', '_b']:
+                    max_val = 1.
+                else:
+                    max_val = float('inf')
+                try:
+                    self.update_dr_param(arr, dr_param, indices=indices, max_val=max_val)
+                except Exception as e:
+                    print("???")
         else:
             model = self._env._env.sim.model
             geom_dict = model._geom_name2id
@@ -722,11 +767,14 @@ class DR_Kitchen(DR_Env):
             # Actually Update
             for dr_param in self.dr_list:
                 arr, indices = dr_update_dict[dr_param]
-                if dr_param[-2:] in ['_r', '_g', '_b']:
-                    max_val = 1.
+                if set_real:
+                    self.set_real(arr, dr_param)
                 else:
-                    max_val = float('inf')
-                self.update_dr_param(arr, dr_param, indices=indices, max_val=max_val)
+                    if dr_param[-2:] in ['_r', '_g', '_b'] and not dr_param in ['ground_r', 'ground_g', 'ground_b']:
+                        max_val = 1.
+                    else:
+                        max_val = float('inf')
+                    self.update_dr_param(arr, dr_param, indices=indices, max_val=max_val)
 
     def get_dr(self):
         model = self._env._env.sim.model
@@ -809,8 +857,42 @@ class DR_Kitchen(DR_Env):
             for dr_param in self.dr_list:
                 dr_list.append(dr_update_dict[dr_param])
             arr = np.array(dr_list)
-        elif 'real' in self.task:
-            dr_update_dict = {}
+        elif 'real_p' in self.task:
+            box_index = model.body_name2id('box')
+            dr_update_dict = {
+                'box_r': model.geom_rgba[model.geom_name2id('box_viz'), 0],
+                'box_g': model.geom_rgba[model.geom_name2id('box_viz'), 1],
+                'box_b': model.geom_rgba[model.geom_name2id('box_viz'), 2],
+                'box_mass': model.body_mass[box_index],
+                'table_r': model.geom_rgba[model.geom_name2id('table_viz'), 0],
+                'table_g': model.geom_rgba[model.geom_name2id('table_viz'), 1],
+                'table_b': model.geom_rgba[model.geom_name2id('table_viz'), 2],
+                'table_friction': model.geom_friction[model.geom_name2id('table_col'), 0],
+            }
+            dr_list = []
+            for dr_param in self.dr_list:
+                dr_list.append(dr_update_dict[dr_param])
+            arr = np.array(dr_list)
+        elif 'real_c' in self.task:
+            geom_dict = model._geom_name2id
+            cabinet_index = model.body_name2id('slidelink')
+            cabinet_viz_indices = [geom_dict[name] for name in geom_dict.keys() if "cabinet_viz" in name][0]
+            cabinet_handle_indices = [geom_dict[name] for name in geom_dict.keys() if "cabinet_handle_viz" in name][0]
+            cabinet_collision_indices = \
+                [geom_dict[name] for name in geom_dict.keys() if "cabinet_collision" in name][0]
+            dr_update_dict = {
+                'cabinet_r': model.geom_rgba[cabinet_viz_indices, 0],
+                'cabinet_g': model.geom_rgba[cabinet_viz_indices, 1],
+                'cabinet_b': model.geom_rgba[cabinet_viz_indices, 2],
+                'cabinet_handle_r': model.geom_rgba[cabinet_handle_indices, 0],
+                'cabinet_handle_g': model.geom_rgba[cabinet_handle_indices, 1],
+                'cabinet_handle_b': model.geom_rgba[cabinet_handle_indices, 2],
+                'cabinet_mass': model.body_mass[cabinet_index],
+                'table_r': model.geom_rgba[model.geom_name2id('table_viz'), 0],
+                'table_g': model.geom_rgba[model.geom_name2id('table_viz'), 1],
+                'table_b': model.geom_rgba[model.geom_name2id('table_viz'), 2],
+                'cabinet_friction': model.geom_friction[cabinet_collision_indices, 0],
+            }
             dr_list = []
             for dr_param in self.dr_list:
                 dr_list.append(dr_update_dict[dr_param])
@@ -1305,7 +1387,7 @@ def make(domain_name, task_name, seed, height, width, cameras=range(1),
                               dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape,
                               name=task_name,
                               real_world=real_world, dr=dr, state_type=state_type, grayscale=grayscale,
-                              range_scale=range_scale, prop_initial_range=prop_initial_range)
+                              range_scale=range_scale, prop_initial_range=prop_initial_range, real_dr_params=None)
         return env
     elif 'kitchen' in domain_name:
         env = Kitchen(dr=dr, mean_only=mean_only,
@@ -1326,7 +1408,7 @@ def make(domain_name, task_name, seed, height, width, cameras=range(1),
         env = DR_Kitchen(env, cameras=cameras, height=height, width=width, mean_only=mean_only,
                          dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape, name=task_name,
                          real_world=real_world, dr=dr, state_type=state_type, grayscale=grayscale,
-                         range_scale=range_scale, prop_initial_range=prop_initial_range)
+                         range_scale=range_scale, prop_initial_range=prop_initial_range, real_dr_params=None)
         return env
     elif 'dummy' in domain_name:
         inner_env = None
