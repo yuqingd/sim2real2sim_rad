@@ -141,7 +141,7 @@ def config_dr_dmc(config):
             ]
         elif dr_option == 'simple_dr':
             config.real_dr_list = [
-                "torso_mass", "ground_r", "ground_g", "ground_b", "body_r", "body_g", "body_b"
+                "full_mass", "ground_r", "ground_g", "ground_b", "body_r", "body_g", "body_b"
             ]
     elif "finger" in config.domain_name:
         real_dr_values = {
