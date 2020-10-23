@@ -80,7 +80,7 @@
             <geom name="table_viz" class="xarm_viz" rgba="1 1 1 1"   size=".5 0.3 .1"  type="box" pos="-0.1 0 0"/>
         </body>
 
-        <body name="slidecabinet" pos=".2 .4 .725" euler="-1.57 0 0">
+        <body name="slidecabinet" pos="0 .45 .725" euler="-1.57 3.14 0">
             <include file="slidecabinet_chain.xml"/>
         </body>
 

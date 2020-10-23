@@ -12,19 +12,19 @@
         <geom name="cabinet_collision3" class="slide_collision" pos="-0.15 0 0" size="0.01 0.075 0.075" type="box" mass=".2" friction="5 .005, .0001"/>
         <geom name="cabinet_collision4" class="slide_collision" pos="-0.075 .075 0" size="0.075 0.01 0.075" type="box" mass=".2" friction="5 .005, .0001"/>
         <body name="slidelink" pos="-0.075 -0.075 0">
-            <joint name="slidedoor_joint" axis="-1 0 0" type="slide" range="0 .10"/>
-            <geom name="cabinet_handle_viz0" material="M_wood" euler="1.57 0 0" pos="-0.05 -0.02 -0.035" size="0.007 0.01 0.01" type="cylinder"/>
-            <geom name="cabinet_handle_viz1" material="M_wood" euler="1.57 0 0" pos="-0.05 -0.02 0.035" size="0.007 0.01 0.01" type="cylinder"/>
-            <geom name="cabinet_handle_viz2" material="M_wood" pos="-0.05 -0.03 0" size="0.01 0.035" type="cylinder"/>
+            <joint name="slidedoor_joint" axis="1 0 0" type="slide" range="0 .10"/>
+            <geom name="cabinet_handle_viz0" material="M_wood" euler="1.57 0 0" pos="0.05 -0.02 -0.035" size="0.007 0.01 0.01" type="cylinder"/>
+            <geom name="cabinet_handle_viz1" material="M_wood" euler="1.57 0 0" pos="0.05 -0.02 0.035" size="0.007 0.01 0.01" type="cylinder"/>
+            <geom name="cabinet_handle_viz2" material="M_wood" pos="0.05 -0.03 0" size="0.01 0.035" type="cylinder"/>
             <site type="sphere" name="cabinet_door" pos="-0.1 -0.1 0" size="0.05" rgba="1 1 0 0"/>
             <site type="sphere" name="cabinet_door_top" pos="-0.1 -0.1 -0.1" size="0.05" rgba="1 0 0 0"/>
             <site type="sphere" name="cabinet_door_bottom" pos="-0.1 -0.1 0.1" size="0.05" rgba="0 1 0 0"/>
             <geom name="cabinet_viz8" pos="-.01 0 0" size="0.075 0.01 0.075" type="box"/>
 
             <geom name="cabinet_collision5" class="slide_collision" pos="-.01 0 0" size="0.075 0.01 0.075" type="box" mass=".2" friction="5 .005, .0001"/>
-            <geom name="cabinet_collision6" class="slide_collision" euler="1.57 0 0" pos="-0.05 -0.02 0.035" size="0.007 0.01 0.01" type="cylinder" mass=".02" friction="5 .005, .0001"/>
-            <geom name="cabinet_collision7" class="slide_collision" euler="1.57 0 0" pos="-0.05 -0.02 0.035" size="0.007 0.01 0.01"  type="cylinder" mass=".02" friction="5 .005, .0001"/>
-            <geom name="cabinet_collision8" class="slide_collision" pos="-0.05 -0.03 0" size="0.01 0.035" type="cylinder" mass=".1" friction="5 .005, .0001"/>
+            <geom name="cabinet_collision6" class="slide_collision" euler="1.57 0 0" pos="0.05 -0.02 0.035" size="0.007 0.01 0.01" type="cylinder" mass=".02" friction="5 .005, .0001"/>
+            <geom name="cabinet_collision7" class="slide_collision" euler="1.57 0 0" pos="0.05 -0.02 0.035" size="0.007 0.01 0.01"  type="cylinder" mass=".02" friction="5 .005, .0001"/>
+            <geom name="cabinet_collision8" class="slide_collision" pos="0.05 -0.03 0" size="0.01 0.035" type="cylinder" mass=".1" friction="5 .005, .0001"/>
             <site type="sphere" rgba="1 1 1 1" name="slide_site" pos="-0.1 -0.1 0" size=".01" group="3"/>
         </body>
     </body>
