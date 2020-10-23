@@ -13,12 +13,13 @@
         <geom name="cabinet_collision4" class="slide_collision" pos="-0.1 .1 0" size="0.1 0.02 0.1" type="box" mass=".2"/>
         <body name="slidelink" pos="-0.1 -0.1 0">
             <joint name="slidedoor_joint" axis="1 0 0" type="slide" range="0 .44"/>
-            <geom name="cabinet_viz5" material="M_slide_metal" euler="1.57 0 0" pos="-0.05 -0.06 -0.05" size="0.019 0.053 0.019" type="cylinder"/>
-            <geom name="cabinet_viz6" material="M_slide_metal" euler="1.57 0 0" pos="-0.05 -0.06 0.05" size="0.019 0.053 0.019" type="cylinder"/>
-            <geom name="cabinet_viz7" material="M_slide_metal" pos="-0.05 -0.1 0" size="0.022 0.05" type="cylinder"/>
-            <site type="sphere" name="cabinet_door" pos="-0.1 -0.1 0" size="0.05" rgba="1 1 0 0"/>
-            <site type="sphere" name="cabinet_door_top" pos="-0.1 -0.1 -0.1" size="0.05" rgba="1 0 0 0"/>
-            <site type="sphere" name="cabinet_door_bottom" pos="-0.1 -0.1 0.1" size="0.05" rgba="0 1 0 0"/>
+            <geom name="cabinet_handle_viz0" material="M_slide_metal" euler="1.57 0 0" pos="-0.05 -0.06 -0.05" size="0.019 0.053 0.019" type="cylinder"/>
+            <geom name="cabinet_handle_viz1" material="M_slide_metal" euler="1.57 0 0" pos="-0.05 -0.06 0.05" size="0.019 0.053 0.019" type="cylinder"/>
+            <geom name="cabinet_handle_viz2" material="M_slide_metal" pos="-0.05 -0.1 0" size="0.022 0.05" type="cylinder"/>
+            <site type="sphere" name="cabinet_door" pos="-0.1 -0.1 0" size="0.03" rgba="1 1 0 0"/>
+            <site type="sphere" name="cabinet_door2" pos=".05 -0.1 0" size="0.03" rgba="1 1 1 0"/>
+            <site type="sphere" name="cabinet_door_top" pos="-0.1 -0.1 -0.1" size="0.03" rgba="1 0 0 0"/>
+            <site type="sphere" name="cabinet_door_bottom" pos="-0.1 -0.1 0.1" size="0.03" rgba="0 1 0 0"/>
             <geom name="cabinet_viz8" pos="0 -.02 0" size="0.1 0.02 0.1" type="box"/>
 
             <geom name="cabinet_collision5" class="slide_collision" pos="-0.05 -0.06 -0.05" size="0.019 0.053 0.019" type="box" mass=".2"/>

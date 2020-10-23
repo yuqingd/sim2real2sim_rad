@@ -98,8 +98,8 @@ class Kitchen:
     if 'push_kettle' in task:
       self.initial_randomization_steps += 3
 
-    self.has_kettle = False if 'open_microwave' in task else True
-    self.has_microwave = False if minimal else True
+    self.has_kettle = False if ('open_microwave' in task or 'real' in task) else True
+    self.has_microwave = False if (minimal or 'real' in task) else True
     self.has_cabinet = False if minimal else True
     self.dataset_step = dataset_step
     self.grayscale = grayscale
@@ -381,7 +381,9 @@ class Kitchen:
       done = dist_to_goal < 0.05
       reward = -dist_to_goal
     else:
-      raise NotImplementedError
+      done = False
+      reward = 3
+      # raise NotImplementedError
 
     self.timesteps += 1
     return reward, done
