@@ -96,6 +96,11 @@ class DR_Env:
                 range = max(range, eps)  # TODO: consider re-adding anneal_range_scale
             new_value = np.random.uniform(low=np.clip(mean - range, eps, max_val - eps),
                                           high=np.clip(mean + range, 2 * eps, max_val))
+
+            if 'rope_len' in param_name: #clip rope length
+                rope_len_min = self._env._env.sim.model.tendon_range[0,0]
+                new_value = max(rope_len_min + eps, new_value)
+
             if indices is None:
                 param[:] = new_value
             else:
