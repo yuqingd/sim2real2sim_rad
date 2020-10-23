@@ -587,7 +587,6 @@ class DR_Kitchen(DR_Env):
             #     box_viz_8 = model.geom_name2id('box_viz_8')
             # except:
             #     pass
-            import pdb; pdb.set_trace()
 
             dr_update_dict = {
                 'joint1_damping': (model.dof_damping[0:1], None),
