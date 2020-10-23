@@ -124,7 +124,7 @@ def parse_args():
     parser.add_argument('--ol1_episodes', default=10, type=int)
     parser.add_argument('--binary_prediction', default=False, type=bool)
     parser.add_argument('--start_outer_loop', default=0, type=int)
-    parser.add_argument('--train_sim_param_every', default=50, type=int)
+    parser.add_argument('--train_sim_param_every', default=1, type=int)
     parser.add_argument('--momentum', default=0, type=float)
     parser.add_argument('--round_predictions', default=True, action='store_true')
     parser.add_argument('--single_window', default=False, action='store_true')
