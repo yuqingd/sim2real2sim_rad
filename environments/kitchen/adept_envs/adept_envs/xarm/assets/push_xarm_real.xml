@@ -19,17 +19,17 @@
 <!--        <geom conaffinity="1" condim="3" density="5.0" friction="1 0.5 0.5" margin="0.01" rgba="0.8 0.6 0.4 1"/>-->
 <!--    </default>-->
 
+    <default>
+    <default class="cup">
+      <joint type="slide" damping="3" stiffness="20"/>
+      <geom type="capsule" size=".008"/>
+    </default>
+    </default>
+
     <size njmax='1000' nconmax='1000'/>
 
-    <include file="../../../../adept_models/scenes/basic_scene.xml"/>
     <include file="assets.xml"/>
-    <include file="../../../../adept_models/kitchen/assets/oven_asset.xml"/>
-    <include file="../../../../adept_models/kitchen/assets/counters_asset.xml"/>
-    <include file="../../../../adept_models/kitchen/assets/backwall_asset.xml"/>
-    <include file="../../../../adept_models/kitchen/assets/slidecabinet_asset.xml"/>
-    <include file="../../../../adept_models/kitchen/assets/hingecabinet_asset.xml"/>
-    <include file="../../../../adept_models/kitchen/assets/microwave_asset.xml"/>
-    <include file="../../../../adept_models/kitchen/assets/kettle_asset.xml"/>
+    <include file="../../../../adept_models/scenes/basic_scene.xml"/>
     <include file="../../../../adept_models/kitchen/actuators.xml"/>
 
 
@@ -39,12 +39,12 @@
     <map force="0.1" fogend="5" />
     </visual>
 
-    <compiler inertiafromgeom='true' inertiagrouprange='3 5' angle="radian"
+    <compiler angle="radian"
               meshdir="../../../../adept_models/kitchen"
               texturedir="../../../../adept_models/kitchen"/>
 
     <equality>
-        <weld body1="mocap" body2="link7" solref="0.2 1"></weld>
+        <weld body1="mocap" body2="link7" solref="0.02 1" />
     </equality>
 
     <worldbody>
@@ -54,42 +54,42 @@
             <site name="mocap" pos="0 0 0" rgba="0 0 1 0" size="0.1" type="sphere"></site>
         </body>
 
+
+
         <site name='target' pos='0 0 0' size='0.1' rgba='0 2 0 .2'/>
         <camera name='left_cap' pos='-1.2 -0.5 1.8' quat='0.78 0.49 -0.22 -0.32' />
         <camera name='right_cap' pos='1.2 -0.5 1.8' quat='0.76 0.5 0.21 0.35'/>
 
         <!-- Robot -->
-        <body pos='0. 0 1.8' euler='0 0 1.57'>
-            <geom type='cylinder' size='.120 .90' pos='-.04 0 -0.90' class='xarm_viz'/>
-            <include file="xarm_chain.xml"/>
+        <body pos='0. 0 .8' euler='0 0 1.57'>
+            <geom type='box' size='.4 .4 .50' pos='-.3 0 -0.50' rgba="1 1 1 1"  class='xarm_viz'/>
+            <geom type='box' size='.4 .4 .50' pos='-.3 0 -0.50'   mass="0.023013"  class='xarm_col'/>
+            <include file="xarm_chain_real.xml"/>
         </body>
 
-        <body name='desk' pos='-0.1 0.75 0'>
 
-            <body name="counters1" pos="0 0 0" >
-                <include file="../../../../adept_models/kitchen/assets/counters_chain.xml"/>
-            </body>
-            <body name="oven" pos="0 0 0" >
-                <include file="../../../../adept_models/kitchen/assets/oven_chain.xml"/>
-            </body>
-            <body name="backwall" pos="0 0 0" >
-                <include file="../../../../adept_models/kitchen/assets/backwall_chain.xml"/>
-            </body>
-            <body name="slidecabinet" pos="0.4 0.3 2.6" >
-                <include file="../../../../adept_models/kitchen/assets/slidecabinet_chain.xml"/>
-            </body>
-            <body name="hingecabinet" pos="-0.504 0.28 2.6" >
-                <include file="../../../../adept_models/kitchen/assets/hingecabinet_chain.xml"/>
-            </body>
-            <body name="microwave" pos="-0.750 -0.025 1.6" euler="0 0 0.3">
-                <include file="../../../../adept_models/kitchen/assets/microwave_chain.xml"/>
-            </body>
+<!--        <body name="box_with_hole" pos="-.15 .5 .5" euler="1.57 1.57 -0.5">-->
+<!--            <geom name="box_col" class="xarm_col"  mass="0.023013"  mesh="cubewithhole" />-->
+<!--            <geom name="box_viz" class="xarm_viz" rgba=".2 1 .2 1"   mesh="cubewithhole" />-->
+<!--            <site name="box_with_hole" pos=".125 .125 .125" rgba="0.0 0.5 0.5 1" size="0.01" type="sphere"></site>-->
+<!--        </body>-->
+
+        <body name="table" pos="0.05 .363 .55" euler="0 0 0">
+            <geom name="table_col" class="xarm_col"  mass="10"  size=".5 0.3 .1" type="box" pos="-0.1 0 0"/>
+            <geom name="table_viz" class="xarm_viz" rgba="1 1 1 1"   size=".5 0.3 .1"  type="box" pos="-0.1 0 0"/>
         </body>
-        <body name="kettle" pos="0. 0.4 1.626" euler="0 0 -1.57">
+
+        <body name="box" pos=".1 .403 .75" euler="0 0 0">
             <freejoint/>
-            <include file="../../../../adept_models/kitchen/assets/kettle_chain.xml"/>
+            <geom name='box_viz' type='box' size='.02 .02 .02' rgba=".3 .5 1 1"  class='xarm_viz'/>
+            <geom name='box_col' type='box' size='.02 .02 .02' mass="0.023013"  class='xarm_col'/>
+            <site name="box" pos="0 0 0" rgba="0.0 0.5 0.5 1" size="0.01" type="sphere"></site>
         </body>
 
+        <body name="goal" pos="-.2 .4 .65" euler="0 0 0">
+            <geom type='box' size='.02 .02 .001' rgba="1 0 0 1"  class='xarm_viz'/>
+            <site name="goal" pos="0 0 0" rgba="0.0 0.5 0.5 1" size="0.01" type="sphere"></site>
+        </body>
 
 
     </worldbody>
