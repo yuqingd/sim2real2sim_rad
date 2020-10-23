@@ -393,7 +393,7 @@ def config_dr_kitchen(config):
         elif 'real_c' in config.task_name:
             config.real_dr_params = {
                 'cabinet_mass': .34,
-                'cabinet_friction': 1,
+                'cabinet_friction': 5,
                 'cabinet_r': .46,
                 'cabinet_g': .5,
                 'cabinet_b': .6,

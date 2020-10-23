@@ -104,7 +104,7 @@
 
 
       <tendon>
-        <spatial name="string"  class="xarm_col" limited="true" range="0.06 0.12" width="0.003" damping="1">
+        <spatial name="string"  class="xarm_col" rgba="0 0 0 1" limited="true" range="0.1 0.12" width="0.003" damping="1">
           <site site="cylinder"/>
             <site site="end_effector"/>
         </spatial>
