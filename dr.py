@@ -366,11 +366,20 @@ def config_dr_kitchen(config):
                 "table_b": 1,
                 "table_g": 1,
                 "table_r": 1,
+                "table_friction": 1,
             }
-            config.real_dr_list = list(config.real_dr_params.keys())  # TODO: add visual/dynamics/all randomization
+            if dr_option == 'all_dr':
+                config.real_dr_list = list(config.real_dr_params.keys())
+            elif dr_option == 'nonconflicting_dr':
+                config.real_dr_list = ['box_mass', 'box_r', 'box_g', 'box_b', 'table_b', 'table_g', 'table_r']
+            elif dr_option == 'box_mass':
+                config.real_dr_list = ['box_mass']
+            elif dr_option == 'visual_dr':
+                config.real_dr_list = ['box_r', 'box_g', 'box_b', 'table_r', 'table_g', 'table_b']
         elif 'real_c' in config.task_name:
             config.real_dr_params = {
                 'cabinet_mass': .34,
+                'cabinet_friction': 1,
                 'cabinet_r': .46,
                 'cabinet_g': .5,
                 'cabinet_b': .6,
@@ -381,7 +390,16 @@ def config_dr_kitchen(config):
                 "table_g": 1,
                 "table_r": 1,
             }
-            config.real_dr_list = list(config.real_dr_params.keys())
+            if dr_option == 'all_dr':
+                config.real_dr_list = list(config.real_dr_params.keys())
+            elif dr_option == 'nonconflicting_dr':
+                config.real_dr_list = ['cabinet_friction', 'cabinet_r', 'cabinet_g', 'cabinet_b', 'table_b',
+                                       'table_g', 'table_r']
+            elif dr_option == 'dynamics_dr':
+                config.real_dr_list = ['cabinet_mass']
+            elif dr_option == 'visual_dr':
+                config.real_dr_list = ['cabinet_r', 'cabinet_g', 'cabinet_b', 'cabinet_handle_r', 'cabinet_handle_g',
+                                       'cabinet_handle_b', 'table_r', 'table_g', 'table_b']
         else:
             config.real_dr_params = {
                 "cabinet_b": 0.5,  # OK

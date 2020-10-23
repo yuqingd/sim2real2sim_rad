@@ -653,6 +653,7 @@ class DR_Kitchen(DR_Env):
                 'table_r': (model.geom_rgba[model.geom_name2id('table_viz'), 0:1], None),
                 'table_g': (model.geom_rgba[model.geom_name2id('table_viz'), 1:2], None),
                 'table_b': (model.geom_rgba[model.geom_name2id('table_viz'), 2:3], None),
+                'table_friction': (model.geom_friction[model.geom_name2id('table_col'), 0:1], None),
             }
             for dr_param in self.dr_list:
                 arr, indices = dr_update_dict[dr_param]
@@ -666,6 +667,7 @@ class DR_Kitchen(DR_Env):
             geom_dict = model._geom_name2id
             cabinet_index = model.body_name2id('slidelink')
             cabinet_viz_indices = [geom_dict[name] for name in geom_dict.keys() if "cabinet_viz" in name]
+            cabinet_collision_indices = [geom_dict[name] for name in geom_dict.keys() if "cabinet_collision" in name]
             cabinet_handle_indices = [geom_dict[name] for name in geom_dict.keys() if "cabinet_handle_viz" in name]
             dr_update_dict = {
                 'cabinet_r': (model.geom_rgba[:, 0], cabinet_viz_indices),
@@ -675,6 +677,7 @@ class DR_Kitchen(DR_Env):
                 'cabinet_handle_g': (model.geom_rgba[:, 1:2], cabinet_handle_indices),
                 'cabinet_handle_b': (model.geom_rgba[:, 2:3], cabinet_handle_indices),
                 'cabinet_mass': (model.body_mass[cabinet_index: cabinet_index + 1], None),
+                'cabinet_friction': (model.geom_friction[:, 0], cabinet_collision_indices),
                 'table_r': (model.geom_rgba[model.geom_name2id('table_viz'), 0:1], None),
                 'table_g': (model.geom_rgba[model.geom_name2id('table_viz'), 1:2], None),
                 'table_b': (model.geom_rgba[model.geom_name2id('table_viz'), 2:3], None),
@@ -864,6 +867,7 @@ class DR_Kitchen(DR_Env):
                 'table_r': model.geom_rgba[model.geom_name2id('table_viz'), 0],
                 'table_g': model.geom_rgba[model.geom_name2id('table_viz'), 1],
                 'table_b': model.geom_rgba[model.geom_name2id('table_viz'), 2],
+                'table_friction': model.geom_friction[model.geom_name2id('table_col'), 0],
             }
             dr_list = []
             for dr_param in self.dr_list:
@@ -874,6 +878,8 @@ class DR_Kitchen(DR_Env):
             cabinet_index = model.body_name2id('slidelink')
             cabinet_viz_indices = [geom_dict[name] for name in geom_dict.keys() if "cabinet_viz" in name][0]
             cabinet_handle_indices = [geom_dict[name] for name in geom_dict.keys() if "cabinet_handle_viz" in name][0]
+            cabinet_collision_indices = \
+                [geom_dict[name] for name in geom_dict.keys() if "cabinet_collision" in name][0]
             dr_update_dict = {
                 'cabinet_r': model.geom_rgba[cabinet_viz_indices, 0],
                 'cabinet_g': model.geom_rgba[cabinet_viz_indices, 1],
@@ -885,6 +891,7 @@ class DR_Kitchen(DR_Env):
                 'table_r': model.geom_rgba[model.geom_name2id('table_viz'), 0],
                 'table_g': model.geom_rgba[model.geom_name2id('table_viz'), 1],
                 'table_b': model.geom_rgba[model.geom_name2id('table_viz'), 2],
+                'cabinet_friction': model.geom_friction[cabinet_collision_indices, 0],
             }
             dr_list = []
             for dr_param in self.dr_list:
