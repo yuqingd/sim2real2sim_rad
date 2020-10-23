@@ -724,14 +724,9 @@ def main():
         for checkpoint in agent_checkpoint:
             agent_step = max(agent_step, [int(x) for x in re.findall('\d+', checkpoint)][-1])
 
-        rand_params = copy.deepcopy(agent.actor.state_dict()).items()
         agent.load_curl(model_dir, agent_step)
         agent.load(model_dir, agent_step)
-        loaded_params = agent.actor.state_dict().items()
 
-        for p1, p2 in zip(rand_params, loaded_params):
-            if p1[1].eq(p2[1]).sum() > 0 and 'encoder' not in p1[0]:
-                import pdb; pdb.set_trace()
 
         start_step = agent_step
         if sim_param_model is not None:
