@@ -1,6 +1,6 @@
 <mujocoinclude>
 
-    <compiler inertiafromgeom="auto" inertiagrouprange="4 4" angle="radian"/>
+<!--    <compiler inertiafromgeom="auto" inertiagrouprange="4 4" angle="radian"/>-->
 
     <asset>
         <texture name="T_slide_metal" type="cube" height="1" width="1" file="../kitchen/textures/metal1.png"/>

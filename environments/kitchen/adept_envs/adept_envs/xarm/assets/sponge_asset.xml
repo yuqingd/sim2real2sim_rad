@@ -1,0 +1,11 @@
+<mujocoinclude>
+
+    <compiler angle="radian"/>
+
+    <default>
+        <default class="sponge">
+            <geom conaffinity="0" contype="0" group="1" material="M_slide_blue" type="mesh"/>
+        </default>
+    </default>
+
+</mujocoinclude>
