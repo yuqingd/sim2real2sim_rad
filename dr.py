@@ -66,7 +66,8 @@ def config_dr_dmc(config):
             config.real_dr_list = list(real_dr_values.keys())
         elif dr_option == 'nonconflicting_dr':
             config.real_dr_list = [
-                "cup_mass", "ball_mass", "cup_r", "cup_g", "cup_b", "ball_r", "ball_g", "ball_b",
+                "cup_mass", "ball_mass", "cup_r", "cup_g", "cup_b", "ball_r", "ball_g", "ball_b", "ground_r",
+                "ground_g", "ground_b",
             ]
         elif dr_option == 'visual_dr':
             config.real_dr_list = [
@@ -75,6 +76,18 @@ def config_dr_dmc(config):
         elif dr_option == 'mass_dr':
             config.real_dr_list = [
                 'ball_mass'
+            ]
+        elif dr_option == 'cup_mass_dr':
+            config.real_dr_list = [
+                'cup_mass'
+            ]
+        elif dr_option == 'ball_mass_dr':
+            config.real_dr_list = [
+                'ball_mass'
+            ]
+        elif dr_option == 'simple_dr':
+            config.real_dr_list = [
+                "ball_mass", "cup_r", "cup_g", "cup_b", "ball_r", "ball_g", "ball_b", "ground_r", "ground_g", "ground_b",
             ]
     elif "walker" in config.domain_name:
         real_dr_values = {
@@ -97,6 +110,7 @@ def config_dr_dmc(config):
             "body_r": self_r,
             "body_g": self_g,
             "body_b": self_b,
+            "full_mass": 10.3138485,
         }
         if dr_option == 'all_dr':
             config.real_dr_list = list(real_dr_values.keys())
@@ -107,7 +121,7 @@ def config_dr_dmc(config):
             ]
         elif dr_option == 'simplified_randomization':
             config.real_dr_list = [
-                "torso_mass", "left_foot_mass", "ground_r", "ground_g", "ground_b", "body_r", "body_g", "body_b"
+                "full_mass", "left_foot_mass", "ground_r", "ground_g", "ground_b", "body_r", "body_g", "body_b"
             ]
         elif dr_option == 'visual_dr':
             config.real_dr_list = [
@@ -124,6 +138,10 @@ def config_dr_dmc(config):
         elif dr_option == 'single_visual_dr':
             config.real_dr_list = [
                 "ground_r"
+            ]
+        elif dr_option == 'simple_dr':
+            config.real_dr_list = [
+                "full_mass", "ground_r", "ground_g", "ground_b", "body_r", "body_g", "body_b"
             ]
     elif "finger" in config.domain_name:
         real_dr_values = {
@@ -150,6 +168,11 @@ def config_dr_dmc(config):
                 "proximal_damping", "distal_damping", "spinner_mass", "ground_r", "ground_g", "ground_b", "finger_r",
                 "finger_g", "finger_b", "hotdog_r", "hotdog_g", "hotdog_b",
             ]
+        elif dr_option == 'simple_dr':
+            config.real_dr_list = [
+                "proximal_damping", "spinner_mass", "ground_r", "ground_g", "ground_b", "finger_r",
+                "finger_g", "finger_b", "hotdog_r", "hotdog_g", "hotdog_b",
+            ]
     elif "cheetah" in config.domain_name:
         real_dr_values = {
             "torso_mass": 6.3603134,  # decent difference
@@ -171,13 +194,19 @@ def config_dr_dmc(config):
             "body_r": self_r,
             "body_g": self_g,
             "body_b": self_b,
+            "full_mass": 6.3603134,
         }
         if dr_option == 'all_dr':
             config.real_dr_list = list(real_dr_values.keys())
         elif dr_option == 'nonconflicting_dr':
             config.real_dr_list = [
-                "torso_mass", "ffoot_mass", "bfoot_mass", "ground_r", "ground_g", "ground_b", "finger_r",
-                "finger_g", "finger_b", "hotdog_r", "hotdog_g", "hotdog_b",
+                "torso_mass", "ffoot_mass", "bfoot_mass", "ground_r", "ground_g", "ground_b", "body_r",
+                "body_g", "body_b",
+            ]
+        elif dr_option == 'simple_dr':
+            config.real_dr_list = [
+                "full_mass", "ground_r", "ground_g", "ground_b", "body_r",
+                "body_g", "body_b",
             ]
     config.real_dr_params = real_dr_values
 
@@ -302,6 +331,7 @@ def config_dr_kitchen(config):
                 # "box8_r": .2,
                 # "box8_g": 1,
                 # "box8_b": .2,
+                "rope_len_max" : 0.12,
                 "rope_damping": 0,
                 "rope_friction": 0,
                 "rope_stiffness": 0,
@@ -328,13 +358,68 @@ def config_dr_kitchen(config):
                     # "box6_r", "box6_g", "box6_b", "box7_r", "box7_g", "box7_b", "box8_r", "box8_g", "box8_b",
                     "rope_damping", "lighting",
                 ]
+            elif dr_option == 'len_vis_dr':
+                config.real_dr_list = [
+                    "cylinder_b", "cylinder_g", "cylinder_r", "rope_len_max", "box1_r", "box1_g", "box1_b",  "lighting",
+                ]
+            elif dr_option == 'mass_vis_dr':
+                config.real_dr_list = [
+                    "cylinder_b", "cylinder_g", "cylinder_r", "cylinder_mass", "box1_r", "box1_g", "box1_b",  "lighting",
+                ]
+            elif dr_option == 'len_mass_vis_dr':
+                config.real_dr_list = [
+                    "cylinder_b", "cylinder_g", "cylinder_r", "cylinder_mass", "box1_r", "box1_g", "box1_b",  "lighting", "rope_len_max",
+                ]
 
+        elif 'real_p' in config.task_name:
+            config.real_dr_params = {
+                'box_mass': 0.023013,
+                'box_r': 0.3,
+                'box_g': 0.5,
+                'box_b': 1,
+                "table_b": 1,
+                "table_g": 1,
+                "table_r": 1,
+                "table_friction": 1,
+            }
+            if dr_option == 'all_dr':
+                config.real_dr_list = list(config.real_dr_params.keys())
+            elif dr_option == 'nonconflicting_dr':
+                config.real_dr_list = ['box_mass', 'box_r', 'box_g', 'box_b', 'table_b', 'table_g', 'table_r']
+            elif dr_option == 'box_mass':
+                config.real_dr_list = ['box_mass']
+            elif dr_option == 'visual_dr':
+                config.real_dr_list = ['box_r', 'box_g', 'box_b', 'table_r', 'table_g', 'table_b']
+        elif 'real_c' in config.task_name:
+            config.real_dr_params = {
+                'cabinet_mass': .34,
+                'cabinet_friction': 1,
+                'cabinet_r': .46,
+                'cabinet_g': .5,
+                'cabinet_b': .6,
+                'cabinet_handle_r': 1,
+                'cabinet_handle_g': 1,
+                'cabinet_handle_b': 1,
+                "table_b": 1,
+                "table_g": 1,
+                "table_r": 1,
+            }
+            if dr_option == 'all_dr':
+                config.real_dr_list = list(config.real_dr_params.keys())
+            elif dr_option == 'nonconflicting_dr':
+                config.real_dr_list = ['cabinet_friction', 'cabinet_r', 'cabinet_g', 'cabinet_b', 'table_b',
+                                       'table_g', 'table_r']
+            elif dr_option == 'dynamics_dr':
+                config.real_dr_list = ['cabinet_mass']
+            elif dr_option == 'visual_dr':
+                config.real_dr_list = ['cabinet_r', 'cabinet_g', 'cabinet_b', 'cabinet_handle_r', 'cabinet_handle_g',
+                                       'cabinet_handle_b', 'table_r', 'table_g', 'table_b']
         else:
             config.real_dr_params = {
                 "cabinet_b": 0.5,  # OK
                 "cabinet_friction": 1,  # hard 2 tell
                 "cabinet_g": 0.5,  # OK
-                "cabinet_mass": 3.4,  # hard 2 tell
+                "cabinet_mass": .34,  # hard 2 tell
                 "cabinet_r": 0.5,  # OK
                 "joint1_damping": 10,  # negligible
                 "joint2_damping": 10,  # negligible
@@ -429,7 +514,7 @@ def config_dr_kitchen(config):
                     cur_scale = 1 / cur_scale
             if real_val == 0:
                 real_val = 5e-2
-            if '_r' in key or '_g' in key or '_b' in key:
+            if '_r' in key or '_g' in key or '_b' in key and not key in ['cabinet_handle_r', 'cabinet_handle_g', 'cabinet_handle_b']:
                 config.dr[key] = (min(real_val * cur_scale, 1.), real_val * range_scale) #clip to possible colour value
             else:
                 config.dr[key] = (real_val * cur_scale, real_val * range_scale)

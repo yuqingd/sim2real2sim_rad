@@ -34,17 +34,27 @@ class Kitchen:
       elevation = -48
       lookat = [-.1,.35,.9]
 
-    if 'cabinet' in task:
+    elif 'cabinet' in task:
       distance = 2.5
       azimuth = 120
       elevation = -40
       lookat = None
-    if 'open_microwave' in task:
+    elif 'open_microwave' in task:
       distance = 1.5
       azimuth = 140
       elevation = -30
       lookat = None
-    if 'push' in task:
+    elif 'real_p' in task:
+      distance = 1.1
+      azimuth = 35
+      elevation = -48
+      lookat = [-.1,.35,.9]
+    elif 'real_c' in task:
+      distance = 1.1
+      azimuth = 35
+      elevation = -48
+      lookat = [-.1,.35,.9]
+    else:
       lookat = None
 
     if minimal:
@@ -88,8 +98,8 @@ class Kitchen:
     if 'push_kettle' in task:
       self.initial_randomization_steps += 3
 
-    self.has_kettle = False if 'open_microwave' in task else True
-    self.has_microwave = False if minimal else True
+    self.has_kettle = False if ('open_microwave' in task or 'real' in task) else True
+    self.has_microwave = False if (minimal or 'real' in task) else True
     self.has_cabinet = False if minimal else True
     self.dataset_step = dataset_step
     self.grayscale = grayscale
@@ -113,16 +123,48 @@ class Kitchen:
       self._env.sim.forward()
 
     elif 'rope' in self.task:
+      self.set_workspace_bounds('rope_workspace')
+
       body_id = self._env.sim.model.body_name2id('boxes_with_hole')
       box_loc = self._env.sim.model.body_pos[body_id]
       #box_loc[2] += np.random.normal(0, .0) #move box height only
       self._env.sim.model.body_pos[body_id] = box_loc
 
-      self._env.data.set_mocap_pos('mocap', self._env.data.mocap_pos + np.array([0,0,.05]))
+      self._env.data.set_mocap_pos('mocap', self._env.data.mocap_pos + np.array([0,0,.1]))
 
       self._env.sim.forward()
 
-    if 'reach' in self.task:
+      self.goal = self._env.sim.data.site_xpos[self.box_with_hole_index]
+      self.z_goal = False  # move up first
+
+    elif 'real_c' in self.task:
+      self.set_workspace_bounds('slide_cabinet_workspace')
+
+      goal = self._env.sim.data.site_xpos[self._env.sim.model._site_name2id['cabinet_door']].copy()
+      self.goal = self._env.sim.data.site_xpos[self._env.sim.model._site_name2id['cabinet_door']].copy()
+      self.goal[0] = 0.18
+      self.step(np.array([0, 0, 0]))
+      end_effector = self._env.sim.data.site_xpos[self._env.sim.model._site_name2id['end_effector']].copy()
+      ratio_to_goal = 0.6
+      partway = ratio_to_goal * goal + (1 - ratio_to_goal) * end_effector
+      for i in range(60):
+        diff = partway - self._env.sim.data.site_xpos[self._env.sim.model._site_name2id['end_effector']].copy()
+        diff = diff / self.step_size
+        self.step(diff)
+
+    elif 'real_p' in self.task:
+      self.set_workspace_bounds('push_workspace')
+      goal_id = self._env.sim.model.body_name2id('goal')
+      # goal_loc = self._env.sim.model.body_pos[goal_id].copy()
+      #
+      # #randomize goal location
+      # goal_loc[:2] += np.random.normal(0, 0.07) #add noise to init position
+      # goal_loc[:2] = np.clip(goal_loc[:2],  self.end_effector_bound_low[:2], self.end_effector_bound_high[:2])
+      #
+      # self._env.sim.model.body_pos[goal_id][:2] = goal_loc[:2]
+      self.goal = self._env.sim.model.body_pos[goal_id]
+
+    elif 'reach' in self.task:
       self.set_workspace_bounds('full_workspace')
 
       if self.task == 'reach_microwave':
@@ -179,10 +221,7 @@ class Kitchen:
         self.goal = np.random.uniform(low=[-1, 0, 0], high=[0, 1, 0]) #randomly select goal location in workspace OUTSIDE of end effector reach
         self.goal[-1] = np.squeeze(init_xpos[XPOS_INDICES['kettle']])[-1] #set z pos to be same as kettle, since we only want to slide in x,y
 
-    elif 'rope' in self.task:
-      self.set_workspace_bounds('rope_workspace')
-      self.goal = self._env.sim.data.site_xpos[self.box_with_hole_index]
-      self.z_goal = False #move up first
+
 
     elif 'open_microwave' in self.task:
       self.set_workspace_bounds('full_workspace')
@@ -205,7 +244,9 @@ class Kitchen:
         self.step(diff)
 
     else:
-      raise NotImplementedError(self.task)
+      self.goal = np.array([0])
+      print("NO task seti[")  # TODO: fix this!
+      # raise NotImplementedError(self.task)
 
 
     # self.randomize_start()
@@ -361,8 +402,26 @@ class Kitchen:
 
       done = dist_to_goal < 0.05
 
+    elif 'real_c' in self.task:
+      cabinet_pos = self._env.sim.data.site_xpos[self._env.sim.model._site_name2id['cabinet_door']]
+      dist_to_goal = np.abs(cabinet_pos[0] - 0.15)
+      done = dist_to_goal < 0.01
+      reward = -dist_to_goal
+
+    elif 'real_p' in self.task:
+      end_effector = np.squeeze(xpos[XPOS_INDICES['end_effector']])
+      # two stage reward, first get to box, then kettle to goal
+      box_pos = self._env.sim.data.site_xpos[self._env.sim.model._site_name2id['box']]
+
+      d1 = np.linalg.norm(end_effector - box_pos)
+      d2 = np.linalg.norm(box_pos - self.goal)
+      done = np.abs(d2) < 0.05 #TODO: tune this if needed
+
+      reward = -(d1 + d2)
     else:
-      raise NotImplementedError
+      done = False
+      reward = 3
+      # raise NotImplementedError
 
     self.timesteps += 1
     return reward, done
@@ -377,6 +436,20 @@ class Kitchen:
     elif bounds == 'rope_workspace':
       x_low = -.4  # Left of box
       x_high = .1  # Right of Box
+      y_low = 0  # Right in front of the robot's pedestal
+      y_high = .35  # behind box
+      z_low = 0  # Tabletop
+      z_high = 2.1
+    elif bounds == 'push_workspace':
+      x_low = -.4  # Left of box
+      x_high = .2  # Right of Box
+      y_low = 0  # Right in front of the robot's pedestal
+      y_high = .35  # behind box
+      z_low = 0  # Tabletop
+      z_high = 2.1
+    elif bounds == 'slide_cabinet_workspace':
+      x_low = -.4  # Left of box
+      x_high = .2  # Right of Box
       y_low = 0  # Right in front of the robot's pedestal
       y_high = .35  # behind box
       z_low = 0  # Tabletop
@@ -533,7 +606,8 @@ class Kitchen:
       elif 'kettle' in self.task:
         state_list.append(np.squeeze(self._env.sim.data.body_xpos[XPOS_INDICES['kettle']]))
       else:
-        raise NotImplementedError("Unrecognized task" + self.task)
+        print("OK")
+        # raise NotImplementedError("Unrecognized task" + self.task)  # TODO: fix!
     return np.concatenate(state_list)
 
   def reset(self):
