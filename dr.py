@@ -331,6 +331,7 @@ def config_dr_kitchen(config):
                 # "box8_r": .2,
                 # "box8_g": 1,
                 # "box8_b": .2,
+                "rope_len_max" : 0.12,
                 "rope_damping": 0,
                 "rope_friction": 0,
                 "rope_stiffness": 0,
@@ -357,6 +358,19 @@ def config_dr_kitchen(config):
                     # "box6_r", "box6_g", "box6_b", "box7_r", "box7_g", "box7_b", "box8_r", "box8_g", "box8_b",
                     "rope_damping", "lighting",
                 ]
+            elif dr_option == 'len_vis_dr':
+                config.real_dr_list = [
+                    "cylinder_b", "cylinder_g", "cylinder_r", "rope_len_max", "box1_r", "box1_g", "box1_b",  "lighting",
+                ]
+            elif dr_option == 'mass_vis_dr':
+                config.real_dr_list = [
+                    "cylinder_b", "cylinder_g", "cylinder_r", "cylinder_mass", "box1_r", "box1_g", "box1_b",  "lighting",
+                ]
+            elif dr_option == 'len_mass_vis_dr':
+                config.real_dr_list = [
+                    "cylinder_b", "cylinder_g", "cylinder_r", "cylinder_mass", "box1_r", "box1_g", "box1_b",  "lighting", "rope_len_max",
+                ]
+
         elif 'real_p' in config.task_name:
             config.real_dr_params = {
                 'box_mass': 0.023013,
