@@ -151,7 +151,7 @@ def parse_args():
     parser.add_argument('--val_split', default=.2, type=float,
                         help='validation split; currently only for offline training but we should fix this.')
     parser.add_argument('--continue_train', default=False, action='store_true')
-    
+
     args = parser.parse_args()
     if args.dr:
         args = config_dr(args)
