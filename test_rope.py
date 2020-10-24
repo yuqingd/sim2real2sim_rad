@@ -161,9 +161,9 @@ def run_eval_loop(sample_stochastically=True):
             # center crop image
             obs = utils.center_crop_image(obs, image_size)
             if step < 10:
-                action = [0., 0., -1]
+                action = [.1, 0., -1]
             else:
-                action = [0, 1, 0]
+                action = [-.3, 1, 0]
 
             step+=1
             obs_traj.append(obs)
