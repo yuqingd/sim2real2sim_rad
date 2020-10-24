@@ -146,25 +146,10 @@ class Kitchen:
       goal = self._env.sim.data.site_xpos[self._env.sim.model._site_name2id['cabinet_door']].copy()
       self.goal = self._env.sim.data.site_xpos[self._env.sim.model._site_name2id['cabinet_door']].copy()
       self.goal[0] = -0.14
-      # self.step(np.array([0, 0, 0]))
-      # end_effector = self._env.sim.data.site_xpos[self._env.sim.model._site_name2id['end_effector']].copy()
-      # ratio_to_goal = 0.6
-      # partway = ratio_to_goal * goal + (1 - ratio_to_goal) * end_effector
-      # for i in range(60):
-      #   diff = partway - self._env.sim.data.site_xpos[self._env.sim.model._site_name2id['end_effector']].copy()
-      #   diff = diff / self.step_size
-      #   self.step(diff)
 
     elif 'real_p' in self.task:
       self.set_workspace_bounds('push_workspace')
       goal_id = self._env.sim.model.body_name2id('goal')
-      # goal_loc = self._env.sim.model.body_pos[goal_id].copy()
-      #
-      # #randomize goal location
-      # goal_loc[:2] += np.random.normal(0, 0.07) #add noise to init position
-      # goal_loc[:2] = np.clip(goal_loc[:2],  self.end_effector_bound_low[:2], self.end_effector_bound_high[:2])
-      #
-      # self._env.sim.model.body_pos[goal_id][:2] = goal_loc[:2]
       self.goal = self._env.sim.model.body_pos[goal_id]
 
     elif 'reach' in self.task:
