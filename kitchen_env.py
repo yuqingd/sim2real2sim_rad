@@ -446,8 +446,8 @@ class Kitchen:
       x_high = .2  # Right of Box
       y_low = 0  # Right in front of the robot's pedestal
       y_high = .35  # behind box
-      z_low = 2.  # Tabletop
-      z_high = 2.2
+      z_low = 0.  # Tabletop
+      z_high = 2.1
     elif bounds == 'full_workspace':
       x_low = -1.5  # Around the microwave
       x_high = 1.  # Around the sink

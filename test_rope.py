@@ -8,9 +8,9 @@ from train import parse_args
 # ENV = 'FetchPickAndPlace-v1'
 #
 
-from mujoco_py import GlfwContext
+# from mujoco_py import GlfwContext
 import mujoco_py
-GlfwContext(offscreen=True)
+# GlfwContext(offscreen=True)
 
 args = parse_args()
 #
