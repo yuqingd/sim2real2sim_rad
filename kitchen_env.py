@@ -142,6 +142,8 @@ class Kitchen:
 
     elif 'real_c' in self.task:
       self.set_workspace_bounds('slide_cabinet_workspace')
+      self._env.data.set_mocap_pos('mocap', self._env.data.mocap_pos + np.array([.15,.15,.3]))
+      self._env.sim.forward()
 
       goal = self._env.sim.data.site_xpos[self._env.sim.model._site_name2id['cabinet_door']].copy()
       self.goal = self._env.sim.data.site_xpos[self._env.sim.model._site_name2id['cabinet_door']].copy()
@@ -335,7 +337,7 @@ class Kitchen:
       else:
         reward = -np.linalg.norm(cylinder_loc - self.goal)
 
-      done = np.abs(reward) < 0.05
+      done = np.abs(reward) < 0.06
 
     elif 'open_microwave' in self.task:
       end_effector = self._env.sim.data.site_xpos[self._env.sim.model._site_name2id['end_effector']]
