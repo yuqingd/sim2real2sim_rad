@@ -109,7 +109,7 @@ def run_eval_loop(sample_stochastically=True):
                 action = [-.3, .1, -.2]
             else:
                 action = [-.3, 0, -.1]
-
+            action = [0, 0, 0]
             step+=1
             obs_traj.append(obs)
             obs_dict, reward, done, info = env.step(action)
