@@ -512,6 +512,8 @@ def config_dr_kitchen(config):
             if config.scale_large_and_small:
                 if bool(np.random.choice(a=[False, True], size=(1,))):
                     cur_scale = 1 / cur_scale
+            if "rope_len_max" in key:
+                cur_scale = max(cur_scale, 1/cur_scale) # always make rope longer, shorter is too easy
             if real_val == 0:
                 real_val = 5e-2
             if '_r' in key or '_g' in key or '_b' in key and not key in ['cabinet_handle_r', 'cabinet_handle_g', 'cabinet_handle_b']:
