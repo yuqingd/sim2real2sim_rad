@@ -79,7 +79,7 @@
             <geom name="table_viz" class="xarm_viz" rgba="1 1 1 1"   size=".5 0.3 .1"  type="box" pos="-0.1 0 0"/>
         </body>
 
-        <body name="box" pos="0 .3 .75" euler="0 0 0">
+        <body name="box" pos="0 .3 .67" euler="0 0 0">
             <freejoint/>
             <geom name='box_viz' type='box' size='.02 .02 .02' rgba=".3 .5 1 1"  class='xarm_viz'/>
             <geom name='box_col' type='box' size='.02 .02 .02' mass="0.023013"  class='xarm_col'/>
