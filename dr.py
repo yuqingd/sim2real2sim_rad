@@ -303,7 +303,7 @@ def config_dr_kitchen(config):
                 "robot_b": 0.95,
                 "robot_g": 0.95,
                 "robot_r": 0.95,
-                "cylinder_b": 0,
+                "cylinder_b": 0.,
                 "cylinder_g": .8,
                 "cylinder_r": 1.,
                 "cylinder_mass": 0.5,
