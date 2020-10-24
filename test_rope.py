@@ -32,7 +32,7 @@ env_sim.reset()
 
 num_episodes = 1
 time_limit = 60
-image_size = 84
+image_size = 256
 real_video_dir = utils.make_dir(os.path.join('./logdir', 'debug_video'))
 
 video = VideoRecorder(real_video_dir, camera_id=0)
@@ -54,10 +54,10 @@ def run_eval_loop(env, name):
             obs = obs_dict['image']
             # center crop image
             obs = utils.center_crop_image(obs, image_size)
-            if step < 30:
-                action = [0, .1, .1]
+            if step < 20:
+                action = [.3, .3, 0]
             else:
-                action = [-.1, .1, -.05]
+                action = [-.3, 0, -.3]
 
             step+=1
             obs_traj.append(obs)
