@@ -40,9 +40,9 @@
     <map force="0.1" fogend="5" />
     </visual>
 
-    <compiler angle="radian"
+    <compiler angle="radian" inertiafromgeom='auto'
               meshdir="../../../../adept_models/kitchen"
-              texturedir="../../../../adept_models/kitchen"/>
+              texturedir="../../../../adept_models/kitchen" />
 
     <equality>
         <weld body1="mocap" body2="link7" solref="0.02 1" />
@@ -65,7 +65,7 @@
         <body pos='0. 0 .8' euler='0 0 1.57'>
             <geom type='box' size='.4 .4 .50' pos='-.3 0 -0.50' rgba="1 1 1 1"  class='xarm_viz'/>
             <geom type='box' size='.4 .4 .50' pos='-.3 0 -0.50'   mass="0.023013"  class='xarm_col'/>
-            <include file="xarm_chain_real.xml"/>
+            <include file="xarm_chain_sponge_real.xml"/>
         </body>
 
 
@@ -80,9 +80,10 @@
             <geom name="table_viz" class="xarm_viz" rgba="1 1 1 1"   size=".5 0.3 .1"  type="box" pos="-0.1 0 0"/>
         </body>
 
-        <body name="slidecabinet" pos=".2 .4 .75" euler="-1.57 0 0">
+        <body name="slidecabinet" pos="0 .45 .725" euler="-1.57 3.14 0">
             <include file="slidecabinet_chain.xml"/>
         </body>
+
 
 
     </worldbody>
