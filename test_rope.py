@@ -77,15 +77,16 @@ env = make('kitchen', real_world=False,
         seed=0,
         height=512,
         width=512,
-        dr_list=args.real_dr_list,
+        dr_list=["joint_max", "cabinet_friction"],
         dr_shape=args.sim_params_size,
-        dr=args.dr,
-        mean_only=args.mean_only,
+        dr={"joint_max": .2, "cabinet_friction": 10},
+        mean_only=True,
+        range_scale=1,
     )
 # env.set_special_reset('grip')
 env.reset()
 env.apply_dr()
-num_episodes = 4
+num_episodes = 16
 time_limit = 100
 image_size = 512
 real_video_dir = utils.make_dir(os.path.join('./logdir', 'debug_video'))
@@ -125,38 +126,38 @@ def run_eval_loop(sample_stochastically=True):
             # center crop image
             obs = utils.center_crop_image(obs, image_size)
 
-            if i == 0:
+            if i % 4 == 0:
                 # Succeeds in the task
                 if step < 20:
-                    action = [.05, .1, .01]
+                    action = [.3, .3, .005]
                 elif step < 40:
-                    action = [-.3, .1, -.1]
+                    action = [-.3, .1, -.2]
                 else:
                     action = [-.3, 0, -.1]
 
-            if i == 1:
+            if i % 4  == 1:
                 # hits the cabinet from the side
                 if step < 20:
-                    action = [.3, .3, .6]
+                    action = [.3, .3, -.2]
                 elif step < 40:
                     action = [-.3, .1, -.2]
                 else:
                     action = [-.3, 0, -.1]
                 # action = [0, 0, 0]
 
-            if i == 2:
+            if i % 4  == 2:
                 # Punches down the lid of the cabinet
                 if step < 20:
-                    action = [-.1, .3, .6]
+                    action = [-.1, .3, .01]
                 else:
                     action = [0, 0, -1]
 
-            if i == 3:
+            if i  % 4 == 3:
                 # pulls the handle, but releases halfway (to see if it pops back)
                 if step < 20:
-                    action = [.05, .1, .01]
-                elif step < 50:
-                    action = [-.3, .1, -.1]
+                    action = [.3, .3, .005]
+                elif step < 70:
+                    action = [-.3, .1, -.2]
                 else:
                     action = [0, 0, 1]
 
