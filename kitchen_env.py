@@ -391,9 +391,15 @@ class Kitchen:
       done = dist_to_goal < 0.05
 
     elif 'real_c' in self.task:
+      end_effector = np.squeeze(xpos[XPOS_INDICES['end_effector']])
+
       cabinet_pos = self._env.sim.data.site_xpos[self._env.sim.model._site_name2id['cabinet_door']]
-      dist_to_goal = np.abs(cabinet_pos[0] - self.goal[0])
-      done = dist_to_goal < 0.01
+
+      # two stage reward, first get to handle, then slide open to goal
+      d1 = np.linalg.norm(end_effector - cabinet_pos)
+      d2 = np.abs(cabinet_pos[0] - self.goal[0])
+      dist_to_goal = d1 + d2
+      done = d2 < 0.01
       reward = -dist_to_goal
 
     elif 'real_p' in self.task:
