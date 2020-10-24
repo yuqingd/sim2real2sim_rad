@@ -64,7 +64,7 @@
         <body pos='0. 0 .8' euler='0 0 1.57'>
             <geom type='box' size='.4 .4 .50' pos='-.3 0 -0.50' rgba="1 1 1 1"  class='xarm_viz'/>
             <geom type='box' size='.4 .4 .50' pos='-.3 0 -0.50'   mass="0.023013"  class='xarm_col'/>
-            <include file="xarm_chain_real.xml"/>
+            <include file="xarm_chain_sponge_real.xml"/>
         </body>
 
 
@@ -79,14 +79,14 @@
             <geom name="table_viz" class="xarm_viz" rgba="1 1 1 1"   size=".5 0.3 .1"  type="box" pos="-0.1 0 0"/>
         </body>
 
-        <body name="box" pos=".1 .403 .75" euler="0 0 0">
+        <body name="box" pos="0 .3 .67" euler="0 0 0">
             <freejoint/>
             <geom name='box_viz' type='box' size='.02 .02 .02' rgba=".3 .5 1 1"  class='xarm_viz'/>
             <geom name='box_col' type='box' size='.02 .02 .02' mass="0.023013"  class='xarm_col'/>
             <site name="box" pos="0 0 0" rgba="0.0 0.5 0.5 1" size="0.01" type="sphere"></site>
         </body>
 
-        <body name="goal" pos="-.2 .4 .65" euler="0 0 0">
+        <body name="goal" pos="-.1 .5 .65" euler="0 0 0">
             <geom type='box' size='.02 .02 .001' rgba="1 0 0 1"  class='xarm_viz'/>
             <site name="goal" pos="0 0 0" rgba="0.0 0.5 0.5 1" size="0.01" type="sphere"></site>
         </body>

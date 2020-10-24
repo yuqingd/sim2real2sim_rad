@@ -415,9 +415,7 @@ class Kitchen:
 
       reward = -(d1 + d2)
     else:
-      done = False
-      reward = 3
-      # raise NotImplementedError
+      raise NotImplementedError
 
     self.timesteps += 1
     return reward, done
