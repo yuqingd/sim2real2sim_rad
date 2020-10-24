@@ -231,7 +231,7 @@ class SimParamModel(nn.Module):
 
         # Shuffle all params but the last, which is distribution mean
         shuffled_indices = torch.stack([torch.randperm(len(fake_pred) - 1) for _ in range(len(sim_params))], dim=1).to(
-            self.device)
+            self.device).int()
         dist_mean_indices = torch.zeros(1, len(distribution_mean)).to(self.device).int() + len(shuffled_indices)
         shuffled_indices = torch.cat([shuffled_indices, dist_mean_indices])
 
