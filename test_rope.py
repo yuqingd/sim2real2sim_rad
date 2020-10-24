@@ -175,4 +175,3 @@ def run_eval_loop(sample_stochastically=True):
         video.save('sim_push.mp4')
 
 run_eval_loop()
-
