@@ -77,16 +77,16 @@ env = make('kitchen', real_world=False,
         seed=0,
         height=512,
         width=512,
-        dr_list=["joint_max", "cabinet_friction"],
+        dr_list=[],
         dr_shape=args.sim_params_size,
-        dr={"joint_max": .2, "cabinet_friction": 10},
+        dr={},
         mean_only=True,
         range_scale=1,
     )
 # env.set_special_reset('grip')
 env.reset()
 env.apply_dr()
-num_episodes = 16
+num_episodes = 4
 time_limit = 100
 image_size = 512
 real_video_dir = utils.make_dir(os.path.join('./logdir', 'debug_video'))
@@ -166,7 +166,7 @@ def run_eval_loop(sample_stochastically=True):
             obs_dict, reward, done, info = env.step(action)
             video.record(env)
             episode_reward += reward
-            print(step, reward)
+            print(step, info['success'], reward)
     video.save('sim_cabinet.mp4')
 
 run_eval_loop()

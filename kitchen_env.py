@@ -108,10 +108,12 @@ class Kitchen:
     self.reward_range = (-float('inf'), float('inf'))
     # TODO: maybe update this.  Currently just placeholder values.
     self.metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': 80}
+    self.already_succeeded = False
 
     self.setup_task()
 
   def setup_task(self):
+    self.already_succeeded = False
     self.timesteps = 0
     init_xpos = self._env.sim.data.body_xpos
     self._env.sim.data.qpos[:7] = np.zeros(7)
@@ -254,7 +256,10 @@ class Kitchen:
 
   def get_reward(self):
     xpos = self._env.sim.data.body_xpos
-    if 'reach' in self.task:
+    if self.already_succeeded:
+      done = True
+      reward = 0
+    elif 'reach' in self.task:
       end_effector = np.squeeze(xpos[XPOS_INDICES['end_effector']])
       reward = -np.linalg.norm(end_effector - self.goal)
       done = np.abs(reward) < 0.25
@@ -418,6 +423,7 @@ class Kitchen:
       raise NotImplementedError
 
     self.timesteps += 1
+    self.already_succeeded = done
     return reward, done
 
   def get_sim(self):
@@ -446,8 +452,8 @@ class Kitchen:
       x_high = .2  # Right of Box
       y_low = 0  # Right in front of the robot's pedestal
       y_high = .35  # behind box
-      z_low = 0.  # Tabletop
-      z_high = 2.1
+      z_low = 2.  # Tabletop
+      z_high = 2.2
     elif bounds == 'full_workspace':
       x_low = -1.5  # Around the microwave
       x_high = 1.  # Around the sink
