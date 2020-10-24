@@ -7,8 +7,13 @@ import torch
 from train import parse_args
 # ENV = 'FetchPickAndPlace-v1'
 #
-args = parse_args()
 
+from mujoco_py import GlfwContext
+import mujoco_py
+GlfwContext(offscreen=True)
+
+args = parse_args()
+#
 # env = make('kitchen', real_world=False,
 #         task_name='rope',
 #         seed=0,
@@ -67,7 +72,6 @@ args = parse_args()
 
 
 ######## TEST CABINET
-
 env = make('kitchen', real_world=False,
         task_name='real_c',
         seed=0,
