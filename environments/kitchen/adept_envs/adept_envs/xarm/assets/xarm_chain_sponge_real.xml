@@ -43,8 +43,8 @@
                                 <geom name="xarm_viz8" class="xarm_viz"  mesh="base_link" />
 
                                 <body name="sponge" pos="0 0 .15" euler="0 0 1.57">
-                                    <geom name="sponge_viz" class="xarm_viz" rgba="1 .8 0 1" type="box" size=".02 .04 0.06" />
-                                     <geom name="sponge_col" contype="1" conaffinity="1" condim="3"  type="box" size=".02 .04 0.06" />
+                                    <geom name="sponge_viz" rgba="1 .8 0 1" type="box" size=".02 .04 0.06" />
+                                     <geom name="sponge_col" contype="1" conaffinity="1" group="3" type="box" size=".02 .04 0.06" />
 
 <!--                                    <composite type="box" count="4 8 12" spacing="0.01">-->
 <!--                                        <geom type="capsule"   conaffinity="1" condim="3" contype="0" group="4" size=".015 0.015" rgba="1 .8 0 1" />-->
