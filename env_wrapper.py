@@ -70,6 +70,9 @@ class DR_Env:
     def set_dataset_step(self, step):
         self.dataset_step = step
 
+    def set_range_scale(self, range_scale):
+        self.range_scale = range_scale
+
     def set_dr(self, dr):
         self.dr = dr
 

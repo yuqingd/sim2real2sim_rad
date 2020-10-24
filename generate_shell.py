@@ -7,7 +7,7 @@ def generate_shell_commands(domain_name, task_name, run_type, save=False, action
                             mean_scale=None, prop_range_scale=True, prop_train_range_scale=True, sim_param_layers=3,
                             sim_param_units=512, separate_trunks=True, train_range_scale=1, range_scale=1,
                             dr_option=None, update_sim_param_from='buffer', num_eval_episodes=2,
-                            num_sim_param_updates=3):
+                            num_sim_param_updates=3, continue_train=False):
     command = 'CUDA_VISIBLE_DEVICES=X python train.py --gpudevice X --id Y'
     command += ' --domain_name ' + domain_name
     command += ' --task_name ' + task_name
@@ -16,8 +16,10 @@ def generate_shell_commands(domain_name, task_name, run_type, save=False, action
     command += ' --save_tb'
     command += ' --use_img'
     command += ' --start_outer_loop ' + str(start_outer_loop)
-    command += ' --num_eval_episodes ' + num_eval_episodes
+    command += ' --num_eval_episodes ' + str(num_eval_episodes)
     command += ' --eval_freq ' + str(eval_freq)
+    if continue_train:
+        command += ' --continue_train'
 
     if save:
         command += ' --save_model'
@@ -34,6 +36,9 @@ def generate_shell_commands(domain_name, task_name, run_type, save=False, action
         mean_scale = 1
     elif run_type == 'OL3':
         mean_scale = 2
+        if continue_train:
+            range_scale = .1
+            train_range_scale = .1
         command += ' --outer_loop_version 3'
         command += ' --prop_alpha'
         command += ' --update_sim_param_from ' + update_sim_param_from
