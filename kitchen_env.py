@@ -114,6 +114,9 @@ class Kitchen:
   def setup_task(self):
     self.timesteps = 0
     init_xpos = self._env.sim.data.body_xpos
+    self._env.sim.data.qpos[:7] = np.zeros(7)
+    self._env.sim.forward()
+
     #randomize kettle location
     if 'push' in self.task or 'slide' in self.task:
       kettle_loc = init_xpos[XPOS_INDICES['kettle']]
@@ -142,15 +145,15 @@ class Kitchen:
 
       goal = self._env.sim.data.site_xpos[self._env.sim.model._site_name2id['cabinet_door']].copy()
       self.goal = self._env.sim.data.site_xpos[self._env.sim.model._site_name2id['cabinet_door']].copy()
-      self.goal[0] = 0.18
-      self.step(np.array([0, 0, 0]))
-      end_effector = self._env.sim.data.site_xpos[self._env.sim.model._site_name2id['end_effector']].copy()
-      ratio_to_goal = 0.6
-      partway = ratio_to_goal * goal + (1 - ratio_to_goal) * end_effector
-      for i in range(60):
-        diff = partway - self._env.sim.data.site_xpos[self._env.sim.model._site_name2id['end_effector']].copy()
-        diff = diff / self.step_size
-        self.step(diff)
+      self.goal[0] = -0.14
+      # self.step(np.array([0, 0, 0]))
+      # end_effector = self._env.sim.data.site_xpos[self._env.sim.model._site_name2id['end_effector']].copy()
+      # ratio_to_goal = 0.6
+      # partway = ratio_to_goal * goal + (1 - ratio_to_goal) * end_effector
+      # for i in range(60):
+      #   diff = partway - self._env.sim.data.site_xpos[self._env.sim.model._site_name2id['end_effector']].copy()
+      #   diff = diff / self.step_size
+      #   self.step(diff)
 
     elif 'real_p' in self.task:
       self.set_workspace_bounds('push_workspace')
@@ -404,7 +407,7 @@ class Kitchen:
 
     elif 'real_c' in self.task:
       cabinet_pos = self._env.sim.data.site_xpos[self._env.sim.model._site_name2id['cabinet_door']]
-      dist_to_goal = np.abs(cabinet_pos[0] - 0.15)
+      dist_to_goal = np.abs(cabinet_pos[0] - self.goal[0])
       done = dist_to_goal < 0.01
       reward = -dist_to_goal
 

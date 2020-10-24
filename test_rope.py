@@ -68,8 +68,8 @@ args = parse_args()
 env = make('kitchen', real_world=False,
         task_name='real_c',
         seed=0,
-        height=84,
-        width=84,
+        height=512,
+        width=512,
         dr_list=args.real_dr_list,
         dr_shape=args.sim_params_size,
         dr=args.dr,
@@ -80,10 +80,10 @@ env.reset()
 env.apply_dr()
 num_episodes = 1
 time_limit = 60
-image_size = 84
+image_size = 512
 real_video_dir = utils.make_dir(os.path.join('./logdir', 'debug_video'))
 
-video = VideoRecorder(real_video_dir, camera_id=0)
+video = VideoRecorder(real_video_dir, camera_id=0, height=512, width=512)
 
 cpf = 3
 obs_shape = (cpf * 3, image_size, image_size)
@@ -94,6 +94,7 @@ def run_eval_loop(sample_stochastically=True):
     for i in range(num_episodes):
         obs_dict = env.reset()
         video.init(enabled=(i == 0))
+        video.record(env)
         done = False
         episode_reward = 0
         obs_traj = []
@@ -103,11 +104,12 @@ def run_eval_loop(sample_stochastically=True):
             # center crop image
             obs = utils.center_crop_image(obs, image_size)
             if step < 20:
-                action = [.3, .1, .6]
+                action = [.3, .3, .6]
             elif step < 40:
-                action = [-.3, .1, 0]
+                action = [-.3, .1, -.2]
             else:
                 action = [-.3, 0, -.1]
+
             step+=1
             obs_traj.append(obs)
             obs_dict, reward, done, info = env.step(action)
