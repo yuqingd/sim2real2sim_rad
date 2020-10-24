@@ -438,7 +438,7 @@ class Kitchen:
       x_high = .1  # Right of Box
       y_low = 0  # Right in front of the robot's pedestal
       y_high = .35  # behind box
-      z_low = 2.1  # Tabletop
+      z_low = 0.  # Tabletop
       z_high = 2.2
     elif bounds == 'push_workspace':
       x_low = -.4  # Left of box
