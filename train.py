@@ -116,7 +116,9 @@ def parse_args():
     # Outer loop options
     parser.add_argument('--sample_real_every', default=2, type=int)
     parser.add_argument('--num_real_world', default=1, type=int)
-    parser.add_argument('--anneal_range_scale', default=0, type=float)
+    parser.add_argument('--anneal_range', default=False, action='store_true')
+    parser.add_argument('--anneal_range_scale_start', default=1., type=float)
+    parser.add_argument('--anneal_range_scale_end', default=.1, type=float)
     parser.add_argument('--predict_val', default=True, type=bool)
     parser.add_argument('--outer_loop_version', default=0, type=int, choices=[0, 1, 3])
     parser.add_argument('--alpha', default=.1, type=float)
@@ -339,10 +341,6 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
         L.log(f'eval/agent-sim_param/{param}/pred_mean', pred_mean, step)
         log_data[key][step]['mean'] = new_mean
         log_data[key][step]['pred_mean'] = pred_mean
-        if args.anneal_range_scale > 0:
-            range_value = args.anneal_range_scale * (1 - float(step / args.num_train_steps))
-            L.log(f'eval/agent-sim_param/{param}/range', range_value, step)
-            log_data[key][step]['range'] = range_value
 
         real_dr_param = args.real_dr_params[param]
         if not np.mean(real_dr_param) == 0:
@@ -352,6 +350,17 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
         L.log(f'eval/agent-sim_param/{param}/sim_param_error', sim_param_error, step)
         log_data[key][step]['sim_param_error'] = sim_param_error
         np.save(filename, log_data)
+
+        # Update range scale, if necessary
+        if args.anneal_range:
+            proportion_through_training = float(step / args.num_train_steps)
+            start = args.anneal_range_scale_start
+            end = args.anneal_range_scale_end
+            new_range_scale = start * (1 - proportion_through_training) + end * proportion_through_training
+            print("Updating range scale to", new_range_scale)
+            sim_env.set_range_scale(new_range_scale)
+            sim_param_model.train_range_scale = new_range_scale
+
     args.updates = updates
 
 
