@@ -727,6 +727,12 @@ def main():
         sim_param_model = None
 
     start_step = 0
+    # If we're continuing training, load the envs regardless of whether we load a model
+    if args.continue_train:
+        print("loading envs!")
+        sim_env.load(sim_env_dir)
+        real_env.load(real_env_dir)
+
     if load_model:
         agent_step = 0
         for checkpoint in agent_checkpoint:
