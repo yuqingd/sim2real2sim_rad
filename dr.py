@@ -403,14 +403,15 @@ def config_dr_kitchen(config):
                 "table_b": 1,
                 "table_g": 1,
                 "table_r": 1,
+                'joint_max': .1,
             }
             if dr_option == 'all_dr':
                 config.real_dr_list = list(config.real_dr_params.keys())
             elif dr_option == 'nonconflicting_dr':
-                config.real_dr_list = ['cabinet_friction', 'cabinet_r', 'cabinet_g', 'cabinet_b', 'table_b',
+                config.real_dr_list = ['slidedoor_joint', 'cabinet_r', 'cabinet_g', 'cabinet_b', 'table_b',
                                        'table_g', 'table_r']
             elif dr_option == 'dynamics_dr':
-                config.real_dr_list = ['cabinet_mass']
+                config.real_dr_list = ['slidedoor_joint']
             elif dr_option == 'visual_dr':
                 config.real_dr_list = ['cabinet_r', 'cabinet_g', 'cabinet_b', 'cabinet_handle_r', 'cabinet_handle_g',
                                        'cabinet_handle_b', 'table_r', 'table_g', 'table_b']
@@ -512,6 +513,9 @@ def config_dr_kitchen(config):
             if config.scale_large_and_small:
                 if bool(np.random.choice(a=[False, True], size=(1,))):
                     cur_scale = 1 / cur_scale
+            # If there are particular parameters we want to be high or low, we can set them here!
+            if key in ['joint_max']:
+                cur_scale = 1 / mean_scale
             if real_val == 0:
                 real_val = 5e-2
             if '_r' in key or '_g' in key or '_b' in key and not key in ['cabinet_handle_r', 'cabinet_handle_g', 'cabinet_handle_b']:

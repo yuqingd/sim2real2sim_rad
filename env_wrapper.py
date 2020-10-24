@@ -690,6 +690,7 @@ class DR_Kitchen(DR_Env):
                 'table_r': (model.geom_rgba[model.geom_name2id('table_viz'), 0:1], None),
                 'table_g': (model.geom_rgba[model.geom_name2id('table_viz'), 1:2], None),
                 'table_b': (model.geom_rgba[model.geom_name2id('table_viz'), 2:3], None),
+                'joint_max': (model.jnt_range[model.joint_name2id('slidedoor_joint'), 1:2], None),
             }
             for dr_param in self.dr_list:
                 arr, indices = dr_update_dict[dr_param]
@@ -889,6 +890,7 @@ class DR_Kitchen(DR_Env):
             cabinet_handle_indices = [geom_dict[name] for name in geom_dict.keys() if "cabinet_handle_viz" in name][0]
             cabinet_collision_indices = \
                 [geom_dict[name] for name in geom_dict.keys() if "cabinet_collision" in name][0]
+            cabinet_joint = model.joint_name2id('slidedoor_joint')
             dr_update_dict = {
                 'cabinet_r': model.geom_rgba[cabinet_viz_indices, 0],
                 'cabinet_g': model.geom_rgba[cabinet_viz_indices, 1],
@@ -901,6 +903,7 @@ class DR_Kitchen(DR_Env):
                 'table_g': model.geom_rgba[model.geom_name2id('table_viz'), 1],
                 'table_b': model.geom_rgba[model.geom_name2id('table_viz'), 2],
                 'cabinet_friction': model.geom_friction[cabinet_collision_indices, 0],
+                'joint_max': model.jnt_range[cabinet_joint, 1],
             }
             dr_list = []
             for dr_param in self.dr_list:
