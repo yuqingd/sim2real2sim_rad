@@ -20,7 +20,7 @@ os.environ['MUJOCO_GL'] = 'glfw'
 #     )
 
 env_sim = make('kitchen', real_world=False,
-        task_name='rope',
+        task_name='real_c',
         seed=0,
         height=84,
         width=84,
@@ -55,9 +55,9 @@ def run_eval_loop(env, name):
             # center crop image
             obs = utils.center_crop_image(obs, image_size)
             if step < 30:
-                action = [0, .1, 0]
+                action = [0, .1, .1]
             else:
-                action = [.1, .1, -.05]
+                action = [-.1, .1, -.05]
 
             step+=1
             obs_traj.append(obs)
