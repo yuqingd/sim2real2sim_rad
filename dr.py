@@ -374,9 +374,9 @@ def config_dr_kitchen(config):
         elif 'real_p' in config.task_name:
             config.real_dr_params = {
                 'box_mass': 0.023013,
-                'box_r': 0.3,
-                'box_g': 0.5,
-                'box_b': 1,
+                'box_r': 0.1,
+                'box_g': 0.9,
+                'box_b': .1,
                 "table_b": 1,
                 "table_g": 1,
                 "table_r": 1,
