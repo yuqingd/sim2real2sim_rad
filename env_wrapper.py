@@ -1414,7 +1414,10 @@ def make(domain_name, task_name, seed, height, width, cameras=range(1),
     elif 'kitchen' in domain_name:
         if real_world:
             import gym_xarm
-            env = gym.make('RealArmRope-v0', num_cameras=1)
+            if task_name == "rope":
+                env = gym.make('RealArmRope-v0', num_cameras=1)
+            elif task_name == "real_c":
+                env = gym.make('RealArmSlide-v0', num_cameras=1)
             env = RealEnvWrapper(env, from_pixels=True, cameras=[0], height=height, width=width)
             env = DR_Env(env, state_type=state_type, cameras=cameras, height=height, width=width, real_world=True, dr_shape=dr_shape)
         else:

@@ -30,7 +30,7 @@ class Kitchen:
                initial_randomization_steps=1, minimal=False, dataset_step=None, grayscale=False, delay_steps=0):
     if 'rope' in task:
       distance = 1.1
-      azimuth = 35
+      azimuth = 45
       elevation = -48
       lookat = [-.1,.35,.9]
 
@@ -46,12 +46,12 @@ class Kitchen:
       lookat = None
     elif 'real_p' in task:
       distance = 1.1
-      azimuth = 35
+      azimuth = 45
       elevation = -48
       lookat = [-.1,.35,.9]
     elif 'real_c' in task:
-      distance = 1.1
-      azimuth = 35
+      distance = 1.05
+      azimuth = 45
       elevation = -48
       lookat = [-.1,.35,.9]
     else:
@@ -401,7 +401,7 @@ class Kitchen:
       d1 = np.linalg.norm(end_effector - cabinet_pos)
       d2 = np.abs(cabinet_pos[0] - self.goal[0])
       dist_to_goal = d1 + d2
-      done = d2 < 0.01
+      done = d2 < 0.04
       reward = -dist_to_goal
 
     elif 'real_p' in self.task:
