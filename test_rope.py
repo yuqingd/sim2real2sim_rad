@@ -161,16 +161,15 @@ def run_eval_loop(sample_stochastically=True):
             # center crop image
             obs = utils.center_crop_image(obs, image_size)
             if step < 10:
-                action = [.1, 0., -1]
+                action = [.17, 0., -1]
             else:
-                action = [-.3, 1, 0]
+                action = [-.325, 1, 0]
 
             step+=1
             obs_traj.append(obs)
             obs_dict, reward, done, info = env.step(action)
             video.record(env)
             episode_reward += reward
-            print(reward)
         video.save('sim_push.mp4')
 
 run_eval_loop()
