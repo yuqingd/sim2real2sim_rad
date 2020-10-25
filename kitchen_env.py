@@ -256,10 +256,7 @@ class Kitchen:
 
   def get_reward(self):
     xpos = self._env.sim.data.body_xpos
-    if self.already_succeeded:
-      done = True
-      reward = 0
-    elif 'reach' in self.task:
+    if 'reach' in self.task:
       end_effector = np.squeeze(xpos[XPOS_INDICES['end_effector']])
       reward = -np.linalg.norm(end_effector - self.goal)
       done = np.abs(reward) < 0.25
@@ -423,7 +420,7 @@ class Kitchen:
       raise NotImplementedError
 
     self.timesteps += 1
-    self.already_succeeded = done
+    self.already_succeeded = done or self.already_succeeded
     return reward, done
 
   def get_sim(self):
