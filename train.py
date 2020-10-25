@@ -950,6 +950,7 @@ def main():
         if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
             args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
             sp_obs_img = utils.center_crop_image(sp_obs_img, args.image_size)
+            obs_img = utils.center_crop_image(obs_img, args.image_size)
 
         episode_step += 1
         collect_data_time += time.time() - collect_data_start
