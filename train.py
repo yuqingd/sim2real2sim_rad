@@ -372,7 +372,8 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
     args.updates = updates
 
 
-def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, num_episodes, L, step, args, use_policy):
+def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, num_episodes, L, step, args, use_policy,
+update_distribution):
     all_ep_rewards = []
     all_ep_success = []
 
@@ -417,8 +418,8 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
         if not args.outer_loop_version == 0 and step > args.start_outer_loop:
             current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
             evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test", real_sim_params, current_sim_params)
-            update_sim_params(sim_param_model, sim_env, args, obs_batch, step, L)
-            # evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test_after_update", real_sim_params, current_sim_params)
+            if update_distribution:
+                update_sim_params(sim_param_model, sim_env, args, obs_batch, step, L)
 
         L.log('eval/' + prefix + 'eval_time', time.time() - start_time, step)
         mean_ep_reward = np.mean(all_ep_rewards)
@@ -833,8 +834,11 @@ def main():
 
             start_eval = time.time()
             use_policy = step >= args.init_steps
+            update_distribution = step > args.init_steps
+            if args.alternate_training:
+                update_distribution = training_phase == 'sp'
             evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim,
-                     args.num_eval_episodes, L, step, args, use_policy)
+                     args.num_eval_episodes, L, step, args, use_policy, update_distribution)
             eval_time += time.time() - start_eval
             if args.save_model:
                 print("SAVING MODEL!")
