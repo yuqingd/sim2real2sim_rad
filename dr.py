@@ -517,7 +517,7 @@ def config_dr_kitchen(config):
             if key in ['joint_max']:
                 cur_scale = min(cur_scale, 1 / cur_scale)
             if key in ["rope_len_max"]:
-                cur_scale = max(cur_scale, 1/cur_scale) # always make rope longer, shorter is too easy
+                cur_scale = min(cur_scale, 1/cur_scale) # always make rope longer in real, shorter is easy
             if real_val == 0:
                 real_val = 5e-2
             if '_r' in key or '_g' in key or '_b' in key and not key in ['cabinet_handle_r', 'cabinet_handle_g', 'cabinet_handle_b']:
