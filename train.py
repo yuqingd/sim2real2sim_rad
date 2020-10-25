@@ -95,6 +95,7 @@ def parse_args():
     parser.add_argument('--mass_range', default=.01, type=float)
     parser.add_argument('--mean_scale', default=.67, type=float)
     parser.add_argument('--range_scale', default=.1, type=float)
+    parser.add_argument('--sp_range_scale', default=1, type=float)
     parser.add_argument('--range_only', default=False, type=bool)
     parser.add_argument('--sim_param_lr', default=1e-3, type=float)
     parser.add_argument('--sim_param_beta', default=0.9, type=float)
@@ -285,7 +286,7 @@ def predict_sim_params(sim_param_model, traj, current_sim_params, args, step=10,
     return confident_preds
 
 
-def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
+def update_sim_params(sim_param_model, sim_env, sp_sim_env, args, obs, step, L):
     with torch.no_grad():
         if args.outer_loop_version == 1:
             pred_sim_params = sim_param_model.forward(obs).mean
@@ -324,6 +325,7 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
 
         new_mean = max(new_mean, 1e-3)
         sim_env.dr[param] = new_mean
+        sp_sim_env.dr[param] = new_mean
 
         filename = args.work_dir + f'/agent-sim-params_{param}.npy'
         key = args.domain_name + '-' + str(args.task_name) + '-' + args.data_augs
@@ -364,7 +366,7 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
     args.updates = updates
 
 
-def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, num_episodes, L, step, args):
+def evaluate(real_env, sim_env, sp_sim_env, agent, sim_param_model, video_real, video_sim, num_episodes, L, step, args):
     all_ep_rewards = []
     all_ep_success = []
 
@@ -409,7 +411,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
         if not args.outer_loop_version == 0 and step > args.start_outer_loop:
             current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
             evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test", real_sim_params, current_sim_params)
-            update_sim_params(sim_param_model, sim_env, args, obs_batch, step, L)
+            update_sim_params(sim_param_model, sim_env, sp_sim_env, args, obs_batch, step, L)
             # evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test_after_update", real_sim_params, current_sim_params)
 
         L.log('eval/' + prefix + 'eval_time', time.time() - start_time, step)
@@ -580,6 +582,31 @@ def main():
         full_screen_square=args.full_screen_square,
     )
 
+    sp_sim_env = env_wrapper.make(
+        domain_name=args.domain_name,
+        task_name=args.task_name,
+        seed=args.seed,
+        height=args.pre_transform_image_size,
+        width=args.pre_transform_image_size,
+        frame_skip=args.action_repeat,
+        mean_only=args.mean_only,
+        dr_list=args.real_dr_list,
+        simple_randomization=args.dr_option == 'simple',
+        dr_shape=args.sim_params_size,
+        real_world=False,
+        dr=args.dr,
+        state_type=args.state_type,
+        grayscale=args.grayscale,
+        delay_steps=args.delay_steps,
+        range_scale=args.sp_range_scale,
+        prop_range_scale=args.prop_range_scale,
+        prop_initial_range=args.prop_initial_range,
+        state_concat=args.state_concat,
+        real_dr_params=None,
+        time_limit=args.time_limit,
+        full_screen_square=args.full_screen_square,
+    )
+
     real_env = env_wrapper.make(
         domain_name=args.domain_name,
         task_name=args.task_name,
@@ -637,11 +664,14 @@ def main():
     real_video_dir = utils.make_dir(os.path.join(args.work_dir, 'real_video'))
     model_dir = utils.make_dir(os.path.join(args.work_dir, 'model'))
     sim_env_dir = os.path.join(args.work_dir, "sim_env_data.pkl")
+    sp_sim_env_dir = os.path.join(args.work_dir, "sp_sim_env_data.pkl")
     real_env_dir = os.path.join(args.work_dir, "real_env_data.pkl")
     if args.train_offline_dir is None:
         buffer_dir = utils.make_dir(os.path.join(args.work_dir, 'buffer'))
     else:
         buffer_dir = utils.make_dir(os.path.join(args.train_offline_dir, 'buffer'))
+        sp_buffer_dir = utils.make_dir(os.path.join(args.train_offline_dir, 'sp_buffer'))
+
 
     video_real = VideoRecorder(real_video_dir if args.save_video else None, camera_id=args.cameras[0])
     video_sim = VideoRecorder(sim_video_dir if args.save_video else None, camera_id=args.cameras[0])
@@ -665,6 +695,17 @@ def main():
 
     replay_buffer = utils.ReplayBuffer(
         example_obs=sim_env.reset(),
+        action_shape=action_shape,
+        capacity=args.replay_buffer_capacity,
+        batch_size=args.batch_size,
+        device=device,
+        image_size=args.image_size,
+        max_traj_length=args.time_limit,
+        val_split=args.val_split if (args.train_offline_dir is not None) else None,
+    )
+
+    sp_replay_buffer = utils.ReplayBuffer(
+        example_obs=sp_sim_env.reset(),
         action_shape=action_shape,
         capacity=args.replay_buffer_capacity,
         batch_size=args.batch_size,
@@ -754,6 +795,7 @@ def main():
                 start_step = min(start_step, sim_param_step)  # TODO: do we have to save optimizer?
     if load_model or args.train_offline_dir is not None:
         replay_buffer.load(buffer_dir)
+        sp_replay_buffer.load(sp_buffer_dir)
 
     L = Logger(args.work_dir, use_tb=args.save_tb)
 
@@ -763,7 +805,7 @@ def main():
     episode, episode_reward, done = 0, 0, True
     start_time = time.time()
     success = None
-    obs_traj = None
+    sp_obs_traj = None
 
     train_policy_time = 0
     train_sim_model_time = 0
@@ -783,7 +825,7 @@ def main():
             L.log('eval/episode', episode, step)
 
             start_eval = time.time()
-            evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim,
+            evaluate(real_env, sim_env, sp_sim_env, agent, sim_param_model, video_real, video_sim,
                      args.num_eval_episodes, L, step, args)
             eval_time += time.time() - start_eval
             if args.save_model:
@@ -791,25 +833,27 @@ def main():
                 agent.save(model_dir, step)
                 agent.save_curl(model_dir, step)
                 sim_env.save(sim_env_dir)
+                sp_sim_env.save(sp_sim_env_dir)
                 real_env.save(real_env_dir)
                 if sim_param_model is not None:
                     sim_param_model.save(model_dir, step)
             if args.save_buffer:
                 replay_buffer.save(buffer_dir)
+                sp_replay_buffer.save(sp_buffer_dir)
 
         if done:
             if step > 0:
-                if (step > args.init_steps) and args.outer_loop_version != 0 and obs_traj is not None:
+                if (step > args.init_steps) and args.outer_loop_version != 0 and sp_obs_traj is not None:
                     should_log = step % (10 * args.eval_freq) == 0
                     start_sim_model = time.time()
                     for i in range(args.num_sim_param_updates):
                         should_log_i = should_log and i == 0
                         if args.update_sim_param_from in ['latest', 'both']:
-                            sim_param_model.update(obs_traj, sim_params, sim_env.distribution_mean,
+                            sim_param_model.update(sp_obs_traj, sim_params, sp_sim_env.distribution_mean,
                                                    L, step, should_log_i)
                         if args.update_sim_param_from in ['buffer', 'both']:
-                            sim_param_model.update(obs_traj, sim_params, sim_env.distribution_mean,
-                                                   L, step, should_log_i, replay_buffer)
+                            sim_param_model.update(sp_obs_traj, sim_params, sp_sim_env.distribution_mean,
+                                                   L, step, should_log_i, sp_replay_buffer)
                     train_sim_model_time += time.time() - start_sim_model
 
                 if step % args.log_interval == 0:
@@ -838,13 +882,19 @@ def main():
 
             collect_data_start = time.time()
             obs = sim_env.reset()
-            sim_params = obs['sim_params']
+            sp_obs = sp_sim_env.reset()
+            sim_params = sp_obs['sim_params']
             obs_img = obs['image']
+            sp_obs_img = sp_obs['image']
             if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
                 args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
                 obs_img = utils.center_crop_image(obs_img, args.image_size)
+                sp_obs_img = utils.center_crop_image(sp_obs_img, args.image_size)
+
             obs_state = obs['state']
-            obs_traj = []
+            sp_obs_state = sp_obs['state']
+
+            sp_obs_traj = []
             success = 0.0 if 'success' in obs.keys() else None
             episode_reward = 0
             episode_step = 0
@@ -857,9 +907,11 @@ def main():
         train_policy_start = time.time()
         if args.no_train_policy or step < args.init_steps:
             action = sim_env.action_space.sample()
+            sp_action = sp_sim_env.action_space.sample()
         else:
             with utils.eval_mode(agent):
                 action = agent.sample_action(obs_img)
+                sp_action = agent.sample_action(sp_obs_img)
 
         # run training update
         if (not args.no_train_policy) and step >= args.init_steps:
@@ -870,13 +922,17 @@ def main():
 
         collect_data_start = time.time()
         next_obs, reward, done, _ = sim_env.step(action)
+        sp_next_obs, sp_reward, sp_done, _ = sp_sim_env.step(sp_action)
+
 
         # allow infinite bootstrap
         done = True if episode_step >= args.time_limit - 1 else done
         done_bool = float(done)
         episode_reward += reward
         replay_buffer.add(obs, action, reward, next_obs, done_bool)
-        obs_traj.append((obs_img, obs_state, action))
+        sp_replay_buffer.add(sp_obs, sp_action, sp_reward, sp_next_obs, done_bool)
+
+        sp_obs_traj.append((sp_obs_img, sp_obs_state, sp_action))
 
         if 'success' in obs.keys():
             success = obs['success']
@@ -885,9 +941,13 @@ def main():
         obs_img = obs['image']
         obs_state = obs['state']
 
+        sp_obs = sp_next_obs
+        sp_obs_img = sp_obs['image']
+        sp_obs_state = sp_obs['state']
+
         if (args.agent == 'curl_sac' and args.encoder_type == 'pixel') or (
             args.agent == 'rad_sac' and (args.encoder_type == 'pixel' or 'crop' in args.data_augs)):
-            obs_img = utils.center_crop_image(obs_img, args.image_size)
+            sp_obs_img = utils.center_crop_image(sp_obs_img, args.image_size)
 
         episode_step += 1
         collect_data_time += time.time() - collect_data_start
