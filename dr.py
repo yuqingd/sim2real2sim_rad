@@ -394,9 +394,9 @@ def config_dr_kitchen(config):
             config.real_dr_params = {
                 'cabinet_mass': .34,
                 'cabinet_friction': 5,
-                'cabinet_r': .46,
-                'cabinet_g': .5,
-                'cabinet_b': .6,
+                'cabinet_r': .84,
+                'cabinet_g': .77,
+                'cabinet_b': .7,
                 'cabinet_handle_r': 1,
                 'cabinet_handle_g': 1,
                 'cabinet_handle_b': 1,
