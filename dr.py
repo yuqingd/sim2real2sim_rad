@@ -408,7 +408,7 @@ def config_dr_kitchen(config):
             if dr_option == 'all_dr':
                 config.real_dr_list = list(config.real_dr_params.keys())
             elif dr_option == 'nonconflicting_dr':
-                config.real_dr_list = ['joint_max', 'cabinet_r', 'cabinet_g', 'cabinet_b', 'table_b',
+                config.real_dr_list = ['cabinet_r', 'cabinet_g', 'cabinet_b', 'table_b',
                                        'table_g', 'table_r', 'cabinet_friction']
             elif dr_option == 'dynamics_dr':
                 config.real_dr_list = ['joint_max']
