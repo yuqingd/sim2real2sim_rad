@@ -913,7 +913,7 @@ def main():
         else:
             with utils.eval_mode(agent):
                 action = agent.sample_action(obs_img)
-                sp_action = agent.sample_action(sp_obs_img)
+                sp_action = agent.sample_action(sp_obs_img.copy())
 
         # run training update
         if (not args.no_train_policy) and step >= args.init_steps:
