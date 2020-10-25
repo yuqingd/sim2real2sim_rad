@@ -7,7 +7,7 @@ def generate_shell_commands(domain_name, task_name, run_type, save=False, action
                             mean_scale=None, prop_range_scale=True, prop_train_range_scale=True, sim_param_layers=3,
                             sim_param_units=512, separate_trunks=True, train_range_scale=1, range_scale=1,
                             dr_option=None, update_sim_param_from='buffer', num_eval_episodes=2,
-                            num_sim_param_updates=3, continue_train=False):
+                            num_sim_param_updates=3, continue_train=False, alternate=False, range_scale_sp=1):
     command = 'CUDA_VISIBLE_DEVICES=X python train.py --gpudevice X --id Y'
     command += ' --domain_name ' + domain_name
     command += ' --task_name ' + task_name
@@ -24,6 +24,11 @@ def generate_shell_commands(domain_name, task_name, run_type, save=False, action
     if save:
         command += ' --save_model'
         command += ' --save_buffer'
+
+    if alternate:
+        command += ' --alternate_training'
+        command += ' --range_scale_sp ' + str(range_scale_sp)
+        range_scale = .1
 
     # Defaults specific to the type of run (OL3, oracle, baseline)
     if run_type == 'oracle':
