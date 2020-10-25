@@ -4,10 +4,13 @@ import argparse
 def generate_shell_commands(domain_name, task_name, run_type, save=False, action_repeat=None, alpha=.1,
                             seed=1, start_outer_loop=5000,
                             eval_freq=2000, scale_large_and_small=True, delay_steps=2, time_limit=60,
-                            mean_scale=None, prop_range_scale=True, prop_train_range_scale=True, sim_param_layers=3,
-                            sim_param_units=512, separate_trunks=True, train_range_scale=1, range_scale=1,
-                            dr_option=None, update_sim_param_from='buffer', num_eval_episodes=2,
-                            num_sim_param_updates=3, continue_train=False, alternate=False, range_scale_sp=1):
+                            mean_scale=None, prop_range_scale=True, prop_train_range_scale=True,
+                            separate_trunks=True, train_range_scale=1, range_scale=None,
+                            dr_option=None, update_sim_param_from='buffer', num_eval_episodes=5,
+                            num_sim_param_updates=3, alternate=False, range_scale_sp=1):
+    # NOTE: the run_type BCS here is the sim_BCS (i.e. centered, small range), not the real_BCS (i.e. centered, big range)
+    # To get the real_BCS, get a baseline run but pass in mean_scale 1.
+
     command = 'CUDA_VISIBLE_DEVICES=X python train.py --gpudevice X --id Y'
     command += ' --domain_name ' + domain_name
     command += ' --task_name ' + task_name
@@ -18,8 +21,6 @@ def generate_shell_commands(domain_name, task_name, run_type, save=False, action
     command += ' --start_outer_loop ' + str(start_outer_loop)
     command += ' --num_eval_episodes ' + str(num_eval_episodes)
     command += ' --eval_freq ' + str(eval_freq)
-    if continue_train:
-        command += ' --continue_train'
 
     if save:
         command += ' --save_model'
@@ -28,7 +29,14 @@ def generate_shell_commands(domain_name, task_name, run_type, save=False, action
     if alternate:
         command += ' --alternate_training'
         command += ' --range_scale_sp ' + str(range_scale_sp)
-        range_scale = .1
+        if range_scale is None:
+            range_scale = .1
+    else:
+        if range_scale is None:
+            if task_name == 'BCS':
+                range_scale = .1
+            else:
+                range_scale = 1
 
     # Defaults specific to the type of run (OL3, oracle, baseline)
     if run_type == 'oracle':
@@ -36,20 +44,15 @@ def generate_shell_commands(domain_name, task_name, run_type, save=False, action
     elif run_type == 'baseline':
         mean_scale = 2
         command += ' --outer_loop_version 0'
-    elif run_type == 'BCS':
+    elif 'BCS' in run_type:
         command += ' --outer_loop_version 0'
         mean_scale = 1
     elif run_type == 'OL3':
         mean_scale = 2
-        if continue_train:
-            range_scale = .1
-            train_range_scale = .1
         command += ' --outer_loop_version 3'
         command += ' --prop_alpha'
         command += ' --update_sim_param_from ' + update_sim_param_from
         command += ' --alpha ' + str(alpha)
-        command += ' --sim_param_layers ' + str(sim_param_layers)
-        command += ' --sim_param_units ' + str(sim_param_units)
         command += ' --train_range_scale ' + str(train_range_scale)
         command += ' --num_sim_param_updates ' + str(num_sim_param_updates)
         if separate_trunks:
@@ -87,9 +90,3 @@ def generate_shell_commands(domain_name, task_name, run_type, save=False, action
         command += ' --dr_option ' + dr_option
 
     print(command)
-
-
-# DIFFERENCES
-# - Both
-# - Model size
-# - range_scale/train_range_scale
