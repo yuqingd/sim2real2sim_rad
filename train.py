@@ -668,6 +668,8 @@ def main():
     real_env_dir = os.path.join(args.work_dir, "real_env_data.pkl")
     if args.train_offline_dir is None:
         buffer_dir = utils.make_dir(os.path.join(args.work_dir, 'buffer'))
+        buffer_dir = utils.make_dir(os.path.join(args.work_dir, 'sp_buffer'))
+
     else:
         buffer_dir = utils.make_dir(os.path.join(args.train_offline_dir, 'buffer'))
         sp_buffer_dir = utils.make_dir(os.path.join(args.train_offline_dir, 'sp_buffer'))
