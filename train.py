@@ -632,6 +632,8 @@ def main():
     # stack several consecutive frames together
     if args.encoder_type == 'pixel':
         sim_env = utils.FrameStack(sim_env, k=args.frame_stack)
+        sp_sim_env = utils.FrameStack(sp_sim_env, k=args.frame_stack)
+
         real_env = utils.FrameStack(real_env, k=args.frame_stack)
 
     # make directory
@@ -913,7 +915,7 @@ def main():
         else:
             with utils.eval_mode(agent):
                 action = agent.sample_action(obs_img)
-                sp_action = agent.sample_action(sp_obs_img.copy())
+                sp_action = agent.sample_action(sp_obs_img)
 
         # run training update
         if (not args.no_train_policy) and step >= args.init_steps:
