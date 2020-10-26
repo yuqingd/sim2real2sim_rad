@@ -638,7 +638,7 @@ def main():
             replay_buffer_policy = os.listdir(os.path.join(args.work_dir, 'buffer_policy'))
         else:
             buffer = os.listdir(os.path.join(args.work_dir, 'buffer'))
-        if len(checkpoints) == 0 or (len(buffer) == 0 and not args.continue_train):
+        if len(checkpoints) == 0 or (buffer is not None and len(buffer) == 0 and not args.continue_train) or  (replay_buffer_sp is not None and len(replay_buffer_sp) == 0 and not args.continue_train):
             print("No checkpoints found")
             load_model = False  # if we're continuing training, we can load model even w/o buffer
         else:
