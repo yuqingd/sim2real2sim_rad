@@ -410,7 +410,7 @@ class Kitchen:
             reward = -dist_to_goal
 
         elif 'real_p' in self.task:
-            end_effector = self._env.sim.data.site_xpos[self._env.sim.model.site_name2id('sponge_bottom')]
+            end_effector = self._env.sim.data.site_xpos[self._env.sim.model.site_name2id('end_effector')]
             # two stage reward, first get to box, then kettle to goal
             box_pos = self._env.sim.data.site_xpos[self._env.sim.model.site_name2id('box')]
 
