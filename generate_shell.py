@@ -40,13 +40,15 @@ def generate_shell_commands(domain_name, task_name, run_type, save=False, action
     if run_type == 'oracle':
         command += ' --outer_loop_version 0'
     elif run_type == 'baseline':
-        mean_scale = 2
+        if mean_scale is None:
+            mean_scale = 2
         command += ' --outer_loop_version 0'
     elif 'BCS' in run_type:
         command += ' --outer_loop_version 0'
         mean_scale = 1
     elif run_type == 'OL3':
-        mean_scale = 2
+        if mean_scale is None:
+            mean_scale = 2
         command += ' --outer_loop_version 3'
         command += ' --prop_alpha'
         command += ' --update_sim_param_from ' + update_sim_param_from
@@ -95,32 +97,35 @@ def generate_shell_commands(domain_name, task_name, run_type, save=False, action
 
     print(command)
 
-# GENERATE DMC COMMANDS
-envs = [
-    ('dmc_ball_in_cup', 'catch'),
-    ('dmc_walker', 'walk'),
-    ('dmc_cheetah', 'run'),
-    ('dmc_finger', 'spin')
-]
-# ORACLE
-print("============ GENERATING ORACLE RUNS =============")
-for seed in range(3, 6):
-    print(f"////// {seed} //////")
-    for domain, task in envs:
-        generate_shell_commands(domain, task, 'oracle', save=True, seed=seed)
 
-print("============ GENERATING BASELINE RUNS =============")
-for seed in range(3):
-    print(f"////// {seed} //////")
-    for domain, task in envs:
-        generate_shell_commands(domain, task, 'baseline', save=True, seed=seed)
+if __name__ == '__main__':
 
-print("============ GENERATING OL3 RUNS =============")
-for seed in range(3):
-    print(f"////// {seed} //////")
-    for domain, task in envs:
-        generate_shell_commands(domain, task, 'OL3', save=True, seed=seed, alternate=True)
+    # GENERATE DMC COMMANDS
+    envs = [
+        ('dmc_ball_in_cup', 'catch'),
+        ('dmc_walker', 'walk'),
+        ('dmc_cheetah', 'run'),
+        ('dmc_finger', 'spin')
+    ]
+    # ORACLE
+    print("============ GENERATING ORACLE RUNS =============")
+    for seed in range(3, 6):
+        print(f"////// {seed} //////")
+        for domain, task in envs:
+            generate_shell_commands(domain, task, 'oracle', save=True, seed=seed)
 
-print("============ GENERATING BCS RUNS =============")
-for domain, task in envs:
-    generate_shell_commands(domain, task, 'BCS', save=True, seed=0)
+    print("============ GENERATING BASELINE RUNS =============")
+    for seed in range(3):
+        print(f"////// {seed} //////")
+        for domain, task in envs:
+            generate_shell_commands(domain, task, 'baseline', save=True, seed=seed)
+
+    print("============ GENERATING OL3 RUNS =============")
+    for seed in range(3):
+        print(f"////// {seed} //////")
+        for domain, task in envs:
+            generate_shell_commands(domain, task, 'OL3', save=True, seed=seed, alternate=True)
+
+    print("============ GENERATING BCS RUNS =============")
+    for domain, task in envs:
+        generate_shell_commands(domain, task, 'BCS', save=True, seed=0)
