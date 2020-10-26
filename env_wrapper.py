@@ -1115,9 +1115,9 @@ class DR_DMCEnv(DR_Env):
             }
         elif "finger" in self.domain_name:
             dr_update_dict = {
-                "proximal_mass": model.body_mass[0:1],
-                "distal_mass": model.body_mass[1:2],
-                "spinner_mass": model.body_mass[2:3],
+                "proximal_mass": model.body_mass[1:2],
+                "distal_mass": model.body_mass[2:3],
+                "spinner_mass": model.body_mass[3:4],
                 "proximal_damping": model.dof_damping[0:1],
                 "distal_damping": model.dof_damping[1:2],
                 "hinge_damping": model.dof_damping[2:3],
@@ -1210,9 +1210,9 @@ class DR_DMCEnv(DR_Env):
             }
         elif "finger" in self.domain_name:
             dr_update_dict = {
-                "proximal_mass": model.body_mass[0],
-                "distal_mass": model.body_mass[1],
-                "spinner_mass": model.body_mass[2],
+                "proximal_mass": model.body_mass[1],
+                "distal_mass": model.body_mass[2],
+                "spinner_mass": model.body_mass[3],
                 "proximal_damping": model.dof_damping[0],
                 "distal_damping": model.dof_damping[1],
                 "hinge_damping": model.dof_damping[2],

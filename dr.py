@@ -145,9 +145,9 @@ def config_dr_dmc(config):
             ]
     elif "finger" in config.domain_name:
         real_dr_values = {
-            "proximal_mass": .805,  # no difference whatsoever
-            "distal_mass": .636,  # minor differnce
-            "spinner_mass": 2.32,  # significant difference
+            "proximal_mass": .80518,  # no difference whatsoever
+            "distal_mass": .63552,  # minor differnce
+            "spinner_mass": 2.32478,  # significant difference
             "proximal_damping": 2.5,  # significant difference
             "distal_damping": 2.5,  # significant difference
             "hinge_damping": .5,  # no difference whatsoever
