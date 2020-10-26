@@ -10,7 +10,7 @@ def generate_shell_commands(domain_name, task_name, run_type, save=False, action
     # NOTE: the run_type BCS here is the sim_BCS (i.e. centered, small range), not the real_BCS (i.e. centered, big range)
     # To get the real_BCS, get a baseline run but pass in mean_scale 1.
 
-    command = 'CUDA_VISIBLE_DEVICES=X python train.py --gpudevice X --id Y'
+    command = 'CUDA_VISIBLE_DEVICES=X python train.py --gpudevice X --id S'
     command += ' --domain_name ' + domain_name
     command += ' --task_name ' + task_name
     command += ' --seed ' + str(seed)
@@ -31,7 +31,7 @@ def generate_shell_commands(domain_name, task_name, run_type, save=False, action
             range_scale = .1
     else:
         if range_scale is None:
-            if task_name == 'BCS':
+            if run_type == 'BCS':
                 range_scale = .1
             else:
                 range_scale = 1
@@ -94,3 +94,33 @@ def generate_shell_commands(domain_name, task_name, run_type, save=False, action
         command += ' --dr_option ' + dr_option
 
     print(command)
+
+# GENERATE DMC COMMANDS
+envs = [
+    ('dmc_ball_in_cup', 'catch'),
+    ('dmc_walker', 'walk'),
+    ('dmc_cheetah', 'run'),
+    ('dmc_finger', 'spin')
+]
+# ORACLE
+print("============ GENERATING ORACLE RUNS =============")
+for seed in range(3, 6):
+    print(f"////// {seed} //////")
+    for domain, task in envs:
+        generate_shell_commands(domain, task, 'oracle', save=True, seed=seed)
+
+print("============ GENERATING BASELINE RUNS =============")
+for seed in range(3):
+    print(f"////// {seed} //////")
+    for domain, task in envs:
+        generate_shell_commands(domain, task, 'baseline', save=True, seed=seed)
+
+print("============ GENERATING OL3 RUNS =============")
+for seed in range(3):
+    print(f"////// {seed} //////")
+    for domain, task in envs:
+        generate_shell_commands(domain, task, 'OL3', save=True, seed=seed, alternate=True)
+
+print("============ GENERATING BCS RUNS =============")
+for domain, task in envs:
+    generate_shell_commands(domain, task, 'BCS', save=True, seed=0)
