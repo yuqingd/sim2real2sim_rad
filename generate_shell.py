@@ -34,7 +34,7 @@ def generate_shell_commands(domain_name, task_name, run_type, save=False, action
             if run_type == 'BCS':
                 range_scale = .1
             else:
-                range_scale = 1
+                range_scale = .5
 
     # Defaults specific to the type of run (OL3, oracle, baseline)
     if run_type == 'oracle':
