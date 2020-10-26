@@ -762,6 +762,7 @@ def main():
         sim_param_model = None
 
     start_step = 0
+    start_policy_step = 0
     # If we're continuing training, load the envs regardless of whether we load a model
     if args.continue_train:
         print("loading envs!")
@@ -787,6 +788,17 @@ def main():
                 start_step = 0
             else:
                 start_step = min(start_step, sim_param_step)  # TODO: do we have to save optimizer?
+        if args.alternate_training:
+            # Find out how many of the steps we've been through are policy steps
+            start_policy_step = 0
+            total_steps = start_step
+            total_steps -= args.initial_sp_itrs
+            while total_steps > 0:
+                start_policy_step += min(total_steps, args.policy_itrs)
+                total_steps -= args.policy_itrs
+                total_steps -= args.sp_itrs
+        else:
+            start_policy_step = start_step
     if load_model or args.train_offline_dir is not None:
         if args.alternate_training:
             replay_buffer_sp.load(buffer_dir_sp)
@@ -810,6 +822,9 @@ def main():
     collect_data_time = 0
 
     # Training phase specifies whether we train the agent, the policy, or both
+    num_train_policy_steps = args.num_train_steps
+    step = start_step
+    policy_step = start_policy_step
     if args.alternate_training:
         training_phase = 'sp'
         replay_buffer = replay_buffer_sp
@@ -820,7 +835,7 @@ def main():
     else:
         training_phase = 'both'
 
-    for step in range(start_step, args.num_train_steps):
+    while policy_step < num_train_policy_steps:
         # evaluate agent periodically
         if step % args.eval_freq == 0:
             total_time = train_policy_time + train_sim_model_time + eval_time + collect_data_time
@@ -970,6 +985,9 @@ def main():
 
         episode_step += 1
         collect_data_time += time.time() - collect_data_start
+        step += 1
+        if training_phase in ['policy', 'both']:
+            policy_step += 1
 
 
 if __name__ == '__main__':
