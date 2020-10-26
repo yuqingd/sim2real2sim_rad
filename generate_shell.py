@@ -7,7 +7,7 @@ def generate_shell_commands(domain_name, task_name, run_type, save=False, action
                             mean_scale=None, prop_range_scale=True, prop_train_range_scale=True,
                             separate_trunks=True, train_range_scale=1, range_scale=None,
                             dr_option=None, update_sim_param_from='buffer', num_eval_episodes=5,
-                            num_sim_param_updates=3, alternate=False, range_scale_sp=1):
+                            num_sim_param_updates=3, alternate=False, range_scale_sp=1, num_train_steps=None):
     # NOTE: the run_type BCS here is the sim_BCS (i.e. centered, small range), not the real_BCS (i.e. centered, big range)
     # To get the real_BCS, get a baseline run but pass in mean_scale 1.
 
@@ -80,6 +80,12 @@ def generate_shell_commands(domain_name, task_name, run_type, save=False, action
         elif task_name in ['run', 'catch']:
             action_repeat = 4
     command += ' --action_repeat ' + str(action_repeat)
+    if num_train_steps is None:
+        if domain_name == 'kitchen':
+            num_train_steps = 500000
+        else:
+            num_train_steps = int(1e6 / action_repeat)
+    command += ' --num_train_steps ' + str(num_train_steps)
 
     if dr_option is None:
         if domain_name == 'kitchen':
