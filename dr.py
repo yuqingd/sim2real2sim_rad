@@ -145,9 +145,9 @@ def config_dr_dmc(config):
             ]
     elif "finger" in config.domain_name:
         real_dr_values = {
-            "proximal_mass": .805,  # no difference whatsoever
-            "distal_mass": .636,  # minor differnce
-            "spinner_mass": 2.32,  # significant difference
+            "proximal_mass": .80518,  # no difference whatsoever
+            "distal_mass": .63552,  # minor differnce
+            "spinner_mass": 2.32478,  # significant difference
             "proximal_damping": 2.5,  # significant difference
             "distal_damping": 2.5,  # significant difference
             "hinge_damping": .5,  # no difference whatsoever
@@ -394,23 +394,24 @@ def config_dr_kitchen(config):
             config.real_dr_params = {
                 'cabinet_mass': .34,
                 'cabinet_friction': 5,
-                'cabinet_r': .46,
-                'cabinet_g': .5,
-                'cabinet_b': .6,
+                'cabinet_r': .84,
+                'cabinet_g': .77,
+                'cabinet_b': .7,
                 'cabinet_handle_r': 1,
                 'cabinet_handle_g': 1,
                 'cabinet_handle_b': 1,
                 "table_b": 1,
                 "table_g": 1,
                 "table_r": 1,
+                'joint_max': .1,
             }
             if dr_option == 'all_dr':
                 config.real_dr_list = list(config.real_dr_params.keys())
             elif dr_option == 'nonconflicting_dr':
-                config.real_dr_list = ['cabinet_friction', 'cabinet_r', 'cabinet_g', 'cabinet_b', 'table_b',
-                                       'table_g', 'table_r']
+                config.real_dr_list = ['cabinet_r', 'cabinet_g', 'cabinet_b', 'table_b',
+                                       'table_g', 'table_r', 'cabinet_friction']
             elif dr_option == 'dynamics_dr':
-                config.real_dr_list = ['cabinet_mass']
+                config.real_dr_list = ['joint_max']
             elif dr_option == 'visual_dr':
                 config.real_dr_list = ['cabinet_r', 'cabinet_g', 'cabinet_b', 'cabinet_handle_r', 'cabinet_handle_g',
                                        'cabinet_handle_b', 'table_r', 'table_g', 'table_b']
@@ -512,6 +513,11 @@ def config_dr_kitchen(config):
             if config.scale_large_and_small:
                 if bool(np.random.choice(a=[False, True], size=(1,))):
                     cur_scale = 1 / cur_scale
+            # If there are particular parameters we want to be high or low, we can set them here!
+            if key in ['joint_max']:
+                cur_scale = min(cur_scale, 1 / cur_scale)
+            if key in ["rope_len_max"]:
+                cur_scale = min(cur_scale, 1/cur_scale) # always make rope shorter, longer is too easy
             if real_val == 0:
                 real_val = 5e-2
             if '_r' in key or '_g' in key or '_b' in key and not key in ['cabinet_handle_r', 'cabinet_handle_g', 'cabinet_handle_b']:

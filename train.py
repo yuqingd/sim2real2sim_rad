@@ -140,6 +140,11 @@ def parse_args():
     parser.add_argument('--spatial_softmax_agent', default=False, action='store_true')
     parser.add_argument('--spatial_softmax_sp', default=False, action='store_true')
     parser.add_argument('--num_frames', default=10, type=int)
+    parser.add_argument('--alternate_training', default=False, action='store_true')
+    parser.add_argument('--initial_sp_itrs', default=100000, type=int, help='only used with alternate_training')
+    parser.add_argument('--sp_itrs', default=10000, type=int, help='only used with alternate_training')
+    parser.add_argument('--policy_itrs', default=40000, type=int, help='only used with alternate_training')
+    parser.add_argument('--range_scale_sp', default=1., type=float)
 
     # MISC
     parser.add_argument('--id', default='debug', type=str)
@@ -160,6 +165,9 @@ def parse_args():
         args.real_dr_params = {}
         args.dr = None
     args.update = [0] * len(args.real_dr_list)
+    if args.alternate_training:
+        args.original_init_steps = args.init_steps
+        args.init_steps = args.init_steps + args.initial_sp_itrs
 
     return args
 
@@ -178,7 +186,7 @@ def train_offline(args, L, real_env, sim_env, agent, sim_param_model, video_real
 
             start_eval = time.time()
             evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim,
-                     args.num_eval_episodes, L, step, args)
+                     args.num_eval_episodes, L, step, args, True)
 
             sim_param_model.update(None, None, sim_env.distribution_mean,
                                    L, step, should_log, replay_buffer, val=True, tag="train_val")
@@ -364,7 +372,8 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
     args.updates = updates
 
 
-def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, num_episodes, L, step, args):
+def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, num_episodes, L, step, args, use_policy,
+update_distribution):
     all_ep_rewards = []
     all_ep_success = []
 
@@ -388,7 +397,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
                     obs_img = utils.center_crop_image(obs_img, args.image_size)
                 obs_state = obs_dict['state']
                 with utils.eval_mode(agent):
-                    if args.no_train_policy:
+                    if not use_policy:
                         action = sim_env.action_space.sample()
                     elif sample_stochastically:
                         action = agent.sample_action(obs_img)
@@ -409,8 +418,8 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
         if not args.outer_loop_version == 0 and step > args.start_outer_loop:
             current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
             evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test", real_sim_params, current_sim_params)
-            update_sim_params(sim_param_model, sim_env, args, obs_batch, step, L)
-            # evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test_after_update", real_sim_params, current_sim_params)
+            if update_distribution:
+                update_sim_params(sim_param_model, sim_env, args, obs_batch, step, L)
 
         L.log('eval/' + prefix + 'eval_time', time.time() - start_time, step)
         mean_ep_reward = np.mean(all_ep_rewards)
@@ -457,7 +466,7 @@ def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, n
                 obs_img = utils.center_crop_image(obs_img, args.image_size)
             obs_state = obs_dict['state']
             with utils.eval_mode(agent):
-                if args.no_train_policy:
+                if not use_policy:
                     action = sim_env.action_space.sample()
                 elif sample_stochastically:
                     action = agent.sample_action(obs_img)
@@ -597,7 +606,7 @@ def main():
         state_type=args.state_type,
         grayscale=args.grayscale,
         delay_steps=args.delay_steps,
-        range_scale=args.range_scale,
+        range_scale="NONE",
         prop_range_scale=args.prop_range_scale,
         state_concat=args.state_concat,
         real_dr_params=args.real_dr_params,
@@ -628,26 +637,28 @@ def main():
         load_model = True
         checkpoints = os.listdir(os.path.join(args.work_dir, 'model'))
         buffer = os.listdir(os.path.join(args.work_dir, 'buffer'))
-        if len(buffer) == 0:
-            print("No buffer found")
-            load_buffer = False
-        if len(checkpoints) == 0:
+        if len(checkpoints) == 0 or (len(buffer) == 0 and not args.continue_train):
             print("No checkpoints found")
-            load_model = False
+            load_model = False  # if we're continuing training, we can load model even w/o buffer
         else:
             agent_checkpoint = [f for f in checkpoints if 'curl' in f]
             if args.outer_loop_version in [1, 3]:
                 sim_param_checkpoint = [f for f in checkpoints if 'sim_param' in f]
+
     utils.make_dir(args.work_dir)
     sim_video_dir = utils.make_dir(os.path.join(args.work_dir, 'sim_video'))
     real_video_dir = utils.make_dir(os.path.join(args.work_dir, 'real_video'))
     model_dir = utils.make_dir(os.path.join(args.work_dir, 'model'))
     sim_env_dir = os.path.join(args.work_dir, "sim_env_data.pkl")
     real_env_dir = os.path.join(args.work_dir, "real_env_data.pkl")
-    if args.train_offline_dir is None:
-        buffer_dir = utils.make_dir(os.path.join(args.work_dir, 'buffer'))
+    if args.alternate_training:
+        buffer_dir_sp = utils.make_dir(os.path.join(args.work_dir, 'buffer_sp'))
+        buffer_dir_policy = utils.make_dir(os.path.join(args.work_dir, 'buffer_policy'))
     else:
-        buffer_dir = utils.make_dir(os.path.join(args.train_offline_dir, 'buffer'))
+        if args.train_offline_dir is None:
+            buffer_dir = utils.make_dir(os.path.join(args.work_dir, 'buffer'))
+        else:
+            buffer_dir = utils.make_dir(os.path.join(args.train_offline_dir, 'buffer'))
 
     video_real = VideoRecorder(real_video_dir if args.save_video else None, camera_id=args.cameras[0])
     video_sim = VideoRecorder(sim_video_dir if args.save_video else None, camera_id=args.cameras[0])
@@ -669,16 +680,38 @@ def main():
         pre_aug_obs_shape = obs_shape
         state_shape = 1  # null value
 
-    replay_buffer = utils.ReplayBuffer(
-        example_obs=sim_env.reset(),
-        action_shape=action_shape,
-        capacity=args.replay_buffer_capacity,
-        batch_size=args.batch_size,
-        device=device,
-        image_size=args.image_size,
-        max_traj_length=args.time_limit,
-        val_split=args.val_split if (args.train_offline_dir is not None) else None,
-    )
+    if args.alternate_training:
+        replay_buffer_sp = utils.ReplayBuffer(
+            example_obs=sim_env.reset(),
+            action_shape=action_shape,
+            capacity=args.replay_buffer_capacity,
+            batch_size=args.batch_size,
+            device=device,
+            image_size=args.image_size,
+            max_traj_length=args.time_limit,
+            val_split=args.val_split if (args.train_offline_dir is not None) else None,
+        )
+        replay_buffer_policy = utils.ReplayBuffer(
+            example_obs=sim_env.reset(),
+            action_shape=action_shape,
+            capacity=args.replay_buffer_capacity,
+            batch_size=args.batch_size,
+            device=device,
+            image_size=args.image_size,
+            max_traj_length=args.time_limit,
+            val_split=args.val_split if (args.train_offline_dir is not None) else None,
+        )
+    else:
+        replay_buffer = utils.ReplayBuffer(
+            example_obs=sim_env.reset(),
+            action_shape=action_shape,
+            capacity=args.replay_buffer_capacity,
+            batch_size=args.batch_size,
+            device=device,
+            image_size=args.image_size,
+            max_traj_length=args.time_limit,
+            val_split=args.val_split if (args.train_offline_dir is not None) else None,
+        )
 
     agent = make_agent(
         obs_shape=obs_shape,
@@ -733,6 +766,13 @@ def main():
         sim_param_model = None
 
     start_step = 0
+    start_policy_step = 0
+    # If we're continuing training, load the envs regardless of whether we load a model
+    if args.continue_train:
+        print("loading envs!")
+        sim_env.load(sim_env_dir)
+        real_env.load(real_env_dir)
+
     if load_model:
         agent_step = 0
         for checkpoint in agent_checkpoint:
@@ -748,12 +788,27 @@ def main():
             for checkpoint in sim_param_checkpoint:
                 sim_param_step = max(sim_param_step, [int(x) for x in re.findall('\d+', checkpoint)][-1])
             sim_param_model.load(model_dir, sim_param_step)
-            start_step = min(start_step, sim_param_step)  # TODO: do we have to save optimizer?
-    if load_buffer or args.train_offline_dir is not None:
-        replay_buffer.load(buffer_dir)
-    else:
-        args.init_steps += start_step
-
+            if args.continue_train:
+                start_step = 0
+            else:
+                start_step = min(start_step, sim_param_step)  # TODO: do we have to save optimizer?
+        if args.alternate_training:
+            # Find out how many of the steps we've been through are policy steps
+            start_policy_step = 0
+            total_steps = start_step
+            total_steps -= args.initial_sp_itrs
+            while total_steps > 0:
+                start_policy_step += min(total_steps, args.policy_itrs)
+                total_steps -= args.policy_itrs
+                total_steps -= args.sp_itrs
+        else:
+            start_policy_step = start_step
+    if load_model or args.train_offline_dir is not None:
+        if args.alternate_training:
+            replay_buffer_sp.load(buffer_dir_sp)
+            replay_buffer_policy.load(buffer_dir_policy)
+        else:
+            replay_buffer.load(buffer_dir)
 
     L = Logger(args.work_dir, use_tb=args.save_tb)
 
@@ -769,10 +824,24 @@ def main():
     train_sim_model_time = 0
     eval_time = 0
     collect_data_time = 0
-    for step in range(start_step, args.num_train_steps):
-        # evaluate agent periodically
 
-        if step % args.eval_freq == 0 or step == start_step:
+    # Training phase specifies whether we train the agent, the policy, or both
+    num_train_policy_steps = args.num_train_steps
+    step = start_step
+    policy_step = start_policy_step
+    if args.alternate_training:
+        training_phase = 'sp'
+        replay_buffer = replay_buffer_sp
+        sim_env.set_range_scale(args.range_scale_sp)
+        target_step = args.initial_sp_itrs
+    elif args.no_train_policy:
+        training_phase = 'sp'
+    else:
+        training_phase = 'both'
+
+    while policy_step < num_train_policy_steps:
+        # evaluate agent periodically
+        if step % args.eval_freq == 0:
             total_time = train_policy_time + train_sim_model_time + eval_time + collect_data_time
             if total_time > 0:
                 L.log('eval_time/train_policy', train_policy_time / total_time, step)
@@ -783,8 +852,12 @@ def main():
             L.log('eval/episode', episode, step)
 
             start_eval = time.time()
+            use_policy = step >= args.init_steps
+            update_distribution = step > args.init_steps
+            if args.alternate_training:
+                update_distribution = training_phase == 'sp'
             evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim,
-                     args.num_eval_episodes, L, step, args)
+                     args.num_eval_episodes, L, step, args, use_policy, update_distribution)
             eval_time += time.time() - start_eval
             if args.save_model:
                 print("SAVING MODEL!")
@@ -795,11 +868,36 @@ def main():
                 if sim_param_model is not None:
                     sim_param_model.save(model_dir, step)
             if args.save_buffer:
-                replay_buffer.save(buffer_dir)
+                if args.alternate_training:
+                    replay_buffer_sp.save(buffer_dir_sp)
+                    replay_buffer_policy.save(buffer_dir_policy)
+                else:
+                    replay_buffer.save(buffer_dir)
+
+        # Alternate training phases
+        if args.alternate_training:
+            L.log('train/in_policy_phase', int(training_phase == 'policy'), step)
+            if step == target_step:
+                if training_phase == 'sp':
+                    training_phase = 'policy'
+                    replay_buffer = replay_buffer_policy
+                    sim_env.set_range_scale(args.range_scale)
+                    target_step += args.policy_itrs
+                elif training_phase == 'policy':
+                    training_phase = 'sp'
+                    replay_buffer = replay_buffer_sp
+                    sim_env.set_range_scale(args.range_scale_sp)
+                    target_step += args.sp_itrs
 
         if done:
             if step > 0:
-                if (step > args.init_steps) and args.outer_loop_version != 0 and obs_traj is not None:
+                should_update_sp = args.outer_loop_version != 0
+                should_update_sp = should_update_sp and training_phase in ['both', 'sp']
+                if args.alternate_training:
+                    should_update_sp = should_update_sp and step > args.original_init_steps
+                else:
+                    should_update_sp = should_update_sp and step > args.init_steps
+                if should_update_sp:
                     should_log = step % (10 * args.eval_freq) == 0
                     start_sim_model = time.time()
                     for i in range(args.num_sim_param_updates):
@@ -862,7 +960,7 @@ def main():
                 action = agent.sample_action(obs_img)
 
         # run training update
-        if (not args.no_train_policy) and step >= args.init_steps:
+        if training_phase in ['both', 'policy'] and step >= args.init_steps:
             num_updates = 1
             for _ in range(num_updates):
                 agent.update(replay_buffer, L, step)
@@ -891,6 +989,9 @@ def main():
 
         episode_step += 1
         collect_data_time += time.time() - collect_data_start
+        step += 1
+        if training_phase in ['policy', 'both']:
+            policy_step += 1
 
 
 if __name__ == '__main__':
