@@ -2,7 +2,7 @@ import argparse
 
 
 def generate_shell_commands(domain_name, task_name, run_type, save=False, action_repeat=None, alpha=.1,
-                            seed=1, eval_freq=2000, scale_large_and_small=True, delay_steps=2, time_limit=60,
+                            seed=1, scale_large_and_small=True, delay_steps=2, time_limit=60,
                             mean_scale=None, prop_range_scale=True, prop_train_range_scale=True,
                             separate_trunks=True, train_range_scale=1, range_scale=None,
                             dr_option=None, update_sim_param_from='buffer', num_eval_episodes=5,
@@ -18,7 +18,6 @@ def generate_shell_commands(domain_name, task_name, run_type, save=False, action
     command += ' --save_tb'
     command += ' --use_img'
     command += ' --num_eval_episodes ' + str(num_eval_episodes)
-    command += ' --eval_freq ' + str(eval_freq)
 
     if save:
         command += ' --save_model'
