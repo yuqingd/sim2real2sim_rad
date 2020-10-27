@@ -898,7 +898,7 @@ def main():
                     should_update_sp = should_update_sp and step > args.original_init_steps
                 else:
                     should_update_sp = should_update_sp and step > args.init_steps
-                if should_update_sp:
+                if should_update_sp and obs_traj is not None:
                     should_log = step % (10 * args.eval_freq) == 0
                     start_sim_model = time.time()
                     for i in range(args.num_sim_param_updates):
