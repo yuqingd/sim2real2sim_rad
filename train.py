@@ -845,6 +845,7 @@ def main():
         training_phase = 'sp'
     else:
         training_phase = 'both'
+    eval_target_step = args.eval_freq
 
     print("============================= PHASE 0 - collect only ===============================")
     while policy_step < num_train_policy_steps:
@@ -859,7 +860,8 @@ def main():
             print(step, "============================= PHASE 4 - alternate policy collect+train and sp collect+train+update ===============================")
 
         # evaluate agent periodically
-        if step % args.eval_freq == 0:
+        if step >= eval_target_step and done:
+            eval_target_step += args.eval_freq
             total_time = train_policy_time + train_sim_model_time + eval_time + collect_data_time
             if total_time > 0:
                 L.log('eval_time/train_policy', train_policy_time / total_time, step)
