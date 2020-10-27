@@ -95,8 +95,6 @@ class Logger(object):
         self._log_dir = log_dir
         if use_tb:
             tb_dir = os.path.join(log_dir, 'tb')
-            if os.path.exists(tb_dir):
-                shutil.rmtree(tb_dir)
             self._sw = SummaryWriter(tb_dir)
         else:
             self._sw = None

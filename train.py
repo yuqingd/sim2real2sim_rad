@@ -38,12 +38,12 @@ def parse_args():
     parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
     # train
     parser.add_argument('--agent', default='curl_sac', type=str)
-    parser.add_argument('--init_steps', default=50000, type=int)
+    parser.add_argument('--init_steps_policy', default=1000, type=int)
     parser.add_argument('--num_train_steps', default=1000000, type=int)
     parser.add_argument('--batch_size', default=128, type=int)
     parser.add_argument('--hidden_dim', default=1024, type=int)
     # eval
-    parser.add_argument('--eval_freq', default=2000, type=int)
+    parser.add_argument('--eval_freq', default=5000, type=int)
     parser.add_argument('--num_eval_episodes', default=3, type=int)
     # critic
     parser.add_argument('--critic_lr', default=1e-3, type=float)
@@ -125,7 +125,6 @@ def parse_args():
     parser.add_argument('--sim_params_size', default=0, type=int)
     parser.add_argument('--ol1_episodes', default=10, type=int)
     parser.add_argument('--binary_prediction', default=False, type=bool)
-    parser.add_argument('--start_outer_loop', default=0, type=int)
     parser.add_argument('--train_sim_param_every', default=1, type=int)
     parser.add_argument('--momentum', default=0, type=float)
     parser.add_argument('--round_predictions', default=True, action='store_true')
@@ -141,10 +140,11 @@ def parse_args():
     parser.add_argument('--spatial_softmax_sp', default=False, action='store_true')
     parser.add_argument('--num_frames', default=10, type=int)
     parser.add_argument('--alternate_training', default=False, action='store_true')
-    parser.add_argument('--initial_sp_itrs', default=100000, type=int, help='only used with alternate_training')
     parser.add_argument('--sp_itrs', default=10000, type=int, help='only used with alternate_training')
     parser.add_argument('--policy_itrs', default=40000, type=int, help='only used with alternate_training')
     parser.add_argument('--range_scale_sp', default=1., type=float)
+    parser.add_argument('--update_sp_itrs', default=80000, type=int, help='only used with alternate_training')
+    parser.add_argument('--collect_sp_itrs', default=50000, type=int, help='only used with alternate_training')
     parser.add_argument('--pretrain_sp_itrs', default=50000, type=int, help='only used with alternate_training')
 
     # MISC
@@ -168,8 +168,8 @@ def parse_args():
         args.dr = None
     args.update = [0] * len(args.real_dr_list)
     if args.alternate_training:
-        args.original_init_steps = args.init_steps
-        args.init_steps = args.init_steps + args.initial_sp_itrs + args.pretrain_sp_itrs
+        # Init_steps is where the policy starts updating (after the pretraining phase)
+        args.init_steps_policy = args.init_steps_policy + args.collect_sp_itrs + args.pretrain_sp_itrs + args.update_sp_itrs
 
     return args
 
@@ -426,7 +426,7 @@ update_distribution, training_phase):
                 all_ep_success.append(obs_dict['success'])
             all_ep_rewards.append(episode_reward)
             obs_batch.append(obs_traj)
-        if not args.outer_loop_version == 0 and step > args.start_outer_loop:
+        if (not args.outer_loop_version == 0) and update_distribution:
             current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
             if update_distribution:
                 evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test", real_sim_params,
@@ -677,15 +677,14 @@ def main():
         load_model = True
         checkpoints = os.listdir(os.path.join(args.work_dir, 'model'))
 
-        if os.path.exists(os.path.join(args.work_dir, 'buffer_policy')) or os.path.exists(os.path.join(args.work_dir, 'buffer')):
-            if args.alternate_training:
-                buffer_sp = os.listdir(os.path.join(args.work_dir, 'buffer_sp'))
-                buffer = os.listdir(os.path.join(args.work_dir, 'buffer_policy'))
-            else:
-                buffer = os.listdir(os.path.join(args.work_dir, 'buffer'))
-            if len(checkpoints) == 0 or (buffer is not None and len(buffer) == 0 and not args.continue_train):
-                print("No checkpoints found")
-                load_model = False  # if we're continuing training, we can load model even w/o buffer
+        if args.alternate_training:
+            buffer_sp = os.listdir(os.path.join(args.work_dir, 'buffer_sp'))
+            buffer = os.listdir(os.path.join(args.work_dir, 'buffer_policy'))
+        else:
+            buffer = os.listdir(os.path.join(args.work_dir, 'buffer'))
+        if len(checkpoints) == 0 or (buffer is not None and len(buffer) == 0 and not args.continue_train):
+            print("No checkpoints found")
+            load_model = False  # if we're continuing training, we can load model even w/o buffer
         else:
             agent_checkpoint = [f for f in checkpoints if 'curl' in f]
             if args.outer_loop_version in [1, 3]:
@@ -851,7 +850,7 @@ def main():
             # Find out how many of the steps we've been through are policy steps
             start_policy_step = 0
             total_steps = start_step
-            total_steps -= (args.initial_sp_itrs + args.pretrain_sp_itrs)
+            total_steps -= (args.collect_sp_itrs + args.pretrain_sp_itrs + args.update_sp_itrs)
             while total_steps > 0:
                 start_policy_step += min(total_steps, args.policy_itrs)
                 total_steps -= args.policy_itrs
@@ -860,8 +859,14 @@ def main():
             start_policy_step = start_step
     if load_model or args.train_offline_dir is not None:
         if args.alternate_training:
-            replay_buffer_sp.load(buffer_dir_sp)
-            replay_buffer_policy.load(buffer_dir_policy)
+            try:
+                replay_buffer_sp.load(buffer_dir_sp)
+            except:
+                print("No SP buffer")
+            try:
+                replay_buffer_policy.load(buffer_dir_policy)
+            except:
+                print("No policy buffer")
         else:
             replay_buffer.load(buffer_dir)
 
@@ -888,15 +893,28 @@ def main():
         training_phase = 'sp'
         replay_buffer = replay_buffer_sp
         sim_env.set_range_scale(args.range_scale_sp)
-        target_step = args.initial_sp_itrs + args.pretrain_sp_itrs
+        target_step = args.collect_sp_itrs + args.pretrain_sp_itrs + args.update_sp_itrs
     elif args.no_train_policy:
         training_phase = 'sp'
     else:
         training_phase = 'both'
+    eval_target_step = args.eval_freq
 
+    print("============================= PHASE 0 - collect only ===============================")
     while policy_step < num_train_policy_steps:
+
+        if step == args.collect_sp_itrs:
+            print(step, "============================= PHASE 1 - collect and train sp only ===============================")
+        if step == args.collect_sp_itrs + args.pretrain_sp_itrs:
+            print(step, "============================= PHASE 2 - collect, train sp, and update dist only ===============================")
+        if step == args.collect_sp_itrs + args.pretrain_sp_itrs + args.update_sp_itrs:
+            print(step, "============================= PHASE 3 - alternate policy collect and sp collect+train+update ===============================")
+        if step == args.init_steps_policy:
+            print(step, "============================= PHASE 4 - alternate policy collect+train and sp collect+train+update ===============================")
+
         # evaluate agent periodically
-        if step % args.eval_freq == 0:
+        if step >= eval_target_step and done:
+            eval_target_step += args.eval_freq
             total_time = train_policy_time + train_sim_model_time + eval_time + collect_data_time
             if total_time > 0:
                 L.log('eval_time/train_policy', train_policy_time / total_time, step)
@@ -907,15 +925,14 @@ def main():
             L.log('eval/episode', episode, step)
 
             start_eval = time.time()
-            use_policy = step >= args.init_steps
-            update_distribution = step > args.init_steps + args.pretrain_sp_itrs
-            if args.alternate_training and update_distribution:
-                update_distribution =  training_phase == 'sp'
-
-            if update_distribution:
-                evaluate(real_env, sim_env, real_sim_env, agent, sim_param_model, video_real, video_sim,
-                         args.num_eval_episodes, L, step, args, use_policy, update_distribution, training_phase)
-                eval_time += time.time() - start_eval
+            use_policy = step >= args.init_steps_policy
+            if args.alternate_training:
+                update_distribution = training_phase == 'sp' and (step >= args.collect_sp_itrs + args.pretrain_sp_itrs)
+            else:
+                update_distribution = step >= args.init_steps_policy
+            evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim,
+                     args.num_eval_episodes, L, step, args, use_policy, update_distribution, training_phase)
+            eval_time += time.time() - start_eval
             if args.save_model:
                 print("SAVING MODEL!")
                 agent.save(model_dir, step)
@@ -951,10 +968,10 @@ def main():
                 should_update_sp = args.outer_loop_version != 0
                 should_update_sp = should_update_sp and training_phase in ['both', 'sp']
                 if args.alternate_training:
-                    should_update_sp = should_update_sp and step > args.original_init_steps
+                    should_update_sp = should_update_sp and step >= args.collect_sp_itrs
                 else:
-                    should_update_sp = should_update_sp and step > args.init_steps
-                if should_update_sp:
+                    should_update_sp = should_update_sp and step >= args.init_steps_policy
+                if should_update_sp and obs_traj is not None:
                     should_log = step % (10 * args.eval_freq) == 0
                     start_sim_model = time.time()
                     for i in range(args.num_sim_param_updates):
@@ -1011,14 +1028,14 @@ def main():
 
         # sample action for data collection
         train_policy_start = time.time()
-        if args.no_train_policy or step < args.init_steps:
+        if args.no_train_policy or step < args.init_steps_policy:
             action = sim_env.action_space.sample()
         else:
             with utils.eval_mode(agent):
                 action = agent.sample_action(obs_img)
 
         # run training update
-        if training_phase in ['both', 'policy'] and step >= args.init_steps:
+        if training_phase in ['both', 'policy'] and step >= args.init_steps_policy:
             num_updates = 1
             for _ in range(num_updates):
                 agent.update(replay_buffer, L, step)
