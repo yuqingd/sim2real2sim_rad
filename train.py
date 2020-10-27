@@ -187,7 +187,7 @@ def train_offline(args, L, real_env, sim_env, agent, sim_param_model, video_real
 
             start_eval = time.time()
             evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim,
-                     args.num_eval_episodes, L, step, args, True)
+                     args.num_eval_episodes, L, step, args, True, 'both')
 
             sim_param_model.update(None, None, sim_env.distribution_mean,
                                    L, step, should_log, replay_buffer, val=True, tag="train_val")
@@ -374,7 +374,8 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
 
 
 def evaluate(real_env, sim_env, real_sim_env, agent, sim_param_model, video_real, video_sim, num_episodes, L, step, args, use_policy,
-update_distribution):
+update_distribution, training_phase):
+    log_reward = training_phase in ['both', 'policy']
     all_ep_rewards = []
     all_ep_success = []
 
@@ -416,28 +417,31 @@ update_distribution):
 
             video_real.save('real_s{}_{}.mp4'.format(step, i))
             video_sim.save('real_sim_s{}_{}.mp4'.format(step, i))
-
-            L.log('eval/' + prefix + 'episode_reward', episode_reward, step)
+            if log_reward:
+                L.log('eval/' + prefix + f'episode_reward', episode_reward, step)
             if 'success' in obs_dict.keys():
-                L.log('eval/' + prefix + 'episode_success', obs_dict['success'], step)
+                if log_reward:
+                    L.log('eval/' + prefix + 'episode_success', obs_dict['success'], step)
                 all_ep_success.append(obs_dict['success'])
             all_ep_rewards.append(episode_reward)
             obs_batch.append(obs_traj)
         if not args.outer_loop_version == 0 and step > args.start_outer_loop:
             current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
-            evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test", real_sim_params, current_sim_params)
             if update_distribution:
+                evaluate_sim_params(sim_param_model, args, obs_batch, step, L, "test", real_sim_params,
+                                    current_sim_params)
                 update_sim_params(sim_param_model, sim_env, args, obs_batch, step, L)
 
-        L.log('eval/' + prefix + 'eval_time', time.time() - start_time, step)
-        mean_ep_reward = np.mean(all_ep_rewards)
-        best_ep_reward = np.max(all_ep_rewards)
-        std_ep_reward = np.std(all_ep_rewards)
-        L.log('eval/' + prefix + 'mean_episode_reward', mean_ep_reward, step)
-        L.log('eval/' + prefix + 'best_episode_reward', best_ep_reward, step)
-        if len(all_ep_success) > 0:
-            mean_ep_success = np.mean(all_ep_success)
-            L.log('eval/' + prefix + 'mean_episode_success', mean_ep_success, step)
+        if log_reward:
+            L.log('eval/' + prefix + 'eval_time', time.time() - start_time, step)
+            mean_ep_reward = np.mean(all_ep_rewards)
+            best_ep_reward = np.max(all_ep_rewards)
+            std_ep_reward = np.std(all_ep_rewards)
+            L.log('eval/' + prefix + 'mean_episode_reward', mean_ep_reward, step)
+            L.log('eval/' + prefix + 'best_episode_reward', best_ep_reward, step)
+            if len(all_ep_success) > 0:
+                mean_ep_success = np.mean(all_ep_success)
+                L.log('eval/' + prefix + 'mean_episode_success', mean_ep_success, step)
 
         filename = args.work_dir + '/eval_scores.npy'
         key = args.domain_name + '-' + str(args.task_name) + '-' + args.data_augs
@@ -452,11 +456,12 @@ update_distribution):
 
         log_data[key][step] = {}
         log_data[key][step]['step'] = step
-        log_data[key][step]['mean_ep_reward'] = mean_ep_reward
-        log_data[key][step]['max_ep_reward'] = best_ep_reward
-        log_data[key][step]['std_ep_reward'] = std_ep_reward
+        if log_reward:
+            log_data[key][step]['mean_ep_reward'] = mean_ep_reward
+            log_data[key][step]['max_ep_reward'] = best_ep_reward
+            log_data[key][step]['std_ep_reward'] = std_ep_reward
         log_data[key][step]['env_step'] = step * args.action_repeat
-        if len(all_ep_success) > 0:
+        if log_reward and len(all_ep_success) > 0:
             log_data[key][step]['mean_ep_success'] = mean_ep_success
 
         np.save(filename, log_data)
@@ -485,11 +490,11 @@ update_distribution):
 
             video_sim.record(sim_env)
             sim_params = obs_dict['sim_params']
-        if sim_param_model is not None:
+        if update_distribution and sim_param_model is not None:
             current_sim_params = torch.FloatTensor([sim_env.distribution_mean])
             evaluate_sim_params(sim_param_model, args, [obs_traj_sim], step, L, "val", sim_params, current_sim_params)
 
-        video_sim.save('sim_%d.mp4' % step)
+        video_sim.save(f'sim_{training_phase}_%d.mp4' % step)
 
     run_eval_loop(sample_stochastically=True)
     L.dump(step)
@@ -666,13 +671,17 @@ def main():
     args.work_dir = args.work_dir + '/' + args.id + '_' + exp_name
 
     load_model = False
-    load_buffer = False
     if os.path.exists(os.path.join(args.work_dir, 'model')):
         print("Loading checkpoint...")
         load_model = True
         checkpoints = os.listdir(os.path.join(args.work_dir, 'model'))
-        buffer = os.listdir(os.path.join(args.work_dir, 'buffer'))
-        if len(checkpoints) == 0 or (len(buffer) == 0 and not args.continue_train):
+
+        if args.alternate_training:
+            buffer_sp = os.listdir(os.path.join(args.work_dir, 'buffer_sp'))
+            buffer = os.listdir(os.path.join(args.work_dir, 'buffer_policy'))
+        else:
+            buffer = os.listdir(os.path.join(args.work_dir, 'buffer'))
+        if len(checkpoints) == 0 or (buffer is not None and len(buffer) == 0 and not args.continue_train):
             print("No checkpoints found")
             load_model = False  # if we're continuing training, we can load model even w/o buffer
         else:
@@ -970,11 +979,12 @@ def main():
                     log_data[key] = {}
                 log_data[key][step] = {}
 
-                L.log('train/episode_reward', episode_reward, step)
-                log_data[key][step]['episode_reward'] = episode_reward
-                if success is not None:
-                    L.log('train/episode_success', success, step)
-                    log_data[key][step]['episode_success'] = success
+                if training_phase in ['policy', 'both']:
+                    L.log('train/episode_reward', episode_reward, step)
+                    log_data[key][step]['episode_reward'] = episode_reward
+                    if success is not None:
+                        L.log('train/episode_success', success, step)
+                        log_data[key][step]['episode_success'] = success
 
                 np.save(filename, log_data)
 

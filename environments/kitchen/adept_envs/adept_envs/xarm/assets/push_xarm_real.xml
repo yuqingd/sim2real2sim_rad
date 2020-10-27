@@ -64,7 +64,7 @@
         <body pos='0. 0 .8' euler='0 0 1.57'>
             <geom type='box' size='.4 .4 .50' pos='-.3 0 -0.50' rgba="1 1 1 1"  class='xarm_viz'/>
             <geom type='box' size='.4 .4 .50' pos='-.3 0 -0.50'   mass="0.023013"  class='xarm_col'/>
-            <include file="xarm_chain_sponge_real.xml"/>
+            <include file="xarm_chain_sponge_real_push.xml"/>
         </body>
 
 
