@@ -381,15 +381,16 @@ def config_dr_kitchen(config):
                 "table_g": 1,
                 "table_r": 1,
                 "table_friction": 1,
+                'lighting': 0.3,
             }
             if dr_option == 'all_dr':
                 config.real_dr_list = list(config.real_dr_params.keys())
             elif dr_option == 'nonconflicting_dr':
-                config.real_dr_list = ['box_mass', 'box_r', 'box_g', 'box_b', 'table_b', 'table_g', 'table_r']
+                config.real_dr_list = ['box_mass', 'box_r', 'box_g', 'box_b', 'table_b', 'table_g', 'table_r', 'lighting']
             elif dr_option == 'box_mass':
                 config.real_dr_list = ['box_mass']
             elif dr_option == 'visual_dr':
-                config.real_dr_list = ['box_r', 'box_g', 'box_b', 'table_r', 'table_g', 'table_b']
+                config.real_dr_list = ['box_r', 'box_g', 'box_b', 'table_r', 'table_g', 'table_b', 'lighting']
         elif 'real_c' in config.task_name:
             config.real_dr_params = {
                 'cabinet_mass': .34,
@@ -404,17 +405,18 @@ def config_dr_kitchen(config):
                 "table_g": 1,
                 "table_r": 1,
                 'joint_max': .1,
+                'lighting': 0.3,
             }
             if dr_option == 'all_dr':
                 config.real_dr_list = list(config.real_dr_params.keys())
             elif dr_option == 'nonconflicting_dr':
                 config.real_dr_list = ['cabinet_r', 'cabinet_g', 'cabinet_b', 'table_b',
-                                       'table_g', 'table_r', 'cabinet_friction']
+                                       'table_g', 'table_r', 'cabinet_friction', 'lighting']
             elif dr_option == 'dynamics_dr':
                 config.real_dr_list = ['joint_max']
             elif dr_option == 'visual_dr':
                 config.real_dr_list = ['cabinet_r', 'cabinet_g', 'cabinet_b', 'cabinet_handle_r', 'cabinet_handle_g',
-                                       'cabinet_handle_b', 'table_r', 'table_g', 'table_b']
+                                       'cabinet_handle_b', 'table_r', 'table_g', 'table_b', 'lighting']
         else:
             config.real_dr_params = {
                 "cabinet_b": 0.5,  # OK
