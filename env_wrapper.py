@@ -140,13 +140,13 @@ class DR_Env:
         return self._env.action_space
 
     def env_step(self, action):
-        if self.real_world:
+        if self.real_world and self._env.__class__ == RealEnvWrapper:
             x = action[1]
             action[1] = -action[0]
             action[0] = x
 
         obs, reward, done, info = self._env.step(action)
-        if self.real_world:
+        if self.real_world and self._env.__class__ == RealEnvWrapper:
             state = info["arm"]["position"][:3]
             obs = obs
         else:
@@ -182,7 +182,7 @@ class DR_Env:
         return np.array([], dtype=np.float32)
 
     def env_reset(self):
-        if self.real_world:
+        if self.real_world and self._env.__class__ == RealEnvWrapper:
             img_obs = self._env.reset()
             state_obs = np.asarray(self._env._env.pos[:3])
         else:
@@ -1370,7 +1370,7 @@ class DR_Dummy(DR_Env):
 
 def make(domain_name, task_name, seed, height, width, cameras=range(1),
          frame_skip=None, mean_only=False, dr_list=[], simple_randomization=False,
-         dr_shape=None, real_world=False, dr=None, state_type="none",
+         dr_shape=None, real_world=False, real_sim=False, dr=None, state_type="none",
          grayscale=False, delay_steps=0, range_scale=.1, prop_range_scale=False, state_concat=False,
          real_dr_params=None, prop_initial_range=False, time_limit=200, full_screen_square=False):
     # DMC
@@ -1442,7 +1442,7 @@ def make(domain_name, task_name, seed, height, width, cameras=range(1),
             env = DR_Kitchen(env, cameras=cameras, height=height, width=width, mean_only=mean_only,
                              dr_list=dr_list, simple_randomization=simple_randomization, dr_shape=dr_shape,
                              name=task_name,
-                             real_world=real_world, dr=dr, state_type=state_type, grayscale=grayscale,
+                             real_world=real_world or real_sim, dr=dr, state_type=state_type, grayscale=grayscale,
                              range_scale=range_scale, prop_initial_range=prop_initial_range, real_dr_params=None)
         return env
     elif 'dummy' in domain_name:

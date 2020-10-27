@@ -11,13 +11,13 @@ import mujoco_py
 
 GlfwContext(offscreen=True)
 os.environ['MUJOCO_GL'] = 'glfw'
-# env_real = make('kitchen', real_world=True,
-#         task_name='rope',
-#         seed=0,
-#         height=256,
-#         width=256,
-#         state_type="robot"
-#     )
+env_real = make('kitchen', real_world=True,
+        task_name='rope',
+        seed=0,
+        height=256,
+        width=256,
+        state_type="robot"
+    )
 
 env_sim = make('kitchen', real_world=False,
         task_name='rope',
@@ -64,19 +64,15 @@ def run_eval_loop(env, name):
                 action = [.2, .5, .3]
             else:
                 action = [.15, -.1, -.2]
-            action = [0, 0, 0]
+            action=[-.1, .1, 0]
             step+=1
             obs_traj.append(obs)
             obs_dict, reward, done, info = env.step(action)
             video.record(env)
             episode_reward += reward
             print(reward)
-            print(env.z_goal)
-            if info["success"]:
-                print("done")
-                break
         video.save('real_rope_{}.mp4'.format(name))
 
 
 run_eval_loop(env_sim, 'sim_testdelay')
-# run_eval_loop(env_real, 'real')
+run_eval_loop(env_real, 'real')

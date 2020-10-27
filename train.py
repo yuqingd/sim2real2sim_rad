@@ -156,6 +156,7 @@ def parse_args():
     parser.add_argument('--val_split', default=.2, type=float,
                         help='validation split; currently only for offline training but we should fix this.')
     parser.add_argument('--continue_train', default=False, action='store_true')
+    parser.add_argument('--continue_step',  default=-1, type=int)
 
     args = parser.parse_args()
     if args.dr:
@@ -372,7 +373,7 @@ def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
     args.updates = updates
 
 
-def evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim, num_episodes, L, step, args, use_policy,
+def evaluate(real_env, sim_env, real_sim_env, agent, sim_param_model, video_real, video_sim, num_episodes, L, step, args, use_policy,
 update_distribution):
     all_ep_rewards = []
     all_ep_success = []
@@ -384,8 +385,11 @@ update_distribution):
         real_sim_params = real_env.reset()['sim_params']
         for i in range(num_episodes):
             obs_dict = real_env.reset()
+            real_sim_env.reset()
             video_real.init()
+            video_sim.init()
             video_real.record(real_env)
+            video_sim.record(real_sim_env)
             done = False
             episode_reward = 0
             obs_traj = []
@@ -405,10 +409,14 @@ update_distribution):
                         action = agent.select_action(obs_img)
                 obs_traj.append((obs_img, obs_state, action))
                 obs_dict, reward, done, _ = real_env.step(action)
+                real_sim_obs, real_sim_reward, real_sim_done, _ = real_sim_env.step(action)
                 video_real.record(real_env)
-                episode_reward += reward
+                video_sim.record(real_sim_env)
+                episode_reward += real_sim_reward
 
             video_real.save('real_s{}_{}.mp4'.format(step, i))
+            video_sim.save('real_sim_s{}_{}.mp4'.format(step, i))
+
             L.log('eval/' + prefix + 'episode_reward', episode_reward, step)
             if 'success' in obs_dict.keys():
                 L.log('eval/' + prefix + 'episode_success', obs_dict['success'], step)
@@ -592,6 +600,32 @@ def main():
         full_screen_square=args.full_screen_square,
     )
 
+    real_sim_env = env_wrapper.make(
+        domain_name=args.domain_name,
+        task_name=args.task_name,
+        seed=args.seed,
+        height=args.pre_transform_image_size,
+        width=args.pre_transform_image_size,
+        frame_skip=args.action_repeat,
+        mean_only=args.mean_only,
+        dr_list=args.real_dr_list,
+        simple_randomization=args.dr_option == 'simple',
+        dr_shape=args.sim_params_size,
+        real_world=False,
+        real_sim=True,
+        dr=args.real_dr_params,
+        state_type=args.state_type,
+        grayscale=args.grayscale,
+        delay_steps=args.delay_steps,
+        range_scale=args.range_scale,
+        prop_range_scale=args.prop_range_scale,
+        prop_initial_range=args.prop_initial_range,
+        state_concat=args.state_concat,
+        real_dr_params=None,
+        time_limit=args.time_limit,
+        full_screen_square=args.full_screen_square,
+    )
+
     real_env = env_wrapper.make(
         domain_name=args.domain_name,
         task_name=args.task_name,
@@ -617,6 +651,7 @@ def main():
     # stack several consecutive frames together
     if args.encoder_type == 'pixel':
         sim_env = utils.FrameStack(sim_env, k=args.frame_stack)
+        real_sim_env = utils.FrameStack(real_sim_env, k=args.frame_stack)
         real_env = utils.FrameStack(real_env, k=args.frame_stack)
 
     # make directory
@@ -774,20 +809,29 @@ def main():
         real_env.load(real_env_dir)
 
     if load_model:
-        agent_step = 0
-        for checkpoint in agent_checkpoint:
-            agent_step = max(agent_step, [int(x) for x in re.findall('\d+', checkpoint)][-1])
+        if args.continue_step > 0:
+            agent_step = args.continue_step
+        else:
+            agent_step = 0
+            for checkpoint in agent_checkpoint:
+                agent_step = max(agent_step, [int(x) for x in re.findall('\d+', checkpoint)][-1])
         agent.load(model_dir, agent_step)
         agent.load_curl(model_dir, agent_step)
         print("LOADING MODEL!")
-        sim_env.load(sim_env_dir)
-        real_env.load(real_env_dir)
+        try:
+            sim_env.load(sim_env_dir)
+            real_env.load(real_env_dir)
+        except:
+            print("No envs found")
         start_step = agent_step
         if sim_param_model is not None:
             sim_param_step = 0
             for checkpoint in sim_param_checkpoint:
                 sim_param_step = max(sim_param_step, [int(x) for x in re.findall('\d+', checkpoint)][-1])
-            sim_param_model.load(model_dir, sim_param_step)
+            try:
+                sim_param_model.load(model_dir, sim_param_step)
+            except:
+                print("No sim param model found")
             if args.continue_train:
                 start_step = 0
             else:
@@ -856,7 +900,7 @@ def main():
             update_distribution = step > args.init_steps
             if args.alternate_training:
                 update_distribution = training_phase == 'sp'
-            evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim,
+            evaluate(real_env, sim_env, real_sim_env, agent, sim_param_model, video_real, video_sim,
                      args.num_eval_episodes, L, step, args, use_policy, update_distribution)
             eval_time += time.time() - start_eval
             if args.save_model:
