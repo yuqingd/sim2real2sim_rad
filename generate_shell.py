@@ -6,7 +6,7 @@ def generate_shell_commands(domain_name, task_name, run_type, save=False, action
                             mean_scale=None, prop_range_scale=True, prop_train_range_scale=True,
                             separate_trunks=True, train_range_scale=1, range_scale=None,
                             dr_option=None, update_sim_param_from='buffer', num_eval_episodes=5,
-                            num_sim_param_updates=3, alternate=False, range_scale_sp=1, num_train_steps=None):
+                            num_sim_param_updates=10, alternate=False, range_scale_sp=1, num_train_steps=None):
     # NOTE: the run_type BCS here is the sim_BCS (i.e. centered, small range), not the real_BCS (i.e. centered, big range)
     # To get the real_BCS, get a baseline run but pass in mean_scale 1.
 
