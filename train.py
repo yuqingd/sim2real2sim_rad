@@ -38,7 +38,7 @@ def parse_args():
     parser.add_argument('--replay_buffer_capacity', default=100000, type=int)
     # train
     parser.add_argument('--agent', default='curl_sac', type=str)
-    parser.add_argument('--init_steps', default=1000, type=int)
+    parser.add_argument('--init_steps', default=50000, type=int)
     parser.add_argument('--num_train_steps', default=1000000, type=int)
     parser.add_argument('--batch_size', default=128, type=int)
     parser.add_argument('--hidden_dim', default=1024, type=int)
@@ -145,6 +145,7 @@ def parse_args():
     parser.add_argument('--sp_itrs', default=10000, type=int, help='only used with alternate_training')
     parser.add_argument('--policy_itrs', default=40000, type=int, help='only used with alternate_training')
     parser.add_argument('--range_scale_sp', default=1., type=float)
+    parser.add_argument('--pretrain_sp_itrs', default=50000, type=int, help='only used with alternate_training')
 
     # MISC
     parser.add_argument('--id', default='debug', type=str)
@@ -168,7 +169,7 @@ def parse_args():
     args.update = [0] * len(args.real_dr_list)
     if args.alternate_training:
         args.original_init_steps = args.init_steps
-        args.init_steps = args.init_steps + args.initial_sp_itrs
+        args.init_steps = args.init_steps + args.initial_sp_itrs + args.pretrain_sp_itrs
 
     return args
 
@@ -850,7 +851,7 @@ def main():
             # Find out how many of the steps we've been through are policy steps
             start_policy_step = 0
             total_steps = start_step
-            total_steps -= args.initial_sp_itrs
+            total_steps -= (args.initial_sp_itrs + args.pretrain_sp_itrs)
             while total_steps > 0:
                 start_policy_step += min(total_steps, args.policy_itrs)
                 total_steps -= args.policy_itrs
@@ -887,7 +888,7 @@ def main():
         training_phase = 'sp'
         replay_buffer = replay_buffer_sp
         sim_env.set_range_scale(args.range_scale_sp)
-        target_step = args.initial_sp_itrs
+        target_step = args.initial_sp_itrs + args.pretrain_sp_itrs
     elif args.no_train_policy:
         training_phase = 'sp'
     else:
@@ -907,12 +908,14 @@ def main():
 
             start_eval = time.time()
             use_policy = step >= args.init_steps
-            update_distribution = step > args.init_steps
-            if args.alternate_training:
-                update_distribution = training_phase == 'sp'
-            evaluate(real_env, sim_env, real_sim_env, agent, sim_param_model, video_real, video_sim,
-                     args.num_eval_episodes, L, step, args, use_policy, update_distribution, training_phase)
-            eval_time += time.time() - start_eval
+            update_distribution = step > args.init_steps + args.pretrain_sp_itrs
+            if args.alternate_training and update_distribution:
+                update_distribution =  training_phase == 'sp'
+
+            if update_distribution:
+                evaluate(real_env, sim_env, real_sim_env, agent, sim_param_model, video_real, video_sim,
+                         args.num_eval_episodes, L, step, args, use_policy, update_distribution, training_phase)
+                eval_time += time.time() - start_eval
             if args.save_model:
                 print("SAVING MODEL!")
                 agent.save(model_dir, step)
