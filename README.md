@@ -4,6 +4,18 @@ This repository is the official implementation of [CURL](https://mishalaskin.git
 
 ## Installation 
 
+Install mujoco, if it is not already installed.
+
+Add this to bashrc:
+```
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/olivia/.mujoco/mujoco200/bin
+```
+Apt-install these packages:
+```
+sudo apt-get install libosmesa6-dev
+sudo apt-get install patchelf
+```
+
 All of the dependencies are in the `conda_env.yml` file. They can be installed manually or with the following command:
 
 ```
