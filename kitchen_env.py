@@ -427,7 +427,7 @@ class Kitchen:
 
         self.timesteps += 1
         self.already_succeeded = done or self.already_succeeded
-        return reward, done
+        return reward, self.already_succeeded
 
     def get_sim(self):
         return self._env.sim
