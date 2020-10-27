@@ -676,14 +676,15 @@ def main():
         load_model = True
         checkpoints = os.listdir(os.path.join(args.work_dir, 'model'))
 
-        if args.alternate_training:
-            buffer_sp = os.listdir(os.path.join(args.work_dir, 'buffer_sp'))
-            buffer = os.listdir(os.path.join(args.work_dir, 'buffer_policy'))
-        else:
-            buffer = os.listdir(os.path.join(args.work_dir, 'buffer'))
-        if len(checkpoints) == 0 or (buffer is not None and len(buffer) == 0 and not args.continue_train):
-            print("No checkpoints found")
-            load_model = False  # if we're continuing training, we can load model even w/o buffer
+        if os.path.exists(os.path.join(args.work_dir, 'buffer_policy')) or os.path.exists(os.path.join(args.work_dir, 'buffer')):
+            if args.alternate_training:
+                buffer_sp = os.listdir(os.path.join(args.work_dir, 'buffer_sp'))
+                buffer = os.listdir(os.path.join(args.work_dir, 'buffer_policy'))
+            else:
+                buffer = os.listdir(os.path.join(args.work_dir, 'buffer'))
+            if len(checkpoints) == 0 or (buffer is not None and len(buffer) == 0 and not args.continue_train):
+                print("No checkpoints found")
+                load_model = False  # if we're continuing training, we can load model even w/o buffer
         else:
             agent_checkpoint = [f for f in checkpoints if 'curl' in f]
             if args.outer_loop_version in [1, 3]:
@@ -910,7 +911,7 @@ def main():
             if args.alternate_training:
                 update_distribution = training_phase == 'sp'
             evaluate(real_env, sim_env, real_sim_env, agent, sim_param_model, video_real, video_sim,
-                     args.num_eval_episodes, L, step, args, use_policy, update_distribution)
+                     args.num_eval_episodes, L, step, args, use_policy, update_distribution, training_phase)
             eval_time += time.time() - start_eval
             if args.save_model:
                 print("SAVING MODEL!")
