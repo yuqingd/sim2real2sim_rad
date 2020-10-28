@@ -828,6 +828,8 @@ def main():
         agent.load(model_dir, agent_step)
         agent.load_curl(model_dir, agent_step)
         print("LOADING MODEL!")
+        print("Loaded agent from step: ", agent_step)
+
         try:
             sim_env.load(sim_env_dir)
             real_env.load(real_env_dir)
@@ -840,6 +842,7 @@ def main():
                 sim_param_step = max(sim_param_step, [int(x) for x in re.findall('\d+', checkpoint)][-1])
             try:
                 sim_param_model.load(model_dir, sim_param_step)
+                print("Loaded Sim param model from step: ", sim_param_step)
             except:
                 print("No sim param model found")
             if args.continue_train:
@@ -857,18 +860,18 @@ def main():
                 total_steps -= args.sp_itrs
         else:
             start_policy_step = start_step
-    if load_model or args.train_offline_dir is not None:
-        if args.alternate_training:
-            try:
-                replay_buffer_sp.load(buffer_dir_sp)
-            except:
-                print("No SP buffer")
-            try:
-                replay_buffer_policy.load(buffer_dir_policy)
-            except:
-                print("No policy buffer")
-        else:
-            replay_buffer.load(buffer_dir)
+    # if load_model or args.train_offline_dir is not None:
+    #     if args.alternate_training:
+    #         try:
+    #             replay_buffer_sp.load(buffer_dir_sp)
+    #         except:
+    #             print("No SP buffer")
+    #         try:
+    #             replay_buffer_policy.load(buffer_dir_policy)
+    #         except:
+    #             print("No policy buffer")
+    #     else:
+    #         replay_buffer.load(buffer_dir)
 
     L = Logger(args.work_dir, use_tb=args.save_tb)
 

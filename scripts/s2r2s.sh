@@ -20,4 +20,9 @@ CUDA_VISIBLE_DEVICES=6 python train.py --domain_name kitchen --action_repeat 1 -
 
    python train.py --domain_name kitchen --action_repeat 1 --task_name rope --seed 0 --id pretrain_ol3 --save_tb --save_video --eval_freq 2000 --num_train_steps 100000 --delay_steps 2 --num_eval_episodes 2 --gpudevice 0 --dr_option all_dr --mean_scale 1 --dr --outer_loop_version 3 --save_model --save_buffer --sim_param_lr 1e-3 --alpha .1 --train_sim_param_every 1 --range_scale 1 --train_range_scale 5 --use_img --encoder_type pixel --num_sim_param_updates 5 --scale_large_and_small --prop_alpha --update_sim_param_from both --time_limit 60
 
-    python train.py --domain_name kitchen --action_repeat 1 --task_name rope --seed 1 --id ol3 --save_tb --save_video --eval_freq 5000 --num_train_steps 200000 --delay_steps 2 --num_eval_episodes 2 --gpudevice 0 --dr_option len_vis_dr --mean_scale 1 --dr --outer_loop_version 3 --save_model --save_buffer --sim_param_lr 1e-3 --alpha .1 --train_sim_param_every 1 --prop_range_scale --range_scale .1 --range_scale_sp .5 --train_range_scale 1 --use_img --encoder_type pixel --num_sim_param_updates 10 --scale_large_and_small --prop_alpha --update_sim_param_from both --time_limit 60 --state_type robot --num_frames 60 --alternate_training --continue_step 20000 --initial_sp_itrs  0 --init_steps  0 --pretrain_sp_itrs 0
+    python train.py --domain_name kitchen --action_repeat 1 --task_name rope --seed 1 --id ol3 --save_tb
+    --save_video --eval_freq 5000 --num_train_steps 100000 --delay_steps 2 --num_eval_episodes 2 --gpudevice
+    0 --dr_option len_vis_dr --mean_scale 1 --dr --outer_loop_version 3 --save_model --save_buffer --sim_param_lr
+    1e-3 --alpha .1 --train_sim_param_every 1 --prop_range_scale --range_scale .1 --range_scale_sp .5 --train_range_scale 1
+    --use_img --encoder_type pixel --num_sim_param_updates 10 --scale_large_and_small --prop_alpha --update_sim_param_from both
+    --time_limit 60 --state_type robot --num_frames 60 --alternate_training --continue_step 20000  --collect_sp_itrs 50000 --pretrain_sp_itrs 0 --update_sp_itrs 50000
