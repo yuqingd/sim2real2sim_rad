@@ -147,10 +147,11 @@ class DR_Env:
 
         obs, reward, done, info = self._env.step(action)
         if self.real_world and self._env.__class__ == RealEnvWrapper:
-            state = info["arm"]["position"][:3] / 100
+            state = np.asarray(info["arm"]["position"][:3]) / 1000
             x = state[1]
-            state[1] = - state[0]
-            state[0] = x
+            state[1] = state[0]
+            state[0] = - x
+            state[-1] += .67
             obs = obs
         else:
             if len(obs.shape) == 3:
@@ -187,10 +188,12 @@ class DR_Env:
     def env_reset(self):
         if self.real_world and self._env.__class__ == RealEnvWrapper:
             img_obs = self._env.reset()
-            state_obs = np.asarray(self._env._env.pos[:3]) / 100
+            state_obs = np.asarray(self._env._env.pos[:3]) / 1000
             x = state_obs[1]
-            state_obs[1] = - state_obs[0]
-            state_obs[0] = x
+            state_obs[1] = state_obs[0]
+            state_obs[0] = - x
+            state_obs[-1] += .67
+
         else:
             state_obs = self._env.reset()
         if self.state_type == 'none':

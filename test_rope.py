@@ -31,7 +31,7 @@ env_sim = make('kitchen', real_world=False,
 env_sim.reset()
 
 num_episodes = 1
-time_limit = 60
+time_limit = 10
 image_size = 256
 real_video_dir = utils.make_dir(os.path.join('./logdir', 'debug_video'))
 
@@ -65,6 +65,7 @@ def run_eval_loop(env, name):
             else:
                 action = [.15, -.1, -.2]
             action=[-.1, .1, 0]
+            print('state: ', obs_dict['state'])
             step+=1
             obs_traj.append(obs)
             obs_dict, reward, done, info = env.step(action)
