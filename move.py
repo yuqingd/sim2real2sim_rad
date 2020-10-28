@@ -21,6 +21,8 @@ else:
 # Find relevant filenames
 for directory in directories:
     directory = Path(directory)
+    if not directory.exists():
+        continue
     # Loop through files
     for run_file in directory.iterdir():
         print("Copying over", run_file.name)
