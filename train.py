@@ -557,6 +557,29 @@ def make_agent(obs_shape, state_shape, action_shape, args, device):
         assert 'agent is not supported: %s' % args.agent
 
 
+def is_training_phase(timestep, pretrain_steps, sp_itrs, policy_itrs):
+    target = pretrain_steps
+    policy_steps = 0
+    # Loop through timesteps, alternating between phases
+    if timestep == 0:
+        return False, target, 0
+    t = 0
+    is_policy_phase = False
+    while t < timestep:
+        if t == 0:
+            t += pretrain_steps
+        else:
+            if is_policy_phase:
+                policy_steps += min(policy_itrs, timestep - t)
+                t += policy_itrs
+                target += policy_itrs
+            else:
+                t += sp_itrs
+                target += sp_itrs
+        is_policy_phase = not is_policy_phase
+    return not is_policy_phase, target, policy_steps
+
+
 def main():
     args = parse_args()
     os.environ['EGL_DEVICE_ID'] = args.gpudevice
@@ -774,6 +797,17 @@ def main():
 
     start_step = 0
     start_policy_step = 0
+    if args.alternate_training:
+        training_phase = 'sp'
+        replay_buffer = replay_buffer_sp
+        sim_env.set_range_scale(args.range_scale_sp)
+        target_step = args.collect_sp_itrs + args.pretrain_sp_itrs + args.update_sp_itrs
+    elif args.no_train_policy:
+        training_phase = 'sp'
+        args.init_steps_policy = args.collect_sp_itrs + args.pretrain_sp_itrs
+    else:
+        training_phase = 'both'
+
     # If we're continuing training, load the envs regardless of whether we load a model
     if args.continue_train:
         print("loading envs!")
@@ -801,13 +835,17 @@ def main():
                 start_step = min(start_step, sim_param_step)  # TODO: do we have to save optimizer?
         if args.alternate_training:
             # Find out how many of the steps we've been through are policy steps
-            start_policy_step = 0
-            total_steps = start_step
-            total_steps -= (args.collect_sp_itrs + args.pretrain_sp_itrs + args.update_sp_itrs)
-            while total_steps > 0:
-                start_policy_step += min(total_steps, args.policy_itrs)
-                total_steps -= args.policy_itrs
-                total_steps -= args.sp_itrs
+            pretrain_steps = args.collect_sp_itrs + args.pretrain_sp_itrs + args.update_sp_itrs
+            is_policy_phase, target_step, start_policy_step = is_training_phase(start_step, pretrain_steps,
+                                                                                args.sp_itrs, args.policy_itrs)
+            if is_policy_phase:
+                training_phase = 'policy'
+                sim_env.set_range_scale(args.range_scale)
+                replay_buffer = replay_buffer_policy
+            else:
+                training_phase = 'sp'
+                sim_env.set_range_scale(args.range_scale_sp)
+                replay_buffer = replay_buffer_sp
         else:
             start_policy_step = start_step
     if load_model or args.train_offline_dir is not None:
@@ -836,17 +874,13 @@ def main():
     num_train_policy_steps = args.num_train_steps
     step = start_step
     policy_step = start_policy_step
-    if args.alternate_training:
-        training_phase = 'sp'
-        replay_buffer = replay_buffer_sp
-        sim_env.set_range_scale(args.range_scale_sp)
-        target_step = args.collect_sp_itrs + args.pretrain_sp_itrs + args.update_sp_itrs
-    elif args.no_train_policy:
-        training_phase = 'sp'
-        args.init_steps_policy = args.collect_sp_itrs + args.pretrain_sp_itrs
-    else:
-        training_phase = 'both'
-    eval_target_step = args.eval_freq
+
+    eval_target_step = step - (step % args.eval_freq) + args.eval_freq
+    print("Starting step: ", step)
+    print("Starting policy step: ", policy_step)
+    print("Starting eval target step", eval_target_step)
+    print("Starting training phase", training_phase)
+    print("Starting target step", target_step)
 
     while policy_step < num_train_policy_steps:
 
