@@ -638,13 +638,12 @@ def main():
         print("Loading checkpoint...")
         load_model = True
         checkpoints = os.listdir(os.path.join(args.work_dir, 'model'))
-
         if args.alternate_training:
             buffer_sp = os.listdir(os.path.join(args.work_dir, 'buffer_sp'))
             buffer = os.listdir(os.path.join(args.work_dir, 'buffer_policy'))
         else:
             buffer = os.listdir(os.path.join(args.work_dir, 'buffer'))
-        if len(checkpoints) == 0 or (buffer is not None and len(buffer) == 0 and not args.continue_train):
+        if len(checkpoints) == 0:  # Always load checkpoints.  It's now on the user to make sure any needed buffers are there
             print("No checkpoints found")
             load_model = False  # if we're continuing training, we can load model even w/o buffer
         else:
@@ -787,8 +786,13 @@ def main():
         agent.load(model_dir, agent_step)
         agent.load_curl(model_dir, agent_step)
         print("LOADING MODEL!")
+    try:
         sim_env.load(sim_env_dir)
         real_env.load(real_env_dir)
+    except Exception as e:
+        print("No envs to load")
+
+    try:
         start_step = agent_step
         if sim_param_model is not None:
             sim_param_step = 0
@@ -810,12 +814,21 @@ def main():
                 total_steps -= args.sp_itrs
         else:
             start_policy_step = start_step
-    if load_model or args.train_offline_dir is not None:
+        print(f"Loaded sp model! We're at {start_step} steps and {start_policy_step} policy steps.")
+    except Exception as e:
+        print("NO SP model to load")
+
+    try:
+        print("Loading replay buffer")
         if args.alternate_training:
             replay_buffer_sp.load(buffer_dir_sp)
             replay_buffer_policy.load(buffer_dir_policy)
+            print(f"finished loading! We have {replay_buffer_sp.idx} steps in the sp buffer and {replay_buffer_policy.idx} in the policy buffer")
         else:
             replay_buffer.load(buffer_dir)
+            print("finished loading! Number of steps: ", replay_buffer.idx)
+    except:
+        print("No replay buffer to load")
 
     L = Logger(args.work_dir, use_tb=args.save_tb)
 
@@ -848,6 +861,7 @@ def main():
         training_phase = 'both'
     eval_target_step = args.eval_freq
 
+    print("STARTING WITH", step, policy_step)
     while policy_step < num_train_policy_steps:
 
         if args.alternate_training:
