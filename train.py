@@ -847,17 +847,19 @@ def main():
         training_phase = 'both'
     eval_target_step = args.eval_freq
 
-    print("============================= PHASE 0 - collect only ===============================")
     while policy_step < num_train_policy_steps:
 
-        if step == args.collect_sp_itrs:
-            print(step, "============================= PHASE 1 - collect and train sp only ===============================")
-        if step == args.collect_sp_itrs + args.pretrain_sp_itrs:
-            print(step, "============================= PHASE 2 - collect, train sp, and update dist only ===============================")
-        if step == args.collect_sp_itrs + args.pretrain_sp_itrs + args.update_sp_itrs:
-            print(step, "============================= PHASE 3 - alternate policy collect and sp collect+train+update ===============================")
-        if step == args.init_steps_policy:
-            print(step, "============================= PHASE 4 - alternate policy collect+train and sp collect+train+update ===============================")
+        if args.alternate_training:
+            if step == 0:
+                print(step, "============================= PHASE 0 - collect only ===============================")
+            if step == args.collect_sp_itrs:
+                print(step, "============================= PHASE 1 - collect and train sp only ===============================")
+            if step == args.collect_sp_itrs + args.pretrain_sp_itrs:
+                print(step, "============================= PHASE 2 - collect, train sp, and update dist only ===============================")
+            if step == args.collect_sp_itrs + args.pretrain_sp_itrs + args.update_sp_itrs:
+                print(step, "============================= PHASE 3 - alternate policy collect and sp collect+train+update ===============================")
+            if step == args.init_steps_policy:
+                print(step, "============================= PHASE 4 - alternate policy collect+train and sp collect+train+update ===============================")
 
         # evaluate agent periodically
         if step >= eval_target_step and done:
