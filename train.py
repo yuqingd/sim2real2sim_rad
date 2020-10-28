@@ -930,7 +930,7 @@ def main():
                 update_distribution = training_phase == 'sp' and (step >= args.collect_sp_itrs + args.pretrain_sp_itrs)
             else:
                 update_distribution = step >= args.init_steps_policy
-            evaluate(real_env, sim_env, agent, sim_param_model, video_real, video_sim,
+            evaluate(real_env, sim_env, real_sim_env, agent, sim_param_model, video_real, video_sim,
                      args.num_eval_episodes, L, step, args, use_policy, update_distribution, training_phase)
             eval_time += time.time() - start_eval
             if args.save_model:
