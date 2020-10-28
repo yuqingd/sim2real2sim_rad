@@ -893,7 +893,8 @@ def main():
     print("Starting policy step: ", policy_step)
     print("Starting eval target step", eval_target_step)
     print("Starting training phase", training_phase)
-    print("Starting target step", target_step)
+    if args.alternate_training:
+        print("Starting target step", target_step)
 
     while policy_step < num_train_policy_steps:
 
