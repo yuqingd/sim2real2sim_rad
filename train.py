@@ -843,6 +843,7 @@ def main():
         target_step = args.collect_sp_itrs + args.pretrain_sp_itrs + args.update_sp_itrs
     elif args.no_train_policy:
         training_phase = 'sp'
+        args.init_steps_policy = args.collect_sp_itrs + args.pretrain_sp_itrs
     else:
         training_phase = 'both'
     eval_target_step = args.eval_freq
