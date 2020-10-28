@@ -269,7 +269,7 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
             np.save(filename, log_data)
 
 
-def predict_sim_params(sim_param_model, traj, current_sim_params, args, step=10, confidence_level=.3):
+def predict_sim_params(sim_param_model, traj, current_sim_params, args, step=10):
     segment_length = sim_param_model.num_frames
     windows = []
     index = 0
@@ -282,9 +282,7 @@ def predict_sim_params(sim_param_model, traj, current_sim_params, args, step=10,
     if args.round_predictions:
         with torch.no_grad():
             preds = sim_param_model.forward_classifier(windows, current_sim_params).cpu().numpy()
-            mask = (preds > confidence_level) & (preds < 1 - confidence_level)
             preds = np.round(preds)
-            preds[mask] = 0.5
 
     # Round to the nearest integer so each prediction is voting up or down
     # Alternatively, we could just take a mean of their probabilities
