@@ -895,7 +895,6 @@ def main():
     print("Starting training phase", training_phase)
     print("Starting target step", target_step)
 
-    print("STARTING WITH", step, policy_step)
     while policy_step < num_train_policy_steps:
 
         if args.alternate_training:
