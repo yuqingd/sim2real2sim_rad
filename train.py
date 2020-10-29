@@ -677,12 +677,12 @@ def main():
         load_model = True
         checkpoints = os.listdir(os.path.join(args.work_dir, 'model'))
 
-        if args.alternate_training:
-            buffer_sp = os.listdir(os.path.join(args.work_dir, 'buffer_sp'))
-            buffer = os.listdir(os.path.join(args.work_dir, 'buffer_policy'))
-        else:
-            buffer = os.listdir(os.path.join(args.work_dir, 'buffer'))
-        if len(checkpoints) == 0 or (buffer is not None and len(buffer) == 0 and not args.continue_train):
+        # if args.alternate_training:
+        #     buffer_sp = os.listdir(os.path.join(args.work_dir, 'buffer_sp'))
+        #     buffer = os.listdir(os.path.join(args.work_dir, 'buffer_policy'))
+        # else:
+        #     buffer = os.listdir(os.path.join(args.work_dir, 'buffer'))
+        if len(checkpoints) == 0:
             print("No checkpoints found")
             load_model = False  # if we're continuing training, we can load model even w/o buffer
         else:
@@ -816,23 +816,28 @@ def main():
     if args.continue_train:
         print("loading envs!")
         sim_env.load(sim_env_dir)
-        real_env.load(real_env_dir)
+        #real_env.load(real_env_dir)
 
     if load_model:
         if args.continue_step > 0:
-            agent_step = args.continue_step
+            agent_step = 0
+            agent.load(model_dir, args.continue_step)
+            agent.load_curl(model_dir, args.continue_step)
+            print("Loaded agent from step: ", args.continue_step)
+
+
         else:
             agent_step = 0
             for checkpoint in agent_checkpoint:
                 agent_step = max(agent_step, [int(x) for x in re.findall('\d+', checkpoint)][-1])
-        agent.load(model_dir, agent_step)
-        agent.load_curl(model_dir, agent_step)
+            agent.load(model_dir, agent_step)
+            agent.load_curl(model_dir, agent_step)
         print("LOADING MODEL!")
-        print("Loaded agent from step: ", agent_step)
 
         try:
             sim_env.load(sim_env_dir)
-            real_env.load(real_env_dir)
+            print("Sim env loaded")
+            #real_env.load(real_env_dir)
         except:
             print("No envs found")
         start_step = agent_step
@@ -903,6 +908,11 @@ def main():
         training_phase = 'both'
     eval_target_step = args.eval_freq
 
+    print("First Eval")
+    evaluate(real_env, sim_env, real_sim_env, agent, sim_param_model, video_real, video_sim,
+             1, L, step, args, True, False, training_phase)
+
+
     print("============================= PHASE 0 - collect only ===============================")
     while policy_step < num_train_policy_steps:
 
@@ -928,20 +938,21 @@ def main():
             L.log('eval/episode', episode, step)
 
             start_eval = time.time()
-            use_policy = step >= args.init_steps_policy
+            use_policy = True# step >= args.init_steps_policy
             if args.alternate_training:
-                update_distribution = training_phase == 'sp' and (step >= args.collect_sp_itrs + args.pretrain_sp_itrs)
+                update_distribution = (step >= args.collect_sp_itrs + args.pretrain_sp_itrs)
             else:
                 update_distribution = step >= args.init_steps_policy
-            evaluate(real_env, sim_env, real_sim_env, agent, sim_param_model, video_real, video_sim,
-                     args.num_eval_episodes, L, step, args, use_policy, update_distribution, training_phase)
-            eval_time += time.time() - start_eval
+            if (step >= args.collect_sp_itrs + args.pretrain_sp_itrs):
+                evaluate(real_env, sim_env, real_sim_env, agent, sim_param_model, video_real, video_sim,
+                         args.num_eval_episodes, L, step, args, use_policy, update_distribution, training_phase)
+                eval_time += time.time() - start_eval
             if args.save_model:
                 print("SAVING MODEL!")
                 agent.save(model_dir, step)
                 agent.save_curl(model_dir, step)
                 sim_env.save(sim_env_dir)
-                real_env.save(real_env_dir)
+                #real_env.save(real_env_dir)
                 if sim_param_model is not None:
                     sim_param_model.save(model_dir, step)
             if args.save_buffer:
@@ -1031,11 +1042,11 @@ def main():
 
         # sample action for data collection
         train_policy_start = time.time()
-        if args.no_train_policy or step < args.init_steps_policy:
-            action = sim_env.action_space.sample()
-        else:
-            with utils.eval_mode(agent):
-                action = agent.sample_action(obs_img)
+        # if args.no_train_policy or step < args.init_steps_policy:
+        #     action = sim_env.action_space.sample()
+        # else:
+        with utils.eval_mode(agent):
+            action = agent.sample_action(obs_img)
 
         # run training update
         if training_phase in ['both', 'policy'] and step >= args.init_steps_policy:
