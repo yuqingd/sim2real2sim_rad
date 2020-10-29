@@ -885,8 +885,9 @@ def main():
 
     # Training phase specifies whether we train the agent, the policy, or both
     num_train_policy_steps = args.num_train_steps
-    step = start_step
-    policy_step = start_policy_step
+    step = 0#start_step
+    policy_step = 0#start_policy_step
+    args.init_steps_policy = 0
 
     eval_target_step = step - (step % args.eval_freq) + args.eval_freq
     print("Starting step: ", step)
