@@ -672,10 +672,10 @@ def main():
     args.work_dir = args.work_dir + '/' + args.id + '_' + exp_name
 
     load_model = False
-    if os.path.exists(os.path.join(args.work_dir, 'model')):
+    if os.path.exists(os.path.join(args.work_dir, 'pretrained_model')) or os.path.exists(os.path.join(args.work_dir, 'model')):
         print("Loading checkpoint...")
         load_model = True
-        checkpoints = os.listdir(os.path.join(args.work_dir, 'model'))
+        checkpoints = os.listdir(os.path.join(args.work_dir, 'pretrained_model'))
 
         # if args.alternate_training:
         #     buffer_sp = os.listdir(os.path.join(args.work_dir, 'buffer_sp'))
@@ -694,6 +694,8 @@ def main():
     sim_video_dir = utils.make_dir(os.path.join(args.work_dir, 'sim_video'))
     real_video_dir = utils.make_dir(os.path.join(args.work_dir, 'real_video'))
     model_dir = utils.make_dir(os.path.join(args.work_dir, 'model'))
+    pretrain_model_dir = utils.make_dir(os.path.join(args.work_dir, 'pretrained_model'))
+
     sim_env_dir = os.path.join(args.work_dir, "sim_env_data.pkl")
     real_env_dir = os.path.join(args.work_dir, "real_env_data.pkl")
     if args.alternate_training:
@@ -821,8 +823,8 @@ def main():
     if load_model:
         if args.continue_step > 0:
             agent_step = 0
-            agent.load(model_dir, args.continue_step)
-            agent.load_curl(model_dir, args.continue_step)
+            agent.load(pretrain_model_dir, args.continue_step)
+            agent.load_curl(pretrain_model_dir, args.continue_step)
             print("Loaded agent from step: ", args.continue_step)
 
 
@@ -846,7 +848,11 @@ def main():
             for checkpoint in sim_param_checkpoint:
                 sim_param_step = max(sim_param_step, [int(x) for x in re.findall('\d+', checkpoint)][-1])
             try:
-                sim_param_model.load(model_dir, sim_param_step)
+                if args.continue_step > 0:
+                    sim_param_model.load(pretrain_model_dir, sim_param_step)
+                else:
+                    sim_param_model.load(model_dir, sim_param_step)
+
                 print("Loaded Sim param model from step: ", sim_param_step)
             except:
                 print("No sim param model found")
@@ -855,14 +861,17 @@ def main():
             else:
                 start_step = min(start_step, sim_param_step)  # TODO: do we have to save optimizer?
         if args.alternate_training:
-            # Find out how many of the steps we've been through are policy steps
-            start_policy_step = 0
-            total_steps = start_step
-            total_steps -= (args.collect_sp_itrs + args.pretrain_sp_itrs + args.update_sp_itrs)
-            while total_steps > 0:
-                start_policy_step += min(total_steps, args.policy_itrs)
-                total_steps -= args.policy_itrs
-                total_steps -= args.sp_itrs
+            if args.continue_step > 0:
+                start_policy_step = 0
+            else:
+                # Find out how many of the steps we've been through are policy steps
+                start_policy_step = 0
+                total_steps = start_step
+                total_steps -= (args.collect_sp_itrs + args.pretrain_sp_itrs + args.update_sp_itrs)
+                while total_steps > 0:
+                    start_policy_step += min(total_steps, args.policy_itrs)
+                    total_steps -= args.policy_itrs
+                    total_steps -= args.sp_itrs
         else:
             start_policy_step = start_step
     # if load_model or args.train_offline_dir is not None:
@@ -913,9 +922,9 @@ def main():
         training_phase = 'both'
     eval_target_step = args.eval_freq
 
-    print("First Eval")
-    evaluate(real_env, sim_env, real_sim_env, agent, sim_param_model, video_real, video_sim,
-             1, L, step, args, True, False, training_phase)
+    #print("First Eval")
+    # evaluate(real_env, sim_env, real_sim_env, agent, sim_param_model, video_real, video_sim,
+    #          1, L, step, args, True, False, training_phase)
 
 
     print("============================= PHASE 0 - collect only ===============================")
@@ -951,7 +960,7 @@ def main():
                 update_distribution = (step >= args.collect_sp_itrs + args.pretrain_sp_itrs)
             else:
                 update_distribution = step >= args.init_steps_policy
-            if (step >= args.collect_sp_itrs + args.pretrain_sp_itrs):
+            if  (step >= args.collect_sp_itrs + args.pretrain_sp_itrs) and update_distribution:
                 evaluate(real_env, sim_env, real_sim_env, agent, sim_param_model, video_real, video_sim,
                          args.num_eval_episodes, L, step, args, use_policy, update_distribution, training_phase)
                 eval_time += time.time() - start_eval
