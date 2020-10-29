@@ -492,11 +492,26 @@ class CurlSacAgent(object):
         torch.save(
             self.critic.state_dict(), '%s/critic_%s.pt' % (model_dir, step)
         )
+        torch.save(
+            self.actor_optimizer.state_dict(), '%s/actor_optimizer_%s.pt' % (model_dir, step)
+        )
+        torch.save(
+            self.critic_optimizer.state_dict(), '%s/critic_optimizer_%s.pt' % (model_dir, step)
+        )
+        torch.save(
+            self.log_alpha_optimizer.state_dict(), '%s/log_alpha_optimizer_%s.pt' % (model_dir, step)
+        )
 
     def save_curl(self, model_dir, step):
         if self.encoder_type == 'pixel':
             torch.save(
                 self.CURL.state_dict(), '%s/curl_%s.pt' % (model_dir, step)
+            )
+            torch.save(
+                self.encoder_optimizer.state_dict(), '%s/encoder_optimizer_%s.pt' % (model_dir, step)
+            )
+            torch.save(
+                self.cpc_optimizer.state_dict(), '%s/cpc_optimizer_%s.pt' % (model_dir, step)
             )
 
     def load(self, model_dir, step):
@@ -506,11 +521,26 @@ class CurlSacAgent(object):
         self.critic.load_state_dict(
             torch.load('%s/critic_%s.pt' % (model_dir, step))
         )
+        self.actor_optimizer.load_state_dict(
+            torch.load('%s/actor_optimizer_%s.pt' % (model_dir, step))
+        )
+        self.critic_optimizer.load_state_dict(
+            torch.load('%s/critic_optimizer_%s.pt' % (model_dir, step))
+        )
+        self.log_alpha_optimizer.load_state_dict(
+            torch.load('%s/log_alpha_optimizer_%s.pt' % (model_dir, step))
+        )
 
     def load_curl(self, model_dir, step):
         if self.encoder_type == 'pixel':
             self.CURL.load_state_dict(
                 torch.load('%s/curl_%s.pt' % (model_dir, step))
+            )
+            self.encoder_optimizer.load_state_dict(
+                torch.load('%s/encoder_optimizer_%s.pt' % (model_dir, step))
+            )
+            self.cpc_optimizer.load_state_dict(
+                torch.load('%s/cpc_optimizer_%s.pt' % (model_dir, step))
             )
 
 
