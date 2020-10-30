@@ -5,12 +5,12 @@ import moviepy.editor as mpy
 import os
 
 # ====== ADJUST THESE ==========
-save_dir = 'videos_walker_realdr'
-domain_name = 'dmc_walker'
-task_name = 'walk'
-dr_option = 'all_dr'
+save_dir = 'videos_cartpole'
+domain_name = 'dmc_cartpole'
+task_name = 'balance'
+dr_option = 'simple_dr'
 action_repeat = 4
-time_limit = 10
+time_limit = 8
 mean_scale = 2
 range_scale = 1
 seed = 7

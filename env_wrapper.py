@@ -1135,6 +1135,17 @@ class DR_DMCEnv(DR_Env):
                 "hotdog_g": model.geom_rgba[5:7, 1],
                 "hotdog_b": model.geom_rgba[5:7, 2],
             }
+        elif "cartpole" in self.domain_name:
+            dr_update_dict = {
+                "ground_r": model.geom_rgba[0:1, 0],
+                "ground_g": model.geom_rgba[0:1, 1],
+                "ground_b": model.geom_rgba[0:1, 2],
+                "body_r": model.geom_rgba[3:5, 0],
+                "body_g": model.geom_rgba[3:5, 1],
+                "body_b": model.geom_rgba[3:5, 2],
+                "pole_mass": model.body_mass[2:3],
+                "actuation": model.actuator_gainprm[0, 0:1],
+            }
         # Actually Update
         for dr_param in self.dr_list:
             arr = dr_update_dict[dr_param]
@@ -1229,6 +1240,17 @@ class DR_DMCEnv(DR_Env):
                 "hotdog_r": model.geom_rgba[5, 0],
                 "hotdog_g": model.geom_rgba[5, 1],
                 "hotdog_b": model.geom_rgba[5, 2],
+            }
+        elif "cartpole" in self.domain_name:
+            dr_update_dict = {
+                "ground_r": model.geom_rgba[0, 0],
+                "ground_g": model.geom_rgba[0, 1],
+                "ground_b": model.geom_rgba[0, 2],
+                "body_r": model.geom_rgba[3, 0],
+                "body_g": model.geom_rgba[3, 1],
+                "body_b": model.geom_rgba[3, 2],
+                "pole_mass": model.body_mass[2],
+                "actuation": model.actuator_gainprm[0, 0],
             }
 
         dr_list = []

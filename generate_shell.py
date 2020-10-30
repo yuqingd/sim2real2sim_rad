@@ -83,6 +83,8 @@ def generate_shell_commands(domain_name, task_name, run_type, save=False, action
             action_repeat = 2
         elif task_name in ['run', 'catch']:
             action_repeat = 4
+        elif task_name in ['balance']:
+            action_repeat = 8
     command += ' --action_repeat ' + str(action_repeat)
     if num_train_steps is None:
         if domain_name == 'kitchen':
@@ -109,7 +111,8 @@ if __name__ == '__main__':
         ('dmc_ball_in_cup', 'catch'),
         ('dmc_walker', 'walk'),
         ('dmc_cheetah', 'run'),
-        ('dmc_finger', 'spin')
+        ('dmc_finger', 'spin'),
+        ('dmc_cartpole', 'balance'),
     ]
     # ORACLE
     print("============ GENERATING ORACLE RUNS =============")
