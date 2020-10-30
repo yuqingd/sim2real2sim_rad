@@ -371,6 +371,6 @@ class SimParamModel(nn.Module):
         self.load_state_dict(
             torch.load('%s/sim_param_%s.pt' % (model_dir, step))
         )
-        self.optimizer.load_state_dict(
+        self.sim_param_optimizer.load_state_dict(
             torch.load('%s/sim_param_optimizer_%s.pt' % (model_dir, step))
         )
