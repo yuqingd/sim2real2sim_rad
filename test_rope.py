@@ -14,10 +14,10 @@ args = parse_args()
 GlfwContext(offscreen=True)
 os.environ['MUJOCO_GL'] = 'glfw'
 import time
-utils.set_seed_everywhere(0)
+utils.set_seed_everywhere(1)
 
 env_real = make('kitchen', real_world=True,
-        task_name='rope',
+        task_name='real_c',
         seed=1,
         height=512,
         width=512,
@@ -27,7 +27,7 @@ env_real = make('kitchen', real_world=True,
     )
 
 env_sim = make('kitchen', real_world=False,
-        task_name='rope',
+        task_name='real_c',
         seed=0,
         height=512,
         width=512,
@@ -38,8 +38,9 @@ env_real = utils.FrameStack(env_real, k=args.frame_stack)
 
 env_real.reset()
 env_sim.reset()
-num_episodes = 8
-time_limit = 70
+num_episodes = 3
+
+time_limit = 60
 image_size = 84
 real_video_dir = utils.make_dir(os.path.join('./logdir', 'eval_video'))
 
@@ -59,12 +60,12 @@ agent = make_agent(
     device=device
 )
 
-model_dir = args.work_dir + '/baseline/convergence/'
-# agent.load(model_dir, 18000)
-# agent.load_curl(model_dir, 18000)
+model_dir = args.work_dir + '/baseline/cabinet/'
+agent.load(model_dir, 405000)
+agent.load_curl(model_dir, 405000)
 
-agent.load(model_dir, 350040)
-agent.load_curl(model_dir, 350040)
+# agent.load(model_dir, 350040)
+# agent.load_curl(model_dir, 350040)
 
 
 def run_eval_loop(env, name):
@@ -103,7 +104,7 @@ def run_eval_loop(env, name):
             obs_dict, reward, done, info = env.step(action)
             video.record(env)
 
-        video.save('conv_replay_rope_{}_{}_long.mp4'.format(name, i))
+        video.save('conv405000_replay_cab_{}_{}.mp4'.format(name, i))
 
 
 #run_eval_loop(env_sim, 'sim')
