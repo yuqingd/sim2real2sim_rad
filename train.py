@@ -631,6 +631,32 @@ def main():
         time_limit=args.time_limit,
         full_screen_square=args.full_screen_square,
     )
+    #
+    # real_env =  real_sim_env = env_wrapper.make(
+    #     domain_name=args.domain_name,
+    #     task_name=args.task_name,
+    #     seed=args.seed,
+    #     height=args.pre_transform_image_size,
+    #     width=args.pre_transform_image_size,
+    #     frame_skip=args.action_repeat,
+    #     mean_only=args.mean_only,
+    #     dr_list=args.real_dr_list,
+    #     simple_randomization=args.dr_option == 'simple',
+    #     dr_shape=args.sim_params_size,
+    #     real_world=False,
+    #     real_sim=True,
+    #     dr=args.real_dr_params,
+    #     state_type=args.state_type,
+    #     grayscale=args.grayscale,
+    #     delay_steps=args.delay_steps,
+    #     range_scale=args.range_scale,
+    #     prop_range_scale=args.prop_range_scale,
+    #     prop_initial_range=args.prop_initial_range,
+    #     state_concat=args.state_concat,
+    #     real_dr_params=None,
+    #     time_limit=args.time_limit,
+    #     full_screen_square=args.full_screen_square,
+    # )
 
     real_env = env_wrapper.make(
         domain_name=args.domain_name,
@@ -669,7 +695,7 @@ def main():
         env_name = args.domain_name + '-' + args.task_name
     exp_name = env_name + '-im' + str(args.image_size) + '-b' + str(args.batch_size)
     exp_name += '-s' + str(args.seed) + '-' + args.agent + '-' + args.encoder_type + '-' + args.data_augs
-    args.work_dir = args.work_dir + '/' + args.id + '_' + exp_name
+    args.work_dir = args.work_dir +'/' + args.id + '_' + exp_name
 
     load_model = False
     if os.path.exists(os.path.join(args.work_dir, 'pretrained_model')) or os.path.exists(os.path.join(args.work_dir, 'model')):
@@ -872,20 +898,21 @@ def main():
                     start_policy_step += min(total_steps, args.policy_itrs)
                     total_steps -= args.policy_itrs
                     total_steps -= args.sp_itrs
+                start_policy_step = agent_step
         else:
             start_policy_step = start_step
-    # if load_model or args.train_offline_dir is not None:
-    #     if args.alternate_training:
-    #         try:
-    #             replay_buffer_sp.load(buffer_dir_sp)
-    #         except:
-    #             print("No SP buffer")
-    #         try:
-    #             replay_buffer_policy.load(buffer_dir_policy)
-    #         except:
-    #             print("No policy buffer")
-    #     else:
-    #         replay_buffer.load(buffer_dir)
+    if load_model or args.train_offline_dir is not None:
+        if args.alternate_training:
+            # try:
+            #     replay_buffer_sp.load(buffer_dir_sp)
+            # except:
+            #     print("No SP buffer")
+            try:
+                replay_buffer_policy.load(buffer_dir_policy)
+            except:
+                print("No policy buffer")
+        else:
+            replay_buffer.load(buffer_dir)
 
     L = Logger(args.work_dir, use_tb=args.save_tb)
 
@@ -913,18 +940,18 @@ def main():
     print("Starting eval target step", eval_target_step)
     if args.alternate_training:
         training_phase = 'sp'
-        replay_buffer = replay_buffer_sp
+        replay_buffer = replay_buffer_policy
         sim_env.set_range_scale(args.range_scale_sp)
-        target_step = args.collect_sp_itrs + args.pretrain_sp_itrs + args.update_sp_itrs
+        target_step = step + args.collect_sp_itrs + args.pretrain_sp_itrs + args.update_sp_itrs + args.init_steps_policy
     elif args.no_train_policy:
         training_phase = 'sp'
     else:
         training_phase = 'both'
-    eval_target_step = args.eval_freq
+    #eval_target_step = args.eval_freq
 
-    #print("First Eval")
-    # evaluate(real_env, sim_env, real_sim_env, agent, sim_param_model, video_real, video_sim,
-    #          1, L, step, args, True, False, training_phase)
+    print("First Eval")
+    evaluate(real_env, sim_env, real_sim_env, agent, sim_param_model, video_real, video_sim,
+             1, L, step, args, True, False, training_phase)
 
 
     print("============================= PHASE 0 - collect only ===============================")
@@ -957,12 +984,12 @@ def main():
             start_eval = time.time()
             use_policy = True# step >= args.init_steps_policy
             if args.alternate_training:
-                update_distribution = (step >= args.collect_sp_itrs + args.pretrain_sp_itrs)
+                update_distribution = (step >= args.collect_sp_itrs + args.pretrain_sp_itrs) and training_phase == 'sp'
             else:
                 update_distribution = step >= args.init_steps_policy
-            if  (step >= args.collect_sp_itrs + args.pretrain_sp_itrs) and update_distribution:
+            if  (step >= args.init_steps_policy):
                 evaluate(real_env, sim_env, real_sim_env, agent, sim_param_model, video_real, video_sim,
-                         args.num_eval_episodes, L, step, args, use_policy, update_distribution, training_phase)
+                         1, L, step, args, use_policy, update_distribution, training_phase)
                 eval_time += time.time() - start_eval
             if args.save_model:
                 print("SAVING MODEL!")
@@ -1069,7 +1096,10 @@ def main():
         if training_phase in ['both', 'policy'] and step >= args.init_steps_policy:
             num_updates = 1
             for _ in range(num_updates):
-                agent.update(replay_buffer, L, step)
+                try:
+                    agent.update(replay_buffer, L, step)
+                except:
+                    print("Not enough buffer data")
         train_policy_time += time.time() - train_policy_start
 
         collect_data_start = time.time()
@@ -1079,6 +1109,7 @@ def main():
         done = True if episode_step >= args.time_limit - 1 else done
         done_bool = float(done)
         episode_reward += reward
+
         replay_buffer.add(obs, action, reward, next_obs, done_bool)
         obs_traj.append((obs_img, obs_state, action))
 

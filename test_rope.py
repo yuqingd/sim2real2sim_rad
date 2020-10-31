@@ -8,32 +8,38 @@ from train import parse_args
 # ENV = 'FetchPickAndPlace-v1'
 from mujoco_py import GlfwContext
 import mujoco_py
+import cv2
+import numpy as np
 args = parse_args()
 GlfwContext(offscreen=True)
 os.environ['MUJOCO_GL'] = 'glfw'
+import time
+utils.set_seed_everywhere(0)
+
 env_real = make('kitchen', real_world=True,
         task_name='rope',
-        seed=0,
-        height=256,
-        width=256,
-        state_type="robot"
+        seed=1,
+        height=512,
+        width=512,
+        frame_skip=0,
+        state_type="robot",
+        time_limit=60,
     )
 
 env_sim = make('kitchen', real_world=False,
         task_name='rope',
         seed=0,
-        height=84,
-        width=84,
-        state_type="robot",
-        delay_steps=3
+        height=512,
+        width=512,
+        delay_steps=2
                )
 env_sim = utils.FrameStack(env_sim, k=args.frame_stack)
 env_real = utils.FrameStack(env_real, k=args.frame_stack)
 
 env_real.reset()
 env_sim.reset()
-num_episodes = 10
-time_limit = 60
+num_episodes = 8
+time_limit = 70
 image_size = 84
 real_video_dir = utils.make_dir(os.path.join('./logdir', 'eval_video'))
 
@@ -53,21 +59,31 @@ agent = make_agent(
     device=device
 )
 
-args.work_dir = args.work_dir + '/baseline/ours/'
-model_dir =  os.path.join(args.work_dir, 'model')
-agent.load(model_dir, 12000)
-agent.load_curl(model_dir, 12000)
+model_dir = args.work_dir + '/baseline/convergence/'
+# agent.load(model_dir, 18000)
+# agent.load_curl(model_dir, 18000)
+
+agent.load(model_dir, 350040)
+agent.load_curl(model_dir, 350040)
+
 
 def run_eval_loop(env, name):
     for i in range(num_episodes):
         obs_dict = env.reset()
-        video.init(enabled=(i == 0))
+        video.init()
+        video.record(env)
+
         done = False
         episode_reward = 0
         obs_traj = []
         step = 0
         while not done and step < time_limit:
             obs = obs_dict['image']
+            obs = np.transpose(obs, [1, 2, 0])
+            obs =  cv2.resize(obs, dsize=(image_size, image_size))
+
+            obs = np.transpose(obs, [2, 0, 1])
+
             # center crop image
             obs = utils.center_crop_image(obs, image_size)
             # ##CABINET
@@ -87,7 +103,7 @@ def run_eval_loop(env, name):
             obs_dict, reward, done, info = env.step(action)
             video.record(env)
 
-        video.save('ours_replay_rope_{}.mp4'.format(name))
+        video.save('conv_replay_rope_{}_{}_long.mp4'.format(name, i))
 
 
 #run_eval_loop(env_sim, 'sim')

@@ -521,27 +521,34 @@ class CurlSacAgent(object):
         self.critic.load_state_dict(
             torch.load('%s/critic_%s.pt' % (model_dir, step))
         )
-        self.actor_optimizer.load_state_dict(
-            torch.load('%s/actor_optimizer_%s.pt' % (model_dir, step))
-        )
-        self.critic_optimizer.load_state_dict(
-            torch.load('%s/critic_optimizer_%s.pt' % (model_dir, step))
-        )
-        self.log_alpha_optimizer.load_state_dict(
-            torch.load('%s/log_alpha_optimizer_%s.pt' % (model_dir, step))
-        )
+        try:
+            self.actor_optimizer.load_state_dict(
+                torch.load('%s/actor_optimizer_%s.pt' % (model_dir, step))
+            )
+            self.critic_optimizer.load_state_dict(
+                torch.load('%s/critic_optimizer_%s.pt' % (model_dir, step))
+            )
+            self.log_alpha_optimizer.load_state_dict(
+                torch.load('%s/log_alpha_optimizer_%s.pt' % (model_dir, step))
+            )
+        except:
+            print("No opts")
 
     def load_curl(self, model_dir, step):
         if self.encoder_type == 'pixel':
             self.CURL.load_state_dict(
                 torch.load('%s/curl_%s.pt' % (model_dir, step))
             )
-            self.encoder_optimizer.load_state_dict(
-                torch.load('%s/encoder_optimizer_%s.pt' % (model_dir, step))
-            )
-            self.cpc_optimizer.load_state_dict(
-                torch.load('%s/cpc_optimizer_%s.pt' % (model_dir, step))
-            )
+            try:
+
+                self.encoder_optimizer.load_state_dict(
+                    torch.load('%s/encoder_optimizer_%s.pt' % (model_dir, step))
+                )
+                self.cpc_optimizer.load_state_dict(
+                    torch.load('%s/cpc_optimizer_%s.pt' % (model_dir, step))
+                )
+            except:
+                print("No opt")
 
 
 class RadSacAgent(CurlSacAgent):
