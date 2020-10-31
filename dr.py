@@ -208,6 +208,29 @@ def config_dr_dmc(config):
                 "full_mass", "ground_r", "ground_g", "ground_b", "body_r",
                 "body_g", "body_b",
             ]
+    elif 'cartpole' in config.domain_name:
+        real_dr_values = {
+            "ground_r": ground_r,
+            "ground_g": ground_g,
+            "ground_b": ground_b,
+            "body_r": self_r,
+            "body_g": self_g,
+            "body_b": self_b,
+            "pole_mass": 0.1,
+            "actuation": 1,
+        }
+        if dr_option == 'all_dr':
+            config.real_dr_list = list(real_dr_values.keys())
+        elif dr_option in ['nonconflicting_dr', 'simple_dr']:
+            config.real_dr_list = [
+                "pole_mass", "actuation", "ground_r", "ground_g", "ground_b", "body_r",
+                "body_g", "body_b",
+            ]
+        elif dr_option == 'actuation_dr':
+            config.real_dr_list = [
+                "actuation", "ground_r", "ground_g", "ground_b", "body_r",
+                "body_g", "body_b",
+            ]
     config.real_dr_params = real_dr_values
 
     if config.simple_randomization:
