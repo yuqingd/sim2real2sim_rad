@@ -226,6 +226,11 @@ def config_dr_dmc(config):
                 "pole_mass", "actuation", "ground_r", "ground_g", "ground_b", "body_r",
                 "body_g", "body_b",
             ]
+        elif dr_option == 'actuation_dr':
+            config.real_dr_list = [
+                "actuation", "ground_r", "ground_g", "ground_b", "body_r",
+                "body_g", "body_b",
+            ]
     config.real_dr_params = real_dr_values
 
     if config.simple_randomization:
