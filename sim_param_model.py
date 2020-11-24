@@ -344,7 +344,7 @@ class SimParamModel(nn.Module):
         if self._dist == 'normal':
 
             if replay_buffer is None:
-                loss = F.mse_loss(torch.stack(self.forward([obs_list])), torch.FloatTensor(sim_params).to(self.device))
+                loss = F.mse_loss(self.forward([obs_list]), torch.FloatTensor(sim_params).to(self.device))
 
             else:
                 losses = []
