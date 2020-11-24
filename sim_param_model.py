@@ -344,9 +344,11 @@ class SimParamModel(nn.Module):
         if self._dist == 'normal':
             pred_sim_params = []
             actual_params = []
-            for traj in obs_list:
-                pred_sim_params.append(self.forward([traj['image']]).mean[0])
-                actual_params.append(traj['sim_params'][-1])  # take last obs
+
+            for obs_traj, action_traj in zip(obs_list, actions_list):
+                pred_sim_params.append(self.forward([list(zip(obs_traj['image'], action_traj))]).mean[0])
+                actual_params.append(obs_traj['sim_params'][-1])  # take last obs
+
 
             loss = F.mse_loss(torch.stack(pred_sim_params), torch.stack(actual_params))
 
