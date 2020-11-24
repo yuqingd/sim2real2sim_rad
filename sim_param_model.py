@@ -183,7 +183,7 @@ class SimParamModel(nn.Module):
             x = torch.cat([trunk(fake_pred) for trunk in self.trunk], dim=-1)
         else:
             x = self.trunk(fake_pred)
-        return x
+        return torch.exp(x)
 
     def forward_classifier(self, full_traj, pred_labels, step=5):
         """ obs traj list of lists, pred labels is array [B, num_sim_params] """
@@ -346,7 +346,7 @@ class SimParamModel(nn.Module):
             actual_params = []
 
             if replay_buffer is None:
-                pred_sim_params.append(self.forward([obs_list]).mean[0])
+                pred_sim_params.append(self.forward([obs_list]))
                 actual_params.append(obs_list['sim_params'][-1])  # take last obs
 
             else:
