@@ -135,6 +135,55 @@ class SimParamModel(nn.Module):
             features = features / torch.norm(features).detach()
         return features
 
+    def forward(self, full_traj):
+        """ obs traj list of lists, pred labels is array [B, num_sim_params] """
+        # Turn np arrays into tensors
+        if type(full_traj[0][0][0]) is np.ndarray:
+            full_traj = [[(torch.FloatTensor(o).to(self.device),
+                           torch.FloatTensor(s).to(self.device),
+                           torch.FloatTensor(a).to(self.device))
+                          for o, s, a in traj]
+                         for traj in full_traj]
+
+        full_obs_traj = []
+        full_state_traj = []
+        full_action_traj = []
+        for traj in full_traj:
+            # TODO: previously, we were always taking the first window.  Now, we always take a random one.
+            #   We could consider choosing multiple, or choosing a separate segmentation for each batch element.
+            if self.single_window or len(traj) == self.num_frames * self.frame_skip:
+                index = 0
+            else:
+                if len(traj) <= self.num_frames * self.frame_skip:
+                    continue
+                index = np.random.choice(len(traj) - self.num_frames * self.frame_skip + 1)
+
+            if len(traj) != self.num_frames * self.frame_skip:
+                traj = traj[index: index + self.num_frames * self.frame_skip]
+            obs_traj, state_traj, action_traj = zip(*traj)
+
+            obs_traj = obs_traj[::self.frame_skip]
+            state_traj = state_traj[::self.frame_skip]
+            full_state_traj.append(torch.cat(state_traj))
+            full_action_traj.append(torch.cat(action_traj))
+            # If we're using images, only use the first of the stacked frames
+            if self.use_img and not self.share_encoder:
+                full_obs_traj.append([o[:3] for o in obs_traj])
+            else:
+                full_obs_traj.append(obs_traj)
+
+
+        if self.use_img:
+            feat = self.get_features(full_obs_traj)
+            fake_pred = torch.cat([feat, full_action_traj, full_state_traj], dim=-1)
+        else:
+            fake_pred = torch.cat([full_action_traj, full_state_traj], dim=-1)
+
+        if self.separate_trunks:
+            x = torch.cat([trunk(fake_pred) for trunk in self.trunk], dim=-1)
+        else:
+            x = self.trunk(fake_pred)
+        return x
 
     def forward_classifier(self, full_traj, pred_labels, step=5):
         """ obs traj list of lists, pred labels is array [B, num_sim_params] """
