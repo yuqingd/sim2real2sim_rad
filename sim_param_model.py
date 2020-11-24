@@ -349,7 +349,7 @@ class SimParamModel(nn.Module):
             else:
                 losses = []
                 for obs_traj, action_traj in zip(obs_list, actions_list):
-                    pred_sim_params = self.forward([list(zip(obs_traj['image'], action_traj))])
+                    pred_sim_params = self.forward([list(zip(obs_traj['image'], obs_traj['state'], action_traj))])
                     actual_params = obs_traj['sim_params'][-1]  # take last obs
                     loss = F.mse_loss(torch.stack(pred_sim_params), torch.FloatTensor(actual_params).to(self.device))
 
