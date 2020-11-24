@@ -346,7 +346,7 @@ class SimParamModel(nn.Module):
             actual_params = []
 
             if replay_buffer is None:
-                pred_sim_params.append(self.train_classifier([obs_list], sim_params, dist_mean))
+                pred_sim_params.append(self.forward([obs_list]).mean[0])
                 actual_params.append(obs_list['sim_params'][-1])  # take last obs
 
             else:
