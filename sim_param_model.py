@@ -347,7 +347,7 @@ class SimParamModel(nn.Module):
 
             if replay_buffer is None:
                 pred_sim_params.append(self.forward([obs_list]))
-                actual_params.append(obs_list['sim_params'][-1])  # take last obs
+                actual_params.append(sim_params)  # take last obs
 
             else:
 
