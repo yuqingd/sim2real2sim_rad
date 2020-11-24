@@ -345,9 +345,15 @@ class SimParamModel(nn.Module):
             pred_sim_params = []
             actual_params = []
 
-            for obs_traj, action_traj in zip(obs_list, actions_list):
-                pred_sim_params.append(self.forward([list(zip(obs_traj['image'], action_traj))]).mean[0])
-                actual_params.append(obs_traj['sim_params'][-1])  # take last obs
+            if replay_buffer is None:
+                pred_sim_params.append(self.train_classifier([obs_list], sim_params, dist_mean))
+                actual_params.append(obs_list['sim_params'][-1])  # take last obs
+
+            else:
+
+                for obs_traj, action_traj in zip(obs_list, actions_list):
+                    pred_sim_params.append(self.forward([list(zip(obs_traj['image'], action_traj))]).mean[0])
+                    actual_params.append(obs_traj['sim_params'][-1])  # take last obs
 
 
             loss = F.mse_loss(torch.stack(pred_sim_params), torch.stack(actual_params))
