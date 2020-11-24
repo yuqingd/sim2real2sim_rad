@@ -175,9 +175,9 @@ class SimParamModel(nn.Module):
 
         if self.use_img:
             feat = self.get_features(full_obs_traj)
-            fake_pred = torch.cat([feat, full_action_traj, full_state_traj], dim=-1)
+            fake_pred = torch.cat(torch.FloatTensor([feat, full_action_traj, full_state_traj]), dim=-1)
         else:
-            fake_pred = torch.cat([full_action_traj, full_state_traj], dim=-1)
+            fake_pred = torch.cat(torch.FloatTensor([full_action_traj, full_state_traj]), dim=-1)
 
         if self.separate_trunks:
             x = torch.cat([trunk(fake_pred) for trunk in self.trunk], dim=-1)
