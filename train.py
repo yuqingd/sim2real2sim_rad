@@ -249,6 +249,8 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
                     error = (pred_mean - real_dr_param) / real_dr_param
                 else:
                     error = pred_mean - real_dr_param
+
+                loss = torch.nn.MSELoss()(torch.FloatTensor([pred_mean]), torch.FloatTensor([real_dr_param]))
             elif args.outer_loop_version == 3:
                 try:
                     pred_mean = pred_sim_params[i]
@@ -266,8 +268,8 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
                     import IPython
                     IPython.embed()
                 error = np.mean(pred_mean - real_dr_param)
-            accuracy = np.round(pred_mean) == real_dr_param
-            loss = torch.nn.BCELoss()(torch.FloatTensor([pred_mean]), torch.FloatTensor([real_dr_param]))
+                accuracy = np.round(pred_mean) == real_dr_param
+                loss = torch.nn.BCELoss()(torch.FloatTensor([pred_mean]), torch.FloatTensor([real_dr_param]))
 
             L.log(f'eval/{prefix}/{param}/error', error, step)
             L.log(f'eval/{prefix}/{param}/accuracy', accuracy, step)
