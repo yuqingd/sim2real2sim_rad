@@ -344,14 +344,14 @@ class SimParamModel(nn.Module):
         if self._dist == 'normal':
 
             if replay_buffer is None:
-                loss = F.mse_loss(self.forward([obs_list]), torch.FloatTensor(sim_params).to(self.device))
+                loss = torch.nn.MSELoss()(self.forward([obs_list]), torch.FloatTensor(sim_params).to(self.device))
 
             else:
                 losses = []
                 for obs_traj, action_traj in zip(obs_list, actions_list):
                     pred_sim_params = self.forward([list(zip(obs_traj['image'], obs_traj['state'], action_traj))])
                     actual_params = obs_traj['sim_params'][-1]  # take last obs
-                    loss = F.mse_loss(pred_sim_params, actual_params)
+                    loss = torch.nn.MSELoss()(pred_sim_params, actual_params)
 
                     losses.append(loss)
                 loss = sum(losses)
