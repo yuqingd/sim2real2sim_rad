@@ -205,7 +205,16 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
 
     with torch.no_grad():
         if args.outer_loop_version == 1:
-            pred_sim_params = sim_param_model.forward(obs).mean[0].cpu().numpy()
+            pred_sim_params = []
+
+            if len(obs) > 1:
+                for ob in obs:
+                    pred_sim_params.append(predict_sim_params(sim_param_model, ob, current_sim_params, args))
+            else:
+                pred_sim_params.append(predict_sim_params(sim_param_model, obs[0], current_sim_params, args))
+
+            pred_sim_params = np.mean(pred_sim_params, axis=0)
+
         elif args.outer_loop_version == 3:
             pred_sim_params = []
             if len(obs) > 1:
@@ -279,26 +288,38 @@ def predict_sim_params(sim_param_model, traj, current_sim_params, args, step=10,
     if args.single_window:
         windows = [windows[0]]
 
-    if args.round_predictions:
-        with torch.no_grad():
-            preds = sim_param_model.forward_classifier(windows, current_sim_params).cpu().numpy()
-            mask = (preds > confidence_level) & (preds < 1 - confidence_level)
-            preds = np.round(preds)
-            preds[mask] = 0.5
+    if args.outer_loop_version == 3:
+
+        if args.round_predictions:
+            with torch.no_grad():
+                preds = sim_param_model.forward_classifier(windows, current_sim_params).cpu().numpy()
+                mask = (preds > confidence_level) & (preds < 1 - confidence_level)
+                preds = np.round(preds)
+                preds[mask] = 0.5
+        confident_preds = np.mean(preds, axis=0)
+
+    else:
+        confident_preds = sim_param_model.forward(windows).cpu().numpy()
 
     # Round to the nearest integer so each prediction is voting up or down
     # Alternatively, we could just take a mean of their probabilities
     # The only difference is whether we want to give each confident segment equal weight or not
     # And whether we want to be confident (e.g. if all windows predict .6, do we predict .6 or 1?
-    confident_preds = np.mean(preds, axis=0)
     return confident_preds
 
 
 def update_sim_params(sim_param_model, sim_env, args, obs, step, L):
     with torch.no_grad():
         if args.outer_loop_version == 1:
-            pred_sim_params = sim_param_model.forward(obs).mean
-            pred_sim_params = pred_sim_params[0].cpu().numpy()
+            current_sim_params = torch.FloatTensor(sim_env.distribution_mean).unsqueeze(0)
+
+            pred_sim_params = []
+            if len(obs) > 1:
+                for ob in obs:
+                    pred_sim_params.append(predict_sim_params(sim_param_model, ob, current_sim_params, args))
+            else:
+                pred_sim_params.append(predict_sim_params(sim_param_model, obs[0], current_sim_params, args))
+            pred_sim_params = np.mean(pred_sim_params, axis=0)
         elif args.outer_loop_version == 3:
             current_sim_params = torch.FloatTensor(sim_env.distribution_mean).unsqueeze(0)
             pred_sim_params = []
