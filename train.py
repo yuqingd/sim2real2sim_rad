@@ -250,6 +250,7 @@ def evaluate_sim_params(sim_param_model, args, obs, step, L, prefix, real_dr_par
                 else:
                     error = pred_mean - real_dr_param
 
+                accuracy = pred_mean == real_dr_param
                 loss = torch.nn.MSELoss()(torch.FloatTensor([pred_mean]), torch.FloatTensor([real_dr_param]))
             elif args.outer_loop_version == 3:
                 try:
