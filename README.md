@@ -38,28 +38,14 @@ CUDA_VISIBLE_DEVICES=0 python train.py --gpudevice 0 --id S3000 --outer_loop_ver
 `--outer_loop_version` refers to the method by which we update simulation parameters. 1 means we update with regression, and 3 means binary classifier.
 `--scale_large_and_small` means that half of the mean values in our simulation randomization will be randomly chosen to be too large, and the other half will be too small. If this flag is not provided, they will all be too large.
 `--mean_scale` refers to the mean of the simulator distribution. A mean of `k` means that all simulation parameters are `k` times or `1/k` times the true mean.
-`--train_range_scale` 
-`--range_scale`
-`--prop_range_scale` and `prop_train_range_scale` 
+`--range_scale` refers to the range of the uniform distribution we use to collect samples to train the policy.
+`--train_range_scale` refers to the range of the uniform distribution we use to collect samples to train the Search Param Model. This value is typically set >= to `--range_scale.`
+`--prop_range_scale` and `--prop_train_range_scale` make the distribution ranges a scale multiple of the mean value rather than constants.
 
 
 Check `train.py` for a full list of run commands.
 
-
-To train an agent on the `cartpole swingup` task from image-based observations run `bash script/run.sh` from the root of this directory. The `run.sh` file contains the following command, which you can modify to try different environments / hyperparamters.
-```
-CUDA_VISIBLE_DEVICES=0 python train.py \
-    --domain_name cartpole \
-    --task_name swingup \
-    --encoder_type pixel \
-    --action_repeat 8 \
-    --save_tb --pre_transform_image_size 100 --image_size 84 \
-    --work_dir ./tmp \
-    --agent curl_sac --frame_stack 3 \
-    --seed -1 --critic_lr 1e-3 --actor_lr 1e-3 --eval_freq 10000 --batch_size 128 --num_train_steps 1000000 
-```
-
-In your console, you should see printouts that look like:
+During training, in your console, you should see printouts that look like:
 
 ```
 | train | E: 221 | S: 28000 | D: 18.1 s | R: 785.2634 | BR: 3.8815 | A_LOSS: -305.7328 | CR_LOSS: 190.9854 | CU_LOSS: 0.0000
