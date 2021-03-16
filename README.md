@@ -1,6 +1,8 @@
-# CURL: Contrastive Unsupervised Representation Learning for Sample-Efficient Reinforcement Learning
+# Auto-Tuned Sim-to-Real Transfer
 
-This repository is the official implementation of [CURL](https://mishalaskin.github.io/curl/) for the DeepMind control experiments. Atari experiments were done in a separate codebase that will also be made publicly available shortly. Our implementation of SAC is based on [SAC+AE](https://github.com/denisyarats/pytorch_sac_ae) by Denis Yarats. 
+Offcial repository for the IEEE ICRA 2021 paper Auto-Tuned Sim-to-Real Transfer. The paper will be released shortly on arXiv.
+
+This repository was forked from the [CURL](https://mishalaskin.github.io/curl/) codebase.
 
 ## Installation 
 
@@ -29,7 +31,22 @@ pip install -e .
 
 
 ## Instructions
-To train a CURL agent on the `cartpole swingup` task from image-based observations run `bash script/run.sh` from the root of this directory. The `run.sh` file contains the following command, which you can modify to try different environments / hyperparamters.
+Here is an example expeiment run command. 
+```
+CUDA_VISIBLE_DEVICES=0 python train.py --gpudevice 0 --id S3000 --outer_loop_version 3 --dr --start_outer_loop 5000 --train_sim_param_every 1 --prop_alpha --update_sim_param_from both --alpha 0.1 --mean_scale 1.75 --train_range_scale .5 --domain_name dmc_ball_in_cup --task_name catch --action_repeat 4 --range_scale .5 --scale_large_and_small --dr_option simple_dr --save_tb --use_img --encoder_type pixel --num_eval_episodes 1 --seed 1 --num_train_steps 1000000 --encoder_feature_dim 64 --num_layers 4 --num_filters 32 --sim_param_layers 2 --sim_param_units 400 --sim_param_lr .001 --prop_range_scale --prop_train_range_scale --separate_trunks --num_sim_param_updates 3 --save_video --eval_freq 2000 --num_eval_episodes 3 --save_model --save_buffer --no_train_policy
+```
+`--outer_loop_version` refers to the method by which we update simulation parameters. 1 means we update with regression, and 3 means binary classifier.
+`--scale_large_and_small` means that half of the mean values in our simulation randomization will be randomly chosen to be too large, and the other half will be too small. If this flag is not provided, they will all be too large.
+`--mean_scale` refers to the mean of the simulator distribution. A mean of `k` means that all simulation parameters are `k` times or `1/k` times the true mean.
+`--train_range_scale` 
+`--range_scale`
+`--prop_range_scale` and `prop_train_range_scale` 
+
+
+Check `train.py` for a full list of run commands.
+
+
+To train an agent on the `cartpole swingup` task from image-based observations run `bash script/run.sh` from the root of this directory. The `run.sh` file contains the following command, which you can modify to try different environments / hyperparamters.
 ```
 CUDA_VISIBLE_DEVICES=0 python train.py \
     --domain_name cartpole \
@@ -50,8 +67,6 @@ In your console, you should see printouts that look like:
 | train | E: 229 | S: 29000 | D: 18.8 s | R: 683.6702 | BR: 3.7384 | A_LOSS: -311.3941 | CR_LOSS: 140.2573 | CU_LOSS: 0.0000
 | train | E: 233 | S: 29500 | D: 19.6 s | R: 838.0947 | BR: 3.7254 | A_LOSS: -316.9415 | CR_LOSS: 136.5304 | CU_LOSS: 0.0000
 ```
-
-For reference, the maximum score for cartpole swing up is around 845 pts, so CURL has converged to the optimal score. This takes about and hour of training depending on your GPU. 
 
 Log abbreviation mapping:
 
@@ -91,5 +106,3 @@ Error `Shadow framebuffer is not complete, error 0x8cd7`
 
 Error message `RuntimeError: Failed to initialize OpenGL: 
 - Make sure MUJOCO_GL is correct (egl for DMC, osmesa for anything else).
-
-Which error is the best?  Framebuffer > GLEW initialization > Failed to initialize OpenGL.
