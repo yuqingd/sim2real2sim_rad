@@ -36,12 +36,12 @@ Here is an example experiment run command.
 CUDA_VISIBLE_DEVICES=0 python train.py --gpudevice 0 --id S3000 --outer_loop_version 3 --dr --start_outer_loop 5000 --train_sim_param_every 1 --prop_alpha --update_sim_param_from both --alpha 0.1 --mean_scale 1.75 --train_range_scale .5 --domain_name dmc_ball_in_cup --task_name catch --action_repeat 4 --range_scale .5 --scale_large_and_small --dr_option simple_dr --save_tb --use_img --encoder_type pixel --num_eval_episodes 1 --seed 1 --num_train_steps 1000000 --encoder_feature_dim 64 --num_layers 4 --num_filters 32 --sim_param_layers 2 --sim_param_units 400 --sim_param_lr .001 --prop_range_scale --prop_train_range_scale --separate_trunks --num_sim_param_updates 3 --save_video --eval_freq 2000 --num_eval_episodes 3 --save_model --save_buffer --no_train_policy
 ```
 ```
-`--outer_loop_version` refers to the method by which we update simulation parameters. 1 means we update with regression, and 3 means binary classifier.
-`--scale_large_and_small` means that half of the mean values in our simulation randomization will be randomly chosen to be too large, and the other half will be too small. If this flag is not provided, they will all be too large.
-`--mean_scale` refers to the mean of the simulator distribution. A mean of `k` means that all simulation parameters are `k` times or `1/k` times the true mean.
-`--range_scale` refers to the range of the uniform distribution we use to collect samples to train the policy.
-`--train_range_scale` refers to the range of the uniform distribution we use to collect samples to train the Search Param Model. This value is typically set >= to `--range_scale.`
-`--prop_range_scale` and `--prop_train_range_scale` make the distribution ranges a scale multiple of the mean value rather than constants.
+--outer_loop_version refers to the method by which we update simulation parameters. 1 means we update with regression, and 3 means binary classifier.
+--scale_large_and_small means that half of the mean values in our simulation randomization will be randomly chosen to be too large, and the other half will be too small. If this flag is not provided, they will all be too large.
+--mean_scale refers to the mean of the simulator distribution. A mean of k means that all simulation parameters are k times or 1/k times the true mean (randomly chosen for each param).
+--range_scale refers to the range of the uniform distribution we use to collect samples to train the policy.
+--train_range_scale refers to the range of the uniform distribution we use to collect samples to train the Search Param Model. This value is typically set >= to --range_scale.
+--prop_range_scale and --prop_train_range_scale make the distribution ranges a scale multiple of the mean value rather than constants.
 ```
 
 Check `train.py` for a full list of run commands.
