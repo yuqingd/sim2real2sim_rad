@@ -33,7 +33,7 @@ pip install -e .
 ## Instructions
 Here is an example experiment run command. 
 ```
-CUDA_VISIBLE_DEVICES=0 python train.py --gpudevice 0 --id S3000 --outer_loop_version 3 --dr --start_outer_loop 5000 --train_sim_param_every 1 --prop_alpha --update_sim_param_from both --alpha 0.1 --mean_scale 1.75 --train_range_scale .5 --domain_name dmc_ball_in_cup --task_name catch --action_repeat 4 --range_scale .5 --scale_large_and_small --dr_option simple_dr --save_tb --use_img --encoder_type pixel --num_eval_episodes 1 --seed 1 --num_train_steps 1000000 --encoder_feature_dim 64 --num_layers 4 --num_filters 32 --sim_param_layers 2 --sim_param_units 400 --sim_param_lr .001 --prop_range_scale --prop_train_range_scale --separate_trunks --num_sim_param_updates 3 --save_video --eval_freq 2000 --num_eval_episodes 3 --save_model --save_buffer --no_train_policy
+CUDA_VISIBLE_DEVICES=0 python train.py --gpudevice 0 --id S3000 --outer_loop_version 3 --dr --start_outer_loop 5000 --train_sim_param_every 1 --prop_alpha --update_sim_param_from both --alpha 0.1 --mean_scale 1.75 --train_range_scale .5 --domain_name dmc_ball_in_cup --task_name catch --range_scale .5 --scale_large_and_small --dr_option simple_dr --save_tb --use_img --seed 1 --num_train_steps 1000000 --encoder_feature_dim 64 --prop_range_scale --prop_train_range_scale --separate_trunks --num_sim_param_updates 3 --save_video --eval_freq 2000 --num_eval_episodes 3 --save_model --save_buffer 
 ```
 ```
 --outer_loop_version refers to the method by which we update simulation parameters. 1 means we update with regression, and 3 means binary classifier.
